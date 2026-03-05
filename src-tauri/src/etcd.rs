@@ -1,9 +1,12 @@
-use etcd_client::{Certificate, Client, ConnectOptions, GetOptions, Identity, PutOptions, SortOrder, SortTarget, WatchOptions, EventType};
+use etcd_client::{
+    Certificate, Client, ConnectOptions, EventType, GetOptions, Identity, PutOptions, SortOrder,
+    SortTarget, WatchOptions,
+};
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
+use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-use std::path::Path;
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EtcdConfig {
@@ -121,16 +124,21 @@ impl EtcdClient {
             let mut tls_options = etcd_client::TlsOptions::new();
 
             if let Some(ca_path) = &config.ca_cert_path {
-                let ca_cert = tokio::fs::read(ca_path).await
+                let ca_cert = tokio::fs::read(ca_path)
+                    .await
                     .map_err(|e| anyhow::anyhow!("Failed to read CA cert: {}", e))?;
                 let cert = Certificate::from_pem(ca_cert);
                 tls_options = tls_options.ca_certificate(cert);
             }
 
-            if let (Some(cert_path), Some(key_path)) = (&config.client_cert_path, &config.client_key_path) {
-                let cert = tokio::fs::read(cert_path).await
+            if let (Some(cert_path), Some(key_path)) =
+                (&config.client_cert_path, &config.client_key_path)
+            {
+                let cert = tokio::fs::read(cert_path)
+                    .await
                     .map_err(|e| anyhow::anyhow!("Failed to read client cert: {}", e))?;
-                let key = tokio::fs::read(key_path).await
+                let key = tokio::fs::read(key_path)
+                    .await
                     .map_err(|e| anyhow::anyhow!("Failed to read client key: {}", e))?;
                 let identity = Identity::from_pem(cert, key);
                 tls_options = tls_options.identity(identity);
@@ -224,7 +232,12 @@ impl EtcdClient {
         }))
     }
 
-    pub async fn put_key(&mut self, key: &str, value: &str, lease_id: Option<i64>) -> anyhow::Result<EtcdKey> {
+    pub async fn put_key(
+        &mut self,
+        key: &str,
+        value: &str,
+        lease_id: Option<i64>,
+    ) -> anyhow::Result<EtcdKey> {
         let mut options = PutOptions::new();
         if let Some(lease) = lease_id {
             options = options.with_lease(lease);
@@ -355,7 +368,11 @@ impl EtcdClient {
             id: resp.id(),
             ttl: resp.ttl(),
             granted_ttl: resp.granted_ttl(),
-            keys: resp.keys().iter().map(|k| String::from_utf8_lossy(k).to_string()).collect(),
+            keys: resp
+                .keys()
+                .iter()
+                .map(|k| String::from_utf8_lossy(k).to_string())
+                .collect(),
         })
     }
 
@@ -367,11 +384,19 @@ impl EtcdClient {
     pub async fn cluster_status(&mut self) -> anyhow::Result<ClusterStatus> {
         let status = self.client.status().await?;
         let member_list = self.client.member_list().await?;
-        
+
         let leader_id = status.leader().to_string();
-        let current_member_id = status.header().map(|h| h.member_id()).unwrap_or(0).to_string();
-        let cluster_id = status.header().map(|h| h.cluster_id()).unwrap_or(0).to_string();
-        
+        let current_member_id = status
+            .header()
+            .map(|h| h.member_id())
+            .unwrap_or(0)
+            .to_string();
+        let cluster_id = status
+            .header()
+            .map(|h| h.cluster_id())
+            .unwrap_or(0)
+            .to_string();
+
         let members: Vec<ClusterMember> = member_list
             .members()
             .iter()
@@ -391,7 +416,7 @@ impl EtcdClient {
                 }
             })
             .collect();
-        
+
         Ok(ClusterStatus {
             cluster_id,
             member_id: current_member_id,
@@ -416,9 +441,9 @@ impl EtcdClient {
         F: FnMut(WatchEvent) + Send + 'static,
     {
         let (cancel_tx, mut cancel_rx) = mpsc::channel::<()>(1);
-        
+
         let mut watch_client = self.client.clone();
-        
+
         tokio::spawn(async move {
             let mut options = WatchOptions::new();
             if is_prefix {
@@ -488,75 +513,102 @@ impl EtcdClient {
         let mut file = File::create(file_path).await?;
         let mut maintenance_client = self.client.maintenance_client();
         let mut stream = maintenance_client.snapshot().await?;
-        
+
         let mut total_written: u64 = 0;
         let mut total_size: u64 = 0;
-        
+
         while let Some(response) = stream.message().await? {
             let blob = response.blob();
             file.write_all(blob).await?;
             total_written += blob.len() as u64;
-            
+
             if total_size == 0 {
                 total_size = response.remaining_bytes();
             }
-            
+
             if let Some(ref callback) = progress_callback {
                 callback(total_written, total_size);
             }
         }
-        
+
         file.flush().await?;
         Ok(total_written)
     }
 
     // Auth management stubs - not fully implemented in etcd-client
     pub async fn auth_status(&mut self) -> anyhow::Result<AuthStatus> {
-        Err(anyhow::anyhow!("Auth status not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Auth status not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn auth_enable(&mut self) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Auth enable not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Auth enable not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn auth_disable(&mut self) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Auth disable not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Auth disable not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn user_list(&mut self) -> anyhow::Result<Vec<EtcdUser>> {
-        Err(anyhow::anyhow!("User list not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "User list not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn user_add(&mut self, _name: &str, _password: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("User add not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "User add not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn user_delete(&mut self, _name: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("User delete not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "User delete not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn user_grant_role(&mut self, _user: &str, _role: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("User grant role not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "User grant role not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn user_revoke_role(&mut self, _user: &str, _role: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("User revoke role not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "User revoke role not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn role_list(&mut self) -> anyhow::Result<Vec<EtcdRole>> {
-        Err(anyhow::anyhow!("Role list not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Role list not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn role_add(&mut self, _name: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Role add not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Role add not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn role_delete(&mut self, _name: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Role delete not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Role delete not implemented - requires etcd-client auth support"
+        ))
     }
 
-    pub async fn role_get_permissions(&mut self, _role: &str) -> anyhow::Result<EtcdRolePermissions> {
-        Err(anyhow::anyhow!("Role get permissions not implemented - requires etcd-client auth support"))
+    pub async fn role_get_permissions(
+        &mut self,
+        _role: &str,
+    ) -> anyhow::Result<EtcdRolePermissions> {
+        Err(anyhow::anyhow!(
+            "Role get permissions not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn role_grant_permission(
@@ -566,7 +618,9 @@ impl EtcdClient {
         _key: &str,
         _range_end: Option<&str>,
     ) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Role grant permission not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Role grant permission not implemented - requires etcd-client auth support"
+        ))
     }
 
     pub async fn role_revoke_permission(
@@ -575,7 +629,9 @@ impl EtcdClient {
         _key: &str,
         _range_end: Option<&str>,
     ) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!("Role revoke permission not implemented - requires etcd-client auth support"))
+        Err(anyhow::anyhow!(
+            "Role revoke permission not implemented - requires etcd-client auth support"
+        ))
     }
 }
 
@@ -595,7 +651,7 @@ mod tests {
             client_key_path: None,
             skip_verify: false,
         };
-        
+
         assert_eq!(config.endpoint, "localhost:2379");
         assert!(!config.tls_enabled);
         assert!(!config.skip_verify);
@@ -611,7 +667,7 @@ mod tests {
             mod_revision: 100,
             lease: 0,
         };
-        
+
         assert_eq!(key.key, "/test/key");
         assert_eq!(key.value, "test_value");
         assert_eq!(key.version, 1);
@@ -628,7 +684,7 @@ mod tests {
             granted_ttl: 60,
             keys: vec!["/key1".to_string(), "/key2".to_string()],
         };
-        
+
         assert_eq!(lease.id, 123456);
         assert_eq!(lease.ttl, 60);
         assert_eq!(lease.granted_ttl, 60);
@@ -647,7 +703,7 @@ mod tests {
             revision: 200,
             timestamp: "2024-01-01T00:00:00Z".to_string(),
         };
-        
+
         assert_eq!(event.watch_id, "watch-123");
         assert_eq!(event.event_type, "PUT");
         assert_eq!(event.revision, 200);
@@ -665,7 +721,7 @@ mod tests {
             is_leader: true,
             health: "healthy".to_string(),
         };
-        
+
         assert!(member.is_leader);
         assert_eq!(member.name, "etcd-1");
         assert_eq!(member.health, "healthy");
@@ -684,7 +740,7 @@ mod tests {
             version: "3.5.0".to_string(),
             members: vec![],
         };
-        
+
         assert_eq!(status.raft_term, 5);
         assert_eq!(status.db_size, 1024000);
         assert_eq!(status.version, "3.5.0");
@@ -696,7 +752,7 @@ mod tests {
             enabled: true,
             auth_revision: 10,
         };
-        
+
         assert!(status.enabled);
         assert_eq!(status.auth_revision, 10);
     }
@@ -707,7 +763,7 @@ mod tests {
             name: "admin".to_string(),
             roles: vec!["root".to_string(), "readwrite".to_string()],
         };
-        
+
         assert_eq!(user.name, "admin");
         assert_eq!(user.roles.len(), 2);
         assert_eq!(user.roles[0], "root");
@@ -718,7 +774,7 @@ mod tests {
         let role = EtcdRole {
             name: "readonly".to_string(),
         };
-        
+
         assert_eq!(role.name, "readonly");
     }
 
@@ -729,7 +785,7 @@ mod tests {
             key: "/config/".to_string(),
             range_end: Some("/config0".to_string()),
         };
-        
+
         assert_eq!(perm.perm_type, "READ");
         assert!(perm.range_end.is_some());
     }
@@ -746,11 +802,11 @@ mod tests {
             client_key_path: Some("/path/to/key.pem".to_string()),
             skip_verify: true,
         };
-        
+
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("localhost:2379"));
         assert!(json.contains("tls_enabled"));
-        
+
         let deserialized: EtcdConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.endpoint, config.endpoint);
         assert_eq!(deserialized.tls_enabled, config.tls_enabled);
@@ -766,10 +822,10 @@ mod tests {
             mod_revision: 200,
             lease: 0,
         };
-        
+
         let json = serde_json::to_string(&key).unwrap();
         let deserialized: EtcdKey = serde_json::from_str(&json).unwrap();
-        
+
         assert_eq!(deserialized.key, key.key);
         assert_eq!(deserialized.mod_revision, key.mod_revision);
     }

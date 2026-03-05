@@ -3,7 +3,10 @@
 mod config;
 mod etcd;
 
-use etcd::{ClusterStatus, EtcdClient, EtcdConfig, EtcdKey, LeaseInfo, WatchEvent, AuthStatus, EtcdUser, EtcdRole, EtcdRolePermissions};
+use etcd::{
+    AuthStatus, ClusterStatus, EtcdClient, EtcdConfig, EtcdKey, EtcdRole, EtcdRolePermissions,
+    EtcdUser, LeaseInfo, WatchEvent,
+};
 use std::collections::HashMap;
 use tauri::{
     api::dialog::blocking::FileDialogBuilder, CustomMenuItem, Manager, State, SystemTray,
@@ -60,12 +63,12 @@ async fn connect_etcd(
     match EtcdClient::connect(&config).await {
         Ok(client) => {
             let connection_id = Uuid::new_v4().to_string();
-            
+
             {
                 let mut connections = state.connections.lock().await;
                 connections.insert(connection_id.clone(), client);
             }
-            
+
             {
                 let mut configs = state.connection_configs.lock().await;
                 configs.insert(connection_id.clone(), config.clone());
@@ -86,7 +89,7 @@ async fn disconnect_etcd(
 ) -> Result<String, String> {
     let mut connections = state.connections.lock().await;
     let removed = connections.remove(&connection_id);
-    
+
     if removed.is_some() {
         let mut configs = state.connection_configs.lock().await;
         configs.remove(&connection_id);
@@ -119,18 +122,14 @@ async fn test_connection(
     };
 
     match EtcdClient::connect(&config).await {
-        Ok(mut client) => {
-            match client.status().await {
-                Ok(status) => {
-                    Ok(format!(
-                        "Connected successfully to {}. Version: {}",
-                        endpoint,
-                        status.version()
-                    ))
-                }
-                Err(e) => Err(format!("Connected but failed to get status: {}", e)),
-            }
-        }
+        Ok(mut client) => match client.status().await {
+            Ok(status) => Ok(format!(
+                "Connected successfully to {}. Version: {}",
+                endpoint,
+                status.version()
+            )),
+            Err(e) => Err(format!("Connected but failed to get status: {}", e)),
+        },
         Err(e) => Err(format!("Failed to connect: {}", e)),
     }
 }
@@ -348,10 +347,7 @@ async fn watch_key(
 }
 
 #[tauri::command]
-async fn unwatch_key(
-    state: State<'_, AppState>,
-    watch_id: String,
-) -> Result<(), String> {
+async fn unwatch_key(state: State<'_, AppState>, watch_id: String) -> Result<(), String> {
     let mut watches = state.active_watches.lock().await;
 
     if let Some(watch_state) = watches.remove(&watch_id) {
@@ -363,9 +359,7 @@ async fn unwatch_key(
 }
 
 #[tauri::command]
-async fn list_active_watches(
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, String)>, String> {
+async fn list_active_watches(state: State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
     let watches = state.active_watches.lock().await;
     let result: Vec<(String, String)> = watches
         .iter()
@@ -395,7 +389,10 @@ async fn lease_revoke(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.lease_revoke(lease_id).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .lease_revoke(lease_id)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -408,7 +405,10 @@ async fn lease_keepalive(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.lease_keepalive(lease_id).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .lease_keepalive(lease_id)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -421,16 +421,16 @@ async fn lease_time_to_live(
 ) -> Result<LeaseInfo, String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.lease_time_to_live(lease_id).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .lease_time_to_live(lease_id)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
 
 #[tauri::command]
-async fn lease_list(
-    state: State<'_, AppState>,
-    connection_id: String,
-) -> Result<Vec<i64>, String> {
+async fn lease_list(state: State<'_, AppState>, connection_id: String) -> Result<Vec<i64>, String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
         Some(client) => client.lease_list().await.map_err(|e| e.to_string()),
@@ -466,7 +466,10 @@ async fn snapshot_save(
         FileDialogBuilder::new()
             .add_filter("ETCD Snapshot", &["db", "snapshot"])
             .add_filter("All Files", &["*"])
-            .set_file_name(&format!("etcd-snapshot-{}.db", chrono::Local::now().format("%Y%m%d-%H%M%S")))
+            .set_file_name(&format!(
+                "etcd-snapshot-{}.db",
+                chrono::Local::now().format("%Y%m%d-%H%M%S")
+            ))
             .save_file()
     })
     .await
@@ -486,13 +489,16 @@ async fn snapshot_save(
     let path_clone = file_path.clone();
 
     let bytes_written = client
-        .snapshot(path_clone, Some(move |written: u64, total: u64| {
-            let progress = SnapshotProgress {
-                bytes_written: written,
-                total_bytes: total,
-            };
-            let _ = app_handle_clone.emit_all("snapshot-progress", progress);
-        }))
+        .snapshot(
+            path_clone,
+            Some(move |written: u64, total: u64| {
+                let progress = SnapshotProgress {
+                    bytes_written: written,
+                    total_bytes: total,
+                };
+                let _ = app_handle_clone.emit_all("snapshot-progress", progress);
+            }),
+        )
         .await
         .map_err(|e| format!("Failed to save snapshot: {}", e))?;
 
@@ -516,10 +522,7 @@ async fn auth_status(
 }
 
 #[tauri::command]
-async fn auth_enable(
-    state: State<'_, AppState>,
-    connection_id: String,
-) -> Result<(), String> {
+async fn auth_enable(state: State<'_, AppState>, connection_id: String) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
         Some(client) => client.auth_enable().await.map_err(|e| e.to_string()),
@@ -528,10 +531,7 @@ async fn auth_enable(
 }
 
 #[tauri::command]
-async fn auth_disable(
-    state: State<'_, AppState>,
-    connection_id: String,
-) -> Result<(), String> {
+async fn auth_disable(state: State<'_, AppState>, connection_id: String) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
         Some(client) => client.auth_disable().await.map_err(|e| e.to_string()),
@@ -560,7 +560,10 @@ async fn user_add(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.user_add(&name, &password).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .user_add(&name, &password)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -587,7 +590,10 @@ async fn user_grant_role(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.user_grant_role(&user, &role).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .user_grant_role(&user, &role)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -601,7 +607,10 @@ async fn user_revoke_role(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.user_revoke_role(&user, &role).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .user_revoke_role(&user, &role)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -652,7 +661,10 @@ async fn role_get_permissions(
 ) -> Result<EtcdRolePermissions, String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.role_get_permissions(&role).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .role_get_permissions(&role)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
