@@ -2,40 +2,131 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: "20"
+
+permissions:
+  contents: read
 
 jobs:
-  frontend:
-    name: Frontend
+  security:
+    name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          node-version: 20
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+        with:
+          workspaces: src-tauri
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Audit Rust dependencies
+        working-directory: src-tauri
+        run: cargo audit
+
+      - name: Secret detection
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  frontend-lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Biome check
+        run: npx biome check .
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Lint
-        run: npx biome check .
-
-      - name: Test
-        run: npm test
-
-  backend:
-    name: Backend
+  frontend-test:
+    name: Frontend Test
+    needs: [frontend-lint]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npx vitest run --coverage --reporter=verbose
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: frontend-coverage
+          path: coverage/
+          retention-days: 7
+
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           components: clippy, rustfmt
 
@@ -44,7 +135,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
         with:
           workspaces: src-tauri
 
@@ -56,6 +148,73 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy -- -D warnings
 
-      - name: Test
+  backend-test:
+    name: Backend Test
+    needs: [backend-lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+        with:
+          workspaces: src-tauri
+
+      - name: Run tests
         working-directory: src-tauri
         run: cargo test
+
+  build:
+    name: Build
+    needs: [security, frontend-test, backend-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        run: npx tauri build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: etcd-compass-linux-amd64
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          retention-days: 7
