@@ -1,0 +1,160 @@
+/* ETCD Frontend Styles */
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: hsl(var(--border));
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: hsl(var(--muted-foreground));
+}
+
+/* Code/mono font for keys and values */
+.font-mono {
+	font-family:
+		"ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace";
+}
+
+/* Smooth transitions - scoped to theme changes */
+.theme-transition,
+.theme-transition *,
+[data-theme-transition] * {
+	transition-property: color, background-color, border-color;
+	transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+	transition-duration: 150ms;
+}
+
+/* Tree view animations */
+.tree-node-enter {
+	opacity: 0;
+	transform: translateX(-10px);
+}
+
+.tree-node-enter-active {
+	opacity: 1;
+	transform: translateX(0);
+	transition:
+		opacity 200ms,
+		transform 200ms;
+}
+
+/* Key item hover effect */
+.key-item {
+	position: relative;
+}
+
+.key-item::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: hsl(var(--primary));
+	opacity: 0;
+	transition: opacity 150ms;
+}
+
+.key-item:hover::before,
+.key-item.active::before {
+	opacity: 1;
+}
+
+/* Badge styles */
+.badge-key {
+	background: linear-gradient(
+		135deg,
+		hsl(var(--primary)) 0%,
+		hsl(var(--primary) / 0.8) 100%
+	);
+}
+
+/* Connection status indicator */
+.status-indicator {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: hsl(142, 76%, 36%);
+	box-shadow: 0 0 0 2px hsl(142, 76%, 36% / 0.3);
+	animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Empty state */
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 3rem;
+	color: hsl(var(--muted-foreground));
+}
+
+.empty-state-icon {
+	width: 48px;
+	height: 48px;
+	margin-bottom: 1rem;
+	opacity: 0.5;
+}
+
+/* Dialog overlay */
+[data-state="open"] > [data-radix-dialog-overlay] {
+	animation: overlayShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes overlayShow {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+/* Dialog content */
+[data-state="open"] > [data-radix-dialog-content] {
+	animation: contentShow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes contentShow {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -48%) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}
+
+/* Focus styles */
+button:focus-visible,
+input:focus-visible {
+	outline: 2px solid hsl(var(--ring));
+	outline-offset: 2px;
+}
+
+/* Selection color */
+::selection {
+	background: hsl(var(--primary) / 0.2);
+	color: hsl(var(--primary-foreground));
+}
