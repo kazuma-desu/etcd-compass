@@ -695,6 +695,22 @@ async fn role_revoke_permission(
 }
 
 fn main() {
+    #[cfg(target_os = "linux")]
+    {
+        // Fix for WebKitGTK GPU rendering failures on Linux (Wayland, NVIDIA, VMs).
+        // WEBKIT_DISABLE_DMABUF_RENDERER: Fixes blank screens / EGL errors.
+        // See: https://github.com/tauri-apps/tauri/issues/9394
+        // WEBKIT_DISABLE_COMPOSITING_MODE: Fixes "Failed to create GBM buffer" crashes.
+        // See: https://github.com/tauri-apps/tauri/issues/11994
+        // SAFETY: Called before any threads are spawned (Tauri hasn't started yet).
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+        }
+        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
+            unsafe { std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1") };
+        }
+    }
+
     let show = CustomMenuItem::new("show".to_string(), "Show");
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
 
