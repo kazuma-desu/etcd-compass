@@ -1,0 +1,30 @@
+[package]
+name = "etcd-compass"
+version = "1.0.0"
+description = "ETCD Compass - A modern desktop client for managing ETCD clusters"
+authors = ["kazuma-desu"]
+license = "MIT"
+repository = "https://github.com/kazuma-desu/etcd-compass"
+edition = "2021"
+rust-version = "1.70"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = [ "notification-all", "path-all", "fs-create-dir", "window-show", "window-close", "dialog-save", "fs-exists", "window-minimize", "dialog-ask", "system-tray", "fs-write-file", "window-start-dragging", "dialog-confirm", "fs-read-dir", "window-maximize", "dialog-message", "window-unminimize", "window-hide", "dialog-open", "window-unmaximize", "fs-read-file", "shell-open"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+etcd-client = { version = "0.14", features = ["tls", "tls-roots"] }
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+thiserror = "1.0"
+dirs = "5.0"
+config = "0.14"
+once_cell = "1.19"
+uuid = { version = "1.0", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
