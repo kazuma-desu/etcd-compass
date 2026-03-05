@@ -15,7 +15,7 @@ permissions:
 jobs:
   security:
     name: Security Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
@@ -118,7 +118,7 @@ jobs:
 
   backend-lint:
     name: Backend Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
@@ -151,7 +151,7 @@ jobs:
   backend-test:
     name: Backend Test
     needs: [backend-lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
@@ -178,7 +178,7 @@ jobs:
   build:
     name: Build
     needs: [security, frontend-test, backend-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
