@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 env:
   NODE_VERSION: "20"
@@ -50,7 +50,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        run: cargo install cargo-audit --locked --version 0.22.1
 
       - name: Audit Rust dependencies
         working-directory: src-tauri
