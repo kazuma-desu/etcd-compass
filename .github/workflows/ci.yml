@@ -131,6 +131,9 @@ jobs:
         with:
           workspaces: src-tauri
 
+      - name: Create frontend dist stub
+        run: mkdir -p dist
+
       - name: Format check
         working-directory: src-tauri
         run: cargo fmt --check
@@ -161,6 +164,9 @@ jobs:
         uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
         with:
           workspaces: src-tauri
+
+      - name: Create frontend dist stub
+        run: mkdir -p dist
 
       - name: Run tests
         working-directory: src-tauri
