@@ -1,0 +1,73 @@
+version: "3"
+
+vars:
+  CARGO_DIR: src-tauri
+
+tasks:
+  install:
+    desc: Install npm dependencies
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules/.package-lock.json
+    cmd: npm ci
+
+  lint:fe:
+    desc: Run Biome linter on frontend
+    deps: [install]
+    cmd: npx biome check .
+
+  typecheck:
+    desc: Run TypeScript type checking
+    deps: [install]
+    cmd: npm run typecheck
+
+  test:fe:
+    desc: Run frontend tests (vitest)
+    deps: [install]
+    cmd: npm test
+
+  fmt:
+    desc: Check Rust formatting
+    dir: "{{.CARGO_DIR}}"
+    cmd: cargo fmt --check
+
+  fmt:fix:
+    desc: Fix Rust formatting
+    dir: "{{.CARGO_DIR}}"
+    cmd: cargo fmt
+
+  clippy:
+    desc: Run Clippy with warnings as errors
+    dir: "{{.CARGO_DIR}}"
+    cmd: cargo clippy -- -D warnings
+
+  test:be:
+    desc: Run backend tests
+    dir: "{{.CARGO_DIR}}"
+    cmd: cargo test
+
+  lint:
+    desc: Run all linters (Biome + Typecheck + Clippy + fmt)
+    deps: [lint:fe, typecheck, clippy, fmt]
+
+  test:
+    desc: Run all tests (frontend + backend)
+    deps: [test:fe, test:be]
+
+  check:
+    desc: Run full CI check locally (lint + test)
+    cmds:
+      - task: lint
+      - task: test
+
+  dev:
+    desc: Start Tauri dev server
+    deps: [install]
+    cmd: npm run tauri:dev
+
+  build:
+    desc: Build Tauri app for production
+    deps: [install]
+    cmd: npx tauri build
