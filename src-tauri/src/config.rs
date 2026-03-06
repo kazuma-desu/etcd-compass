@@ -3,19 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 struct AppConfig {
     last_connection: Option<EtcdConfig>,
     connection_history: Vec<EtcdConfig>,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        AppConfig {
-            last_connection: None,
-            connection_history: Vec::new(),
-        }
-    }
 }
 
 fn get_config_dir() -> anyhow::Result<PathBuf> {
