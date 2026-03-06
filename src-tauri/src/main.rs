@@ -9,9 +9,11 @@ use etcd::{
 };
 use std::collections::HashMap;
 use tauri::{
-    api::dialog::blocking::FileDialogBuilder, CustomMenuItem, Manager, State, SystemTray,
-    SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager, State,
 };
+use tauri_plugin_dialog::DialogExt;
 use tokio::sync::{mpsc, Mutex};
 use uuid::Uuid;
 
@@ -27,8 +29,8 @@ pub struct AppState {
     active_watches: Mutex<HashMap<String, WatchState>>,
 }
 
-impl AppState {
-    pub fn new() -> Self {
+impl Default for AppState {
+    fn default() -> Self {
         AppState {
             connections: Mutex::new(HashMap::new()),
             connection_configs: Mutex::new(HashMap::new()),
@@ -38,6 +40,7 @@ impl AppState {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn connect_etcd(
     state: State<'_, AppState>,
     endpoint: String,
@@ -100,6 +103,7 @@ async fn disconnect_etcd(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn test_connection(
     endpoint: String,
     username: Option<String>,
@@ -277,17 +281,21 @@ fn remove_from_history(endpoint: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn pick_certificate_file() -> Result<Option<String>, String> {
-    let path = tauri::async_runtime::spawn_blocking(|| {
-        FileDialogBuilder::new()
+async fn pick_certificate_file(app_handle: tauri::AppHandle) -> Result<Option<String>, String> {
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        app_handle
+            .dialog()
+            .file()
             .add_filter("Certificate Files", &["pem", "crt", "cert", "key"])
             .add_filter("All Files", &["*"])
-            .pick_file()
+            .blocking_pick_file()
     })
     .await
     .map_err(|e| format!("Failed to spawn blocking task: {}", e))?;
 
-    Ok(path.map(|p| p.to_string_lossy().to_string()))
+    Ok(path
+        .and_then(|fp| fp.into_path().ok())
+        .map(|p| p.to_string_lossy().to_string()))
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -321,7 +329,7 @@ async fn watch_key(
             key.clone(),
             is_prefix,
             move |event: WatchEvent| {
-                let _ = app_handle_clone.emit_all("watch-event", event);
+                let _ = app_handle_clone.emit("watch-event", &event);
             },
         )
         .await
@@ -462,20 +470,23 @@ async fn snapshot_save(
     state: State<'_, AppState>,
     connection_id: String,
 ) -> Result<String, String> {
-    let file_path = tauri::async_runtime::spawn_blocking(|| {
-        FileDialogBuilder::new()
+    let app_for_dialog = app_handle.clone();
+    let file_path = tauri::async_runtime::spawn_blocking(move || {
+        app_for_dialog
+            .dialog()
+            .file()
             .add_filter("ETCD Snapshot", &["db", "snapshot"])
             .add_filter("All Files", &["*"])
-            .set_file_name(&format!(
+            .set_file_name(format!(
                 "etcd-snapshot-{}.db",
                 chrono::Local::now().format("%Y%m%d-%H%M%S")
             ))
-            .save_file()
+            .blocking_save_file()
     })
     .await
     .map_err(|e| format!("Failed to spawn blocking task: {}", e))?;
 
-    let file_path = match file_path {
+    let file_path = match file_path.and_then(|fp| fp.into_path().ok()) {
         Some(path) => path,
         None => return Err("No file selected".to_string()),
     };
@@ -496,7 +507,7 @@ async fn snapshot_save(
                     bytes_written: written,
                     total_bytes: total,
                 };
-                let _ = app_handle_clone.emit_all("snapshot-progress", progress);
+                let _ = app_handle_clone.emit("snapshot-progress", &progress);
             }),
         )
         .await
@@ -723,43 +734,55 @@ fn main() {
         }
     }
 
-    let show = CustomMenuItem::new("show".to_string(), "Show");
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-
-    let tray_menu = SystemTrayMenu::new()
-        .add_item(show)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(quit);
-
-    let system_tray = SystemTray::new().with_menu(tray_menu);
-
     tauri::Builder::default()
-        .manage(AppState::new())
-        .system_tray(system_tray)
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick {
-                position: _,
-                size: _,
-                ..
-            } => {
-                if let Some(window) = app.get_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
-            }
-            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                "show" => {
-                    if let Some(window) = app.get_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
+        .manage(AppState::default())
+        .setup(|app| {
+            let show = MenuItemBuilder::with_id("show", "Show").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let menu = MenuBuilder::new(app)
+                .item(&show)
+                .separator()
+                .item(&quit)
+                .build()?;
+
+            TrayIconBuilder::new()
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .icon(app.default_window_icon().unwrap().clone())
+                .icon_as_template(true)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
                     }
-                }
-                "quit" => {
-                    app.exit(0);
-                }
-                _ => {}
-            },
-            _ => {}
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             connect_etcd,
