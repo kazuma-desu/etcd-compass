@@ -5,8 +5,8 @@
  * Also wraps the Tauri event listener for watch-event.
  */
 
+import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/tauri";
 import type { WatchEvent, WatchResponse } from "./types";
 
 export async function watchKey(

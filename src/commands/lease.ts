@@ -4,7 +4,7 @@
  * Maps to: lease_grant, lease_revoke, lease_keepalive, lease_time_to_live, lease_list
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { LeaseInfo } from "./types";
 
 export async function leaseGrant(

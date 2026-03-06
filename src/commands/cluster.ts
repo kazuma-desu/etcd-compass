@@ -4,7 +4,7 @@
  * Maps to: cluster_status, snapshot_save
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { ClusterStatus } from "./types";
 
 export async function clusterStatus(
