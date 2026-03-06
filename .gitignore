@@ -34,5 +34,8 @@ Thumbs.db
 # ETCD data directory
 default.etcd/
 
+# Task runner
+.task/
+
 # Sisyphus workflow
 .sisyphus/
