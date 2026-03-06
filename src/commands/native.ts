@@ -5,9 +5,9 @@
  * All native platform interactions go through here.
  */
 
-import { type DialogFilter, open, save } from "@tauri-apps/api/dialog";
-import { readTextFile, writeTextFile } from "@tauri-apps/api/fs";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
+import { type DialogFilter, open, save } from "@tauri-apps/plugin-dialog";
+import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 
 // Certificate file picker (native OS dialog via Rust)
 export async function pickCertificateFile(): Promise<string | null> {
