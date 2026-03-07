@@ -38,13 +38,22 @@ tasks:
     dir: "{{.CARGO_DIR}}"
     cmd: cargo fmt
 
+  ensure-dist:
+    desc: Create frontend dist stub for Tauri compile check
+    internal: true
+    status:
+      - test -d dist
+    cmd: mkdir -p dist
+
   clippy:
     desc: Run Clippy with warnings as errors
+    deps: [ensure-dist]
     dir: "{{.CARGO_DIR}}"
     cmd: cargo clippy -- -D warnings
 
   test:be:
     desc: Run backend tests
+    deps: [ensure-dist]
     dir: "{{.CARGO_DIR}}"
     cmd: cargo test
 
