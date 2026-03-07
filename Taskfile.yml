@@ -79,4 +79,4 @@ tasks:
   build:
     desc: Build Tauri app for production
     deps: [install]
-    cmd: npx tauri build
+    cmd: npm run tauri:build

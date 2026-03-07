@@ -184,7 +184,7 @@ jobs:
         run: mkdir -p dist
 
       - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov --locked
+        run: cargo install cargo-llvm-cov --locked --version 0.8.4
 
       - name: Run tests with coverage
         working-directory: src-tauri
