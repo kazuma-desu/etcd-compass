@@ -12,6 +12,7 @@ use tokio::sync::mpsc;
 pub struct EtcdConfig {
     pub endpoint: String,
     pub username: Option<String>,
+    #[serde(skip_serializing)]
     pub password: Option<String>,
     pub tls_enabled: bool,
     pub ca_cert_path: Option<String>,
@@ -104,6 +105,7 @@ pub struct Permission {
 
 pub struct WatchHandle {
     pub cancel_tx: mpsc::Sender<()>,
+    pub task_handle: tokio::task::JoinHandle<()>,
 }
 
 pub struct EtcdClient {
@@ -139,25 +141,31 @@ impl EtcdClient {
                 tls_options = tls_options.ca_certificate(cert);
             }
 
-            if let (Some(cert_path), Some(key_path)) =
-                (&config.client_cert_path, &config.client_key_path)
-            {
-                let cert = tokio::fs::read(cert_path)
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Failed to read client cert: {}", e))?;
-                let key = tokio::fs::read(key_path)
-                    .await
-                    .map_err(|e| anyhow::anyhow!("Failed to read client key: {}", e))?;
-                let identity = Identity::from_pem(cert, key);
-                tls_options = tls_options.identity(identity);
+            match (&config.client_cert_path, &config.client_key_path) {
+                (Some(cert_path), Some(key_path)) => {
+                    let cert = tokio::fs::read(cert_path)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("Failed to read client cert: {}", e))?;
+                    let key = tokio::fs::read(key_path)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("Failed to read client key: {}", e))?;
+                    let identity = Identity::from_pem(cert, key);
+                    tls_options = tls_options.identity(identity);
+                }
+                (Some(_), None) | (None, Some(_)) => {
+                    return Err(anyhow::anyhow!(
+                        "Both client_cert_path and client_key_path must be provided together"
+                    ));
+                }
+                (None, None) => {}
             }
 
             if config.skip_verify {
-                eprintln!(
-                    "WARNING: skip_verify is set but etcd-client's TlsOptions does not expose \
-                     a method to disable certificate validation. TLS will proceed without \
-                     explicit CA roots, which may fail against self-signed certificates."
-                );
+                return Err(anyhow::anyhow!(
+                    "skip_verify is not supported: etcd-client's TLS backend (rustls via tonic) \
+                     does not expose an API to disable certificate verification. Remove \
+                     skip_verify or provide a valid CA certificate via ca_cert_path."
+                ));
             }
 
             options = options.with_tls(tls_options);
@@ -448,7 +456,7 @@ impl EtcdClient {
 
         let mut watch_client = self.client.clone();
 
-        tokio::spawn(async move {
+        let task_handle = tokio::spawn(async move {
             let mut options = WatchOptions::new();
             if is_prefix {
                 options = options.with_prefix();
@@ -506,7 +514,10 @@ impl EtcdClient {
             }
         });
 
-        Ok(WatchHandle { cancel_tx })
+        Ok(WatchHandle {
+            cancel_tx,
+            task_handle,
+        })
     }
 
     pub async fn snapshot<P: AsRef<Path>>(

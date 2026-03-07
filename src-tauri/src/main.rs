@@ -93,29 +93,39 @@ async fn disconnect_etcd(
     state: State<'_, AppState>,
     connection_id: String,
 ) -> Result<String, String> {
-    let mut connections = state.connections.lock().await;
-    let removed = connections.remove(&connection_id);
+    let removed = {
+        let mut connections = state.connections.lock().await;
+        connections.remove(&connection_id)
+    };
 
-    if removed.is_some() {
+    if removed.is_none() {
+        return Err(format!("Connection with ID '{}' not found", connection_id));
+    }
+
+    {
         let mut configs = state.connection_configs.lock().await;
         configs.remove(&connection_id);
+    }
 
+    let cancel_senders: Vec<mpsc::Sender<()>> = {
         let mut watches = state.active_watches.lock().await;
         let orphaned_ids: Vec<String> = watches
             .iter()
             .filter(|(_, ws)| ws.connection_id == connection_id)
             .map(|(id, _)| id.clone())
             .collect();
-        for id in orphaned_ids {
-            if let Some(ws) = watches.remove(&id) {
-                let _ = ws.cancel_tx.send(()).await;
-            }
-        }
+        orphaned_ids
+            .into_iter()
+            .filter_map(|id| watches.remove(&id))
+            .map(|ws| ws.cancel_tx)
+            .collect()
+    };
 
-        Ok("Disconnected successfully".to_string())
-    } else {
-        Err(format!("Connection with ID '{}' not found", connection_id))
+    for tx in cancel_senders {
+        let _ = tx.send(()).await;
     }
+
+    Ok("Disconnected successfully".to_string())
 }
 
 #[tauri::command]
@@ -364,6 +374,15 @@ async fn watch_key(
         );
     }
 
+    let cleanup_app = app_handle.clone();
+    let cleanup_id = watch_id.clone();
+    tokio::spawn(async move {
+        let _ = handle.task_handle.await;
+        let state = cleanup_app.state::<AppState>();
+        let mut watches = state.active_watches.lock().await;
+        watches.remove(&cleanup_id);
+    });
+
     Ok(WatchResponse {
         watch_id,
         key,
@@ -486,7 +505,7 @@ async fn snapshot_save(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
     connection_id: String,
-) -> Result<String, String> {
+) -> Result<Option<String>, String> {
     let app_for_dialog = app_handle.clone();
     let file_path = tauri::async_runtime::spawn_blocking(move || {
         app_for_dialog
@@ -505,7 +524,7 @@ async fn snapshot_save(
 
     let file_path = match file_path.and_then(|fp| fp.into_path().ok()) {
         Some(path) => path,
-        None => return Err("No file selected".to_string()),
+        None => return Ok(None),
     };
 
     let inner_client = {
@@ -534,11 +553,11 @@ async fn snapshot_save(
         .await
         .map_err(|e| format!("Failed to save snapshot: {}", e))?;
 
-    Ok(format!(
+    Ok(Some(format!(
         "Snapshot saved successfully: {} bytes written to {}",
         bytes_written,
         file_path.display()
-    ))
+    )))
 }
 
 #[tauri::command]
