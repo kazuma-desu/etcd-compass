@@ -2,51 +2,149 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  NODE_VERSION: "20"
+  RUST_VERSION: "1.92.0"
+
+permissions:
+  contents: read
 
 jobs:
-  frontend:
-    name: Frontend
-    runs-on: ubuntu-latest
+  security:
+    name: Security Scan
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          node-version: 20
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev protobuf-compiler
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+        with:
+          workspaces: src-tauri
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked --version 0.22.1
+
+      - name: Audit Rust dependencies
+        working-directory: src-tauri
+        run: cargo audit
+
+      - name: Secret detection
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.21.2"
+
+  frontend-lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Biome check
+        run: npx biome check .
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Lint
-        run: npx biome check .
-
-      - name: Test
-        run: npm test
-
-  backend:
-    name: Backend
+  frontend-test:
+    name: Frontend Test
+    needs: [frontend-lint]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npx vitest run --coverage
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-coverage
+          path: coverage/lcov.info
+          retention-days: 1
+
+  backend-lint:
+    name: Backend Lint
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev protobuf-compiler
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
         with:
           workspaces: src-tauri
+
+      - name: Create frontend dist stub
+        run: mkdir -p dist
 
       - name: Format check
         working-directory: src-tauri
@@ -56,6 +154,167 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy -- -D warnings
 
-      - name: Test
+  backend-test:
+    name: Backend Test
+    needs: [backend-lint]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: llvm-tools
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev protobuf-compiler
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+        with:
+          workspaces: src-tauri
+
+      - name: Create frontend dist stub
+        run: mkdir -p dist
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked --version 0.8.4
+
+      - name: Run tests with coverage
         working-directory: src-tauri
-        run: cargo test
+        run: cargo llvm-cov --lcov --output-path lcov.info
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-coverage
+          path: src-tauri/lcov.info
+          retention-days: 1
+
+  sonar:
+    name: SonarCloud Analysis
+    needs: [frontend-test, backend-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: frontend-coverage
+          path: coverage
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-coverage
+          path: backend-coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8 # v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: [security, frontend-test, backend-test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-amd64
+            runner: ubuntu-22.04
+            rust-targets: ""
+            tauri-args: ""
+          - platform: linux-arm64
+            runner: ubuntu-22.04-arm
+            rust-targets: ""
+            tauri-args: ""
+          - platform: macos
+            runner: macos-14
+            rust-targets: "x86_64-apple-darwin aarch64-apple-darwin"
+            tauri-args: "--target universal-apple-darwin"
+          - platform: windows-amd64
+            runner: windows-latest
+            rust-targets: ""
+            tauri-args: ""
+          - platform: windows-arm64
+            runner: windows-latest
+            rust-targets: "aarch64-pc-windows-msvc"
+            tauri-args: "--target aarch64-pc-windows-msvc"
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev protobuf-compiler
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install protobuf
+
+      - name: Install system dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install protoc -y
+          echo "$env:ChocolateyInstall/lib/protoc/tools/bin" >> $env:GITHUB_PATH
+
+      - name: Set up MSVC for ARM64 cross-compilation
+        if: matrix.platform == 'windows-arm64'
+        uses: ilammy/msvc-dev-cmd@a102174a2b586eec2ea151a69e6fd14404a8ce7c # v1.13.0
+        with:
+          arch: amd64_arm64
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        run: npx tauri build ${{ matrix.tauri-args }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: etcd-compass-${{ matrix.platform }}
+          path: |
+            src-tauri/target/**/release/bundle/deb/*.deb
+            src-tauri/target/**/release/bundle/rpm/*.rpm
+            src-tauri/target/**/release/bundle/appimage/*.AppImage
+            src-tauri/target/**/release/bundle/dmg/*.dmg
+            src-tauri/target/**/release/bundle/nsis/*.exe
+            src-tauri/target/**/release/bundle/msi/*.msi
+          if-no-files-found: error
+          retention-days: 7

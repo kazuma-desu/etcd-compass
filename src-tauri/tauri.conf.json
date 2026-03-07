@@ -1,97 +1,14 @@
 {
+	"productName": "etcd-compass",
+	"version": "1.0.0",
+	"identifier": "com.etcd.compass",
 	"build": {
 		"beforeBuildCommand": "npm run build",
 		"beforeDevCommand": "npm run dev",
-		"devPath": "http://localhost:1420",
-		"distDir": "../dist"
+		"devUrl": "http://localhost:1420",
+		"frontendDist": "../dist"
 	},
-	"tauri": {
-		"allowlist": {
-			"all": false,
-			"shell": {
-				"all": false,
-				"open": true
-			},
-			"dialog": {
-				"all": false,
-				"ask": true,
-				"confirm": true,
-				"message": true,
-				"open": true,
-				"save": true
-			},
-			"fs": {
-				"all": false,
-				"readFile": true,
-				"writeFile": true,
-				"readDir": true,
-				"copyFile": false,
-				"createDir": true,
-				"removeDir": false,
-				"removeFile": false,
-				"renameFile": false,
-				"exists": true
-			},
-			"path": {
-				"all": true
-			},
-			"os": {
-				"all": false
-			},
-			"window": {
-				"all": false,
-				"close": true,
-				"hide": true,
-				"show": true,
-				"maximize": true,
-				"minimize": true,
-				"unmaximize": true,
-				"unminimize": true,
-				"startDragging": true
-			},
-			"notification": {
-				"all": true
-			}
-		},
-		"bundle": {
-			"active": true,
-			"category": "DeveloperTool",
-			"copyright": "Copyright (c) 2026 ETCD Compass Contributors",
-			"deb": {
-				"depends": []
-			},
-			"externalBin": [],
-			"icon": [
-				"icons/32x32.png",
-				"icons/128x128.png",
-				"icons/128x128@2x.png",
-				"icons/icon.icns",
-				"icons/icon.ico"
-			],
-			"identifier": "com.etcd.compass",
-			"longDescription": "A modern desktop client for ETCD clusters - browse keys, manage leases, watch changes",
-			"macOS": {
-				"entitlements": null,
-				"exceptionDomain": "",
-				"frameworks": [],
-				"providerShortName": null,
-				"signingIdentity": null
-			},
-			"resources": [],
-			"shortDescription": "ETCD Compass - Desktop Client for ETCD",
-			"targets": "all",
-			"windows": {
-				"certificateThumbprint": null,
-				"digestAlgorithm": "sha256",
-				"timestampUrl": ""
-			}
-		},
-		"security": {
-			"csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost;"
-		},
-		"updater": {
-			"active": false
-		},
+	"app": {
 		"windows": [
 			{
 				"fullscreen": false,
@@ -106,10 +23,46 @@
 				"transparent": false
 			}
 		],
-		"systemTray": {
+		"security": {
+			"csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost;"
+		},
+		"trayIcon": {
 			"iconPath": "icons/icon.png",
-			"iconAsTemplate": true,
-			"menuOnLeftClick": false
+			"iconAsTemplate": true
 		}
+	},
+	"bundle": {
+		"active": true,
+		"category": "DeveloperTool",
+		"copyright": "Copyright (c) 2026 ETCD Compass Contributors",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"longDescription": "A modern desktop client for ETCD clusters - browse keys, manage leases, watch changes",
+		"shortDescription": "ETCD Compass - Desktop Client for ETCD",
+		"targets": "all",
+		"linux": {
+			"deb": {
+				"depends": []
+			}
+		},
+		"macOS": {
+			"entitlements": null,
+			"exceptionDomain": "",
+			"frameworks": [],
+			"providerShortName": null,
+			"signingIdentity": null
+		},
+		"windows": {
+			"certificateThumbprint": null,
+			"digestAlgorithm": "sha256",
+			"timestampUrl": ""
+		},
+		"resources": [],
+		"externalBin": []
 	}
 }

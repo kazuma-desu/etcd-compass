@@ -76,6 +76,14 @@
 
 ---
 
+## Technical Debt
+
+| # | Item | Why It Matters | Status |
+|---|------|---------------|--------|
+| T.1 | Migrate to Tauri v2 | CI pinned to ubuntu-22.04 because Tauri v1 requires libwebkit2gtk-4.0-dev (removed in Ubuntu 24.04). Tauri v2 uses 4.1 which ships in modern distros. Also unlocks new plugin system, capabilities-based permissions, and improved mobile support. | ✅ |
+
+---
+
 ## Competitive Advantages
 
 | Metric | ETCD Desktop | MongoDB Compass |

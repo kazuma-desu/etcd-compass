@@ -4,7 +4,7 @@
  * Maps to: get_all_keys, get_key, put_key, delete_key, delete_keys, get_keys_with_prefix
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { EtcdKey, PaginatedKeysResult } from "./types";
 
 export async function getAllKeys(

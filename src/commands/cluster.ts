@@ -4,7 +4,7 @@
  * Maps to: cluster_status, snapshot_save
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { ClusterStatus } from "./types";
 
 export async function clusterStatus(
@@ -13,6 +13,8 @@ export async function clusterStatus(
 	return invoke<ClusterStatus>("cluster_status", { connectionId });
 }
 
-export async function snapshotSave(connectionId: string): Promise<string> {
-	return invoke<string>("snapshot_save", { connectionId });
+export async function snapshotSave(
+	connectionId: string,
+): Promise<string | null> {
+	return invoke<string | null>("snapshot_save", { connectionId });
 }

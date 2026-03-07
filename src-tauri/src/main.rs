@@ -3,17 +3,23 @@
 mod config;
 mod etcd;
 
-use etcd::{ClusterStatus, EtcdClient, EtcdConfig, EtcdKey, LeaseInfo, WatchEvent, AuthStatus, EtcdUser, EtcdRole, EtcdRolePermissions};
+use etcd::{
+    AuthStatus, ClusterStatus, EtcdClient, EtcdConfig, EtcdKey, EtcdRole, EtcdRolePermissions,
+    EtcdUser, LeaseInfo, WatchEvent,
+};
 use std::collections::HashMap;
 use tauri::{
-    api::dialog::blocking::FileDialogBuilder, CustomMenuItem, Manager, State, SystemTray,
-    SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager, State,
 };
+use tauri_plugin_dialog::DialogExt;
 use tokio::sync::{mpsc, Mutex};
 use uuid::Uuid;
 
 pub struct WatchState {
     _watch_id: String,
+    connection_id: String,
     key: String,
     cancel_tx: mpsc::Sender<()>,
 }
@@ -24,8 +30,8 @@ pub struct AppState {
     active_watches: Mutex<HashMap<String, WatchState>>,
 }
 
-impl AppState {
-    pub fn new() -> Self {
+impl Default for AppState {
+    fn default() -> Self {
         AppState {
             connections: Mutex::new(HashMap::new()),
             connection_configs: Mutex::new(HashMap::new()),
@@ -35,6 +41,7 @@ impl AppState {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn connect_etcd(
     state: State<'_, AppState>,
     endpoint: String,
@@ -60,18 +67,20 @@ async fn connect_etcd(
     match EtcdClient::connect(&config).await {
         Ok(client) => {
             let connection_id = Uuid::new_v4().to_string();
-            
+
             {
                 let mut connections = state.connections.lock().await;
                 connections.insert(connection_id.clone(), client);
             }
-            
+
             {
                 let mut configs = state.connection_configs.lock().await;
                 configs.insert(connection_id.clone(), config.clone());
             }
 
-            let _ = config::save_connection_config(&config);
+            if let Err(e) = config::save_connection_config(&config) {
+                eprintln!("Failed to persist connection config: {}", e);
+            }
 
             Ok(connection_id)
         }
@@ -84,19 +93,43 @@ async fn disconnect_etcd(
     state: State<'_, AppState>,
     connection_id: String,
 ) -> Result<String, String> {
-    let mut connections = state.connections.lock().await;
-    let removed = connections.remove(&connection_id);
-    
-    if removed.is_some() {
+    let removed = {
+        let mut connections = state.connections.lock().await;
+        connections.remove(&connection_id)
+    };
+
+    if removed.is_none() {
+        return Err(format!("Connection with ID '{}' not found", connection_id));
+    }
+
+    {
         let mut configs = state.connection_configs.lock().await;
         configs.remove(&connection_id);
-        Ok("Disconnected successfully".to_string())
-    } else {
-        Err(format!("Connection with ID '{}' not found", connection_id))
     }
+
+    let cancel_senders: Vec<mpsc::Sender<()>> = {
+        let mut watches = state.active_watches.lock().await;
+        let orphaned_ids: Vec<String> = watches
+            .iter()
+            .filter(|(_, ws)| ws.connection_id == connection_id)
+            .map(|(id, _)| id.clone())
+            .collect();
+        orphaned_ids
+            .into_iter()
+            .filter_map(|id| watches.remove(&id))
+            .map(|ws| ws.cancel_tx)
+            .collect()
+    };
+
+    for tx in cancel_senders {
+        let _ = tx.send(()).await;
+    }
+
+    Ok("Disconnected successfully".to_string())
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn test_connection(
     endpoint: String,
     username: Option<String>,
@@ -119,18 +152,14 @@ async fn test_connection(
     };
 
     match EtcdClient::connect(&config).await {
-        Ok(mut client) => {
-            match client.status().await {
-                Ok(status) => {
-                    Ok(format!(
-                        "Connected successfully to {}. Version: {}",
-                        endpoint,
-                        status.version()
-                    ))
-                }
-                Err(e) => Err(format!("Connected but failed to get status: {}", e)),
-            }
-        }
+        Ok(mut client) => match client.status().await {
+            Ok(status) => Ok(format!(
+                "Connected successfully to {}. Version: {}",
+                endpoint,
+                status.version()
+            )),
+            Err(e) => Err(format!("Connected but failed to get status: {}", e)),
+        },
         Err(e) => Err(format!("Failed to connect: {}", e)),
     }
 }
@@ -278,17 +307,21 @@ fn remove_from_history(endpoint: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn pick_certificate_file() -> Result<Option<String>, String> {
-    let path = tauri::async_runtime::spawn_blocking(|| {
-        FileDialogBuilder::new()
+async fn pick_certificate_file(app_handle: tauri::AppHandle) -> Result<Option<String>, String> {
+    let path = tauri::async_runtime::spawn_blocking(move || {
+        app_handle
+            .dialog()
+            .file()
             .add_filter("Certificate Files", &["pem", "crt", "cert", "key"])
             .add_filter("All Files", &["*"])
-            .pick_file()
+            .blocking_pick_file()
     })
     .await
     .map_err(|e| format!("Failed to spawn blocking task: {}", e))?;
 
-    Ok(path.map(|p| p.to_string_lossy().to_string()))
+    Ok(path
+        .and_then(|fp| fp.into_path().ok())
+        .map(|p| p.to_string_lossy().to_string()))
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -322,7 +355,7 @@ async fn watch_key(
             key.clone(),
             is_prefix,
             move |event: WatchEvent| {
-                let _ = app_handle_clone.emit_all("watch-event", event);
+                let _ = app_handle_clone.emit("watch-event", &event);
             },
         )
         .await
@@ -334,11 +367,21 @@ async fn watch_key(
             watch_id.clone(),
             WatchState {
                 _watch_id: watch_id.clone(),
+                connection_id: connection_id.clone(),
                 key: key.clone(),
                 cancel_tx: handle.cancel_tx,
             },
         );
     }
+
+    let cleanup_app = app_handle.clone();
+    let cleanup_id = watch_id.clone();
+    tokio::spawn(async move {
+        let _ = handle.task_handle.await;
+        let state = cleanup_app.state::<AppState>();
+        let mut watches = state.active_watches.lock().await;
+        watches.remove(&cleanup_id);
+    });
 
     Ok(WatchResponse {
         watch_id,
@@ -348,10 +391,7 @@ async fn watch_key(
 }
 
 #[tauri::command]
-async fn unwatch_key(
-    state: State<'_, AppState>,
-    watch_id: String,
-) -> Result<(), String> {
+async fn unwatch_key(state: State<'_, AppState>, watch_id: String) -> Result<(), String> {
     let mut watches = state.active_watches.lock().await;
 
     if let Some(watch_state) = watches.remove(&watch_id) {
@@ -363,9 +403,7 @@ async fn unwatch_key(
 }
 
 #[tauri::command]
-async fn list_active_watches(
-    state: State<'_, AppState>,
-) -> Result<Vec<(String, String)>, String> {
+async fn list_active_watches(state: State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
     let watches = state.active_watches.lock().await;
     let result: Vec<(String, String)> = watches
         .iter()
@@ -395,7 +433,10 @@ async fn lease_revoke(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.lease_revoke(lease_id).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .lease_revoke(lease_id)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -408,7 +449,10 @@ async fn lease_keepalive(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.lease_keepalive(lease_id).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .lease_keepalive(lease_id)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -421,16 +465,16 @@ async fn lease_time_to_live(
 ) -> Result<LeaseInfo, String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.lease_time_to_live(lease_id).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .lease_time_to_live(lease_id)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
 
 #[tauri::command]
-async fn lease_list(
-    state: State<'_, AppState>,
-    connection_id: String,
-) -> Result<Vec<i64>, String> {
+async fn lease_list(state: State<'_, AppState>, connection_id: String) -> Result<Vec<i64>, String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
         Some(client) => client.lease_list().await.map_err(|e| e.to_string()),
@@ -461,46 +505,59 @@ async fn snapshot_save(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
     connection_id: String,
-) -> Result<String, String> {
-    let file_path = tauri::async_runtime::spawn_blocking(|| {
-        FileDialogBuilder::new()
+) -> Result<Option<String>, String> {
+    let app_for_dialog = app_handle.clone();
+    let file_path = tauri::async_runtime::spawn_blocking(move || {
+        app_for_dialog
+            .dialog()
+            .file()
             .add_filter("ETCD Snapshot", &["db", "snapshot"])
             .add_filter("All Files", &["*"])
-            .set_file_name(&format!("etcd-snapshot-{}.db", chrono::Local::now().format("%Y%m%d-%H%M%S")))
-            .save_file()
+            .set_file_name(format!(
+                "etcd-snapshot-{}.db",
+                chrono::Local::now().format("%Y%m%d-%H%M%S")
+            ))
+            .blocking_save_file()
     })
     .await
     .map_err(|e| format!("Failed to spawn blocking task: {}", e))?;
 
-    let file_path = match file_path {
+    let file_path = match file_path.and_then(|fp| fp.into_path().ok()) {
         Some(path) => path,
-        None => return Err("No file selected".to_string()),
+        None => return Ok(None),
     };
 
-    let mut connections = state.connections.lock().await;
-    let client = connections
-        .get_mut(&connection_id)
-        .ok_or_else(|| format!("Connection '{}' not found", connection_id))?;
+    let inner_client = {
+        let connections = state.connections.lock().await;
+        let client = connections
+            .get(&connection_id)
+            .ok_or_else(|| format!("Connection '{}' not found", connection_id))?;
+        client.clone_client()
+    };
 
     let app_handle_clone = app_handle.clone();
     let path_clone = file_path.clone();
 
-    let bytes_written = client
-        .snapshot(path_clone, Some(move |written: u64, total: u64| {
-            let progress = SnapshotProgress {
-                bytes_written: written,
-                total_bytes: total,
-            };
-            let _ = app_handle_clone.emit_all("snapshot-progress", progress);
-        }))
+    let mut snapshot_client = etcd::EtcdClient::from_client(inner_client);
+    let bytes_written = snapshot_client
+        .snapshot(
+            path_clone,
+            Some(move |written: u64, total: u64| {
+                let progress = SnapshotProgress {
+                    bytes_written: written,
+                    total_bytes: total,
+                };
+                let _ = app_handle_clone.emit("snapshot-progress", &progress);
+            }),
+        )
         .await
         .map_err(|e| format!("Failed to save snapshot: {}", e))?;
 
-    Ok(format!(
+    Ok(Some(format!(
         "Snapshot saved successfully: {} bytes written to {}",
         bytes_written,
         file_path.display()
-    ))
+    )))
 }
 
 #[tauri::command]
@@ -516,10 +573,7 @@ async fn auth_status(
 }
 
 #[tauri::command]
-async fn auth_enable(
-    state: State<'_, AppState>,
-    connection_id: String,
-) -> Result<(), String> {
+async fn auth_enable(state: State<'_, AppState>, connection_id: String) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
         Some(client) => client.auth_enable().await.map_err(|e| e.to_string()),
@@ -528,10 +582,7 @@ async fn auth_enable(
 }
 
 #[tauri::command]
-async fn auth_disable(
-    state: State<'_, AppState>,
-    connection_id: String,
-) -> Result<(), String> {
+async fn auth_disable(state: State<'_, AppState>, connection_id: String) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
         Some(client) => client.auth_disable().await.map_err(|e| e.to_string()),
@@ -560,7 +611,10 @@ async fn user_add(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.user_add(&name, &password).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .user_add(&name, &password)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -587,7 +641,10 @@ async fn user_grant_role(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.user_grant_role(&user, &role).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .user_grant_role(&user, &role)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -601,7 +658,10 @@ async fn user_revoke_role(
 ) -> Result<(), String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.user_revoke_role(&user, &role).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .user_revoke_role(&user, &role)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -652,7 +712,10 @@ async fn role_get_permissions(
 ) -> Result<EtcdRolePermissions, String> {
     let mut connections = state.connections.lock().await;
     match connections.get_mut(&connection_id) {
-        Some(client) => client.role_get_permissions(&role).await.map_err(|e| e.to_string()),
+        Some(client) => client
+            .role_get_permissions(&role)
+            .await
+            .map_err(|e| e.to_string()),
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }
@@ -695,43 +758,76 @@ async fn role_revoke_permission(
 }
 
 fn main() {
-    let show = CustomMenuItem::new("show".to_string(), "Show");
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-
-    let tray_menu = SystemTrayMenu::new()
-        .add_item(show)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(quit);
-
-    let system_tray = SystemTray::new().with_menu(tray_menu);
+    #[cfg(target_os = "linux")]
+    {
+        // Fix for WebKitGTK GPU rendering failures on Linux (Wayland, NVIDIA, VMs).
+        // WEBKIT_DISABLE_DMABUF_RENDERER: Fixes blank screens / EGL errors.
+        // See: https://github.com/tauri-apps/tauri/issues/9394
+        // WEBKIT_DISABLE_COMPOSITING_MODE: Fixes "Failed to create GBM buffer" crashes.
+        // See: https://github.com/tauri-apps/tauri/issues/11994
+        // SAFETY: Called before any threads are spawned (Tauri hasn't started yet).
+        if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+            unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+        }
+        if std::env::var_os("WEBKIT_DISABLE_COMPOSITING_MODE").is_none() {
+            unsafe { std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1") };
+        }
+    }
 
     tauri::Builder::default()
-        .manage(AppState::new())
-        .system_tray(system_tray)
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::LeftClick {
-                position: _,
-                size: _,
-                ..
-            } => {
-                if let Some(window) = app.get_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_notification::init())
+        .manage(AppState::default())
+        .setup(|app| {
+            let show = MenuItemBuilder::with_id("show", "Show").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let menu = MenuBuilder::new(app)
+                .item(&show)
+                .separator()
+                .item(&quit)
+                .build()?;
+
+            let mut tray_builder = TrayIconBuilder::new()
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .icon_as_template(true);
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
             }
-            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
-                "show" => {
-                    if let Some(window) = app.get_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
+
+            tray_builder
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
                     }
-                }
-                "quit" => {
-                    app.exit(0);
-                }
-                _ => {}
-            },
-            _ => {}
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             connect_etcd,

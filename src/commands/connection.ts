@@ -4,7 +4,7 @@
  * Maps to: connect_etcd, disconnect_etcd, test_connection, list_connections
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { EtcdConfig } from "./types";
 
 export async function connectEtcd(config: EtcdConfig): Promise<string> {

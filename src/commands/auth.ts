@@ -7,7 +7,7 @@
  *          role_grant_permission, role_revoke_permission
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type {
 	AuthStatus,
 	EtcdRole,

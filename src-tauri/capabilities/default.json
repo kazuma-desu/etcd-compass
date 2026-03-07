@@ -1,0 +1,40 @@
+{
+	"identifier": "default",
+	"description": "Default capability for the main window",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"dialog:default",
+		"dialog:allow-open",
+		"dialog:allow-save",
+		"dialog:allow-ask",
+		"dialog:allow-confirm",
+		"dialog:allow-message",
+		"fs:default",
+		{
+			"identifier": "fs:allow-read-text-file",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-write-text-file",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-read-dir",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-mkdir",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-exists",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "shell:allow-open",
+			"allow": ["https://**", "http://**"]
+		},
+		"notification:default"
+	]
+}

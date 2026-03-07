@@ -6,7 +6,7 @@
  *          duplicate_connection, import_connections
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import type { EtcdConfig } from "./types";
 
 export async function getSavedConnection(): Promise<EtcdConfig> {
