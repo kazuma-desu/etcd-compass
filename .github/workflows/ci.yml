@@ -284,7 +284,9 @@ jobs:
 
       - name: Install system dependencies (Windows)
         if: runner.os == 'Windows'
-        run: choco install protoc -y
+        run: |
+          choco install protoc -y
+          echo "$env:ChocolateyInstall/lib/protoc/tools/bin" >> $env:GITHUB_PATH
 
       - name: Set up MSVC for ARM64 cross-compilation
         if: matrix.platform == 'windows-arm64'
