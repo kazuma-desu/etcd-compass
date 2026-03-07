@@ -11,12 +11,30 @@
 		"dialog:allow-confirm",
 		"dialog:allow-message",
 		"fs:default",
-		"fs:allow-read-text-file",
-		"fs:allow-write-text-file",
-		"fs:allow-read-dir",
-		"fs:allow-mkdir",
-		"fs:allow-exists",
-		"shell:allow-open",
+		{
+			"identifier": "fs:allow-read-text-file",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-write-text-file",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-read-dir",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-mkdir",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "fs:allow-exists",
+			"allow": [{ "path": "$APPCONFIG/**" }, { "path": "$APPDATA/**" }]
+		},
+		{
+			"identifier": "shell:allow-open",
+			"allow": ["https://**", "http://**"]
+		},
 		"notification:default"
 	]
 }
