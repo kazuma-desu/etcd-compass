@@ -19,6 +19,7 @@ use uuid::Uuid;
 
 pub struct WatchState {
     _watch_id: String,
+    connection_id: String,
     key: String,
     cancel_tx: mpsc::Sender<()>,
 }
@@ -77,7 +78,9 @@ async fn connect_etcd(
                 configs.insert(connection_id.clone(), config.clone());
             }
 
-            let _ = config::save_connection_config(&config);
+            if let Err(e) = config::save_connection_config(&config) {
+                eprintln!("Failed to persist connection config: {}", e);
+            }
 
             Ok(connection_id)
         }
@@ -96,6 +99,19 @@ async fn disconnect_etcd(
     if removed.is_some() {
         let mut configs = state.connection_configs.lock().await;
         configs.remove(&connection_id);
+
+        let mut watches = state.active_watches.lock().await;
+        let orphaned_ids: Vec<String> = watches
+            .iter()
+            .filter(|(_, ws)| ws.connection_id == connection_id)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in orphaned_ids {
+            if let Some(ws) = watches.remove(&id) {
+                let _ = ws.cancel_tx.send(()).await;
+            }
+        }
+
         Ok("Disconnected successfully".to_string())
     } else {
         Err(format!("Connection with ID '{}' not found", connection_id))
@@ -341,6 +357,7 @@ async fn watch_key(
             watch_id.clone(),
             WatchState {
                 _watch_id: watch_id.clone(),
+                connection_id: connection_id.clone(),
                 key: key.clone(),
                 cancel_tx: handle.cancel_tx,
             },
@@ -491,15 +508,19 @@ async fn snapshot_save(
         None => return Err("No file selected".to_string()),
     };
 
-    let mut connections = state.connections.lock().await;
-    let client = connections
-        .get_mut(&connection_id)
-        .ok_or_else(|| format!("Connection '{}' not found", connection_id))?;
+    let inner_client = {
+        let connections = state.connections.lock().await;
+        let client = connections
+            .get(&connection_id)
+            .ok_or_else(|| format!("Connection '{}' not found", connection_id))?;
+        client.clone_client()
+    };
 
     let app_handle_clone = app_handle.clone();
     let path_clone = file_path.clone();
 
-    let bytes_written = client
+    let mut snapshot_client = etcd::EtcdClient::from_client(inner_client);
+    let bytes_written = snapshot_client
         .snapshot(
             path_clone,
             Some(move |written: u64, total: u64| {
@@ -749,11 +770,16 @@ fn main() {
                 .item(&quit)
                 .build()?;
 
-            TrayIconBuilder::new()
+            let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .icon(app.default_window_icon().unwrap().clone())
-                .icon_as_template(true)
+                .icon_as_template(true);
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+
+            tray_builder
                 .on_menu_event(|app, event| match event.id().as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
