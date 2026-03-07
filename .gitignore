@@ -34,6 +34,9 @@ Thumbs.db
 # ETCD data directory
 default.etcd/
 
+# Coverage
+coverage/
+
 # Task runner
 .task/
 
