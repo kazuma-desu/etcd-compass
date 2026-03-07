@@ -111,6 +111,14 @@ pub struct EtcdClient {
 }
 
 impl EtcdClient {
+    pub fn clone_client(&self) -> Client {
+        self.client.clone()
+    }
+
+    pub fn from_client(client: Client) -> Self {
+        EtcdClient { client }
+    }
+
     pub async fn connect(config: &EtcdConfig) -> anyhow::Result<Self> {
         let mut options = ConnectOptions::new();
 
@@ -144,12 +152,13 @@ impl EtcdClient {
                 tls_options = tls_options.identity(identity);
             }
 
-            // When skip_verify is true, we need to allow invalid certificates
-            // by NOT adding any CA certificates or native roots.
-            // The with_native_roots() method enables certificate validation,
-            // which is the opposite of what skip_verify should do.
-            // For now, we simply don't add any certificate validation
-            // when skip_verify is true.
+            if config.skip_verify {
+                eprintln!(
+                    "WARNING: skip_verify is set but etcd-client's TlsOptions does not expose \
+                     a method to disable certificate validation. TLS will proceed without \
+                     explicit CA roots, which may fail against self-signed certificates."
+                );
+            }
 
             options = options.with_tls(tls_options);
         }
@@ -386,16 +395,11 @@ impl EtcdClient {
         let member_list = self.client.member_list().await?;
 
         let leader_id = status.leader().to_string();
-        let current_member_id = status
+        let header = status
             .header()
-            .map(|h| h.member_id())
-            .unwrap_or(0)
-            .to_string();
-        let cluster_id = status
-            .header()
-            .map(|h| h.cluster_id())
-            .unwrap_or(0)
-            .to_string();
+            .ok_or_else(|| anyhow::anyhow!("Status response missing header"))?;
+        let current_member_id = header.member_id().to_string();
+        let cluster_id = header.cluster_id().to_string();
 
         let members: Vec<ClusterMember> = member_list
             .members()
