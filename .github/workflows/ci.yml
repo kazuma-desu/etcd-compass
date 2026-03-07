@@ -168,6 +168,7 @@ jobs:
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
           toolchain: ${{ env.RUST_VERSION }}
+          components: llvm-tools
 
       - name: Install system dependencies
         run: |
@@ -182,9 +183,19 @@ jobs:
       - name: Create frontend dist stub
         run: mkdir -p dist
 
-      - name: Run tests
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Run tests with coverage
         working-directory: src-tauri
-        run: cargo test
+        run: cargo llvm-cov --lcov --output-path lcov.info
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-coverage
+          path: src-tauri/lcov.info
+          retention-days: 1
 
   sonar:
     name: SonarCloud Analysis
@@ -203,6 +214,12 @@ jobs:
         with:
           name: frontend-coverage
           path: coverage
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-coverage
+          path: backend-coverage
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@ffc3010689be73b8e5ae0c57ce35968afd7909e8 # v5
