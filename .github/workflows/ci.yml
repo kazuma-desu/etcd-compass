@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: "20"
+  RUST_VERSION: "1.92.0"
 
 permissions:
   contents: read
@@ -38,6 +39,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install system dependencies
         run: |
@@ -57,9 +60,10 @@ jobs:
         run: cargo audit
 
       - name: Secret detection
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz
-          ./gitleaks detect --source . --verbose
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.21.2"
 
   frontend-lint:
     name: Frontend Lint
@@ -119,6 +123,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
+          toolchain: ${{ env.RUST_VERSION }}
           components: clippy, rustfmt
 
       - name: Install system dependencies
@@ -154,6 +159,8 @@ jobs:
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Install system dependencies
         run: |
@@ -215,6 +222,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
         with:
+          toolchain: ${{ env.RUST_VERSION }}
           targets: ${{ matrix.rust-targets }}
 
       - name: Install system dependencies (Linux)
@@ -230,6 +238,12 @@ jobs:
       - name: Install system dependencies (Windows)
         if: runner.os == 'Windows'
         run: choco install protoc -y
+
+      - name: Set up MSVC for ARM64 cross-compilation
+        if: matrix.platform == 'windows-arm64'
+        uses: ilammy/msvc-dev-cmd@a102174a2b586eec2ea151a69e6fd14404a8ce7c # v1.13.0
+        with:
+          arch: amd64_arm64
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@aa7c1c80a07a27a84c0aa76d0cef0aad3830e330 # v2.7.8
