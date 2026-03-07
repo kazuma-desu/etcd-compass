@@ -284,9 +284,17 @@ jobs:
 
       - name: Install system dependencies (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PROTOC_VERSION: "29.3"
         run: |
-          choco install protoc -y
-          echo "$env:ChocolateyInstall/lib/protoc/tools/bin" >> $env:GITHUB_PATH
+          $url = "https://github.com/protocolbuffers/protobuf/releases/download/v${env:PROTOC_VERSION}/protoc-${env:PROTOC_VERSION}-win64.zip"
+          $zip = "$env:RUNNER_TEMP\protoc.zip"
+          $dest = "$env:RUNNER_TEMP\protoc"
+          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          echo "$dest\bin" >> $env:GITHUB_PATH
+          & "$dest\bin\protoc.exe" --version
 
       - name: Set up MSVC for ARM64 cross-compilation
         if: matrix.platform == 'windows-arm64'
