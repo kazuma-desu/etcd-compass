@@ -56,7 +56,7 @@ export function TabBar() {
 	if (tabs.length === 0) return null;
 
 	return (
-		<div className="border-b bg-muted/50">
+		<div className="border-b bg-background/60 backdrop-blur-xl z-10 sticky top-0 transition-all duration-300">
 			<div className="flex items-center px-2">
 				{tabs.map((tab) => (
 					<div
@@ -66,10 +66,9 @@ export function TabBar() {
               group flex items-center gap-2 px-3 py-2 text-sm cursor-pointer
               border-r border-border/50 min-w-[120px] max-w-[200px]
               transition-colors relative
-              ${
-								tab.id === connectionId
-									? "bg-background text-foreground border-t-2 border-t-primary"
-									: "text-muted-foreground hover:text-foreground hover:bg-muted"
+              ${tab.id === connectionId
+								? "bg-background text-foreground border-t-2 border-t-primary"
+								: "text-muted-foreground hover:text-foreground hover:bg-muted"
 							}
             `}
 					>

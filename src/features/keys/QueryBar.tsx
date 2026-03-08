@@ -1,29 +1,19 @@
 import {
 	ArrowDownAZ,
-	ArrowRightLeft,
 	ArrowUpZA,
 	ChevronDown,
 	Download,
 	FolderSearch,
 	FolderTree,
-	History,
 	List,
 	Plus,
 	RefreshCw,
 	Upload,
-	X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import { Input } from "@/components/ui/input";
 import {
 	Popover,
@@ -38,13 +28,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { formatShortcut } from "@/shared/hooks/use-keyboard-shortcuts";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useKeysStore } from "./keys-store";
 
 interface QueryBarProps {
@@ -181,35 +165,51 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 
 	return (
 		<TooltipProvider delayDuration={300}>
-			<div className="border-b bg-background">
-				<div className="flex flex-wrap items-center gap-2 py-2 px-4">
-					<div className="flex items-center gap-2 flex-1 min-w-[200px] flex-wrap">
-						<Popover>
-							<PopoverTrigger asChild>
-								<div className="relative flex-1 min-w-[200px] max-w-xs">
-									<FolderSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-									<Input
-										ref={searchInputRef}
-										placeholder="Filter by prefix..."
-										value={prefixInput}
-										onChange={(e) => setPrefixInput(e.target.value)}
-										className="pl-9 h-8"
-									/>
-									{prefixInput && (
-										<Badge
-											variant="secondary"
-											className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
-										>
-											{filteredKeys.length}
-										</Badge>
-									)}
-								</div>
-							</PopoverTrigger>
-							<PopoverContent className="w-64 p-0" align="start">
-								<div className="px-3 py-2 text-xs text-muted-foreground border-b">
-									Known prefixes
-								</div>
-								<div className="max-h-48 overflow-y-auto">
+			<div className="flex flex-col gap-3 pb-3 bg-background sticky top-0 z-10 w-full pt-1">
+				{/* Query Row */}
+				<div className="flex items-center gap-2 px-1">
+					<Popover>
+						<PopoverTrigger asChild>
+							<div className="relative flex-1">
+								<FolderSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+								<Input
+									ref={searchInputRef}
+									placeholder="Search by prefix: { key: 'value' }"
+									value={prefixInput}
+									onChange={(e) => setPrefixInput(e.target.value)}
+									className="pl-9 h-9 font-mono text-xs border border-border/80 rounded-md bg-secondary/30 focus-visible:ring-1 focus-visible:ring-primary/50"
+								/>
+								{prefixInput && (
+									<Badge
+										variant="secondary"
+										className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] h-5 px-1.5"
+									>
+										{filteredKeys.length}
+									</Badge>
+								)}
+							</div>
+						</PopoverTrigger>
+						<PopoverContent className="w-96 p-0" align="start">
+							<div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b bg-muted/30">
+								Recent Queries & Prefixes
+							</div>
+							<div className="max-h-64 overflow-y-auto">
+								{recentQueries.length > 0 && (
+									<div className="py-1 border-b">
+										{recentQueries.slice(0, 5).map((query) => (
+											<button
+												type="button"
+												key={query.id}
+												onClick={() => handleLoadRecentQuery(query)}
+												className="w-full px-3 py-1.5 text-xs text-left flex flex-col gap-0.5 hover:bg-accent/50 transition-colors"
+											>
+												<span className="font-mono truncate">{formatRecentQueryLabel(query)}</span>
+												<span className="text-[10px] text-muted-foreground">{new Date(query.timestamp).toLocaleString()}</span>
+											</button>
+										))}
+									</div>
+								)}
+								<div className="py-1">
 									{filteredPrefixes.length > 0 ? (
 										filteredPrefixes.map((prefix) => (
 											<button
@@ -219,254 +219,174 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 													setPrefixInput(prefix);
 													setSearchQuery(prefix);
 												}}
-												className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors"
+												className="w-full px-3 py-1.5 text-xs font-mono text-left hover:bg-accent/50 transition-colors"
 											>
 												{prefix}
 											</button>
 										))
 									) : (
-										<div className="px-3 py-2 text-sm text-muted-foreground">
+										<div className="px-3 py-3 text-xs text-muted-foreground text-center">
 											No matching prefixes
 										</div>
 									)}
 								</div>
-							</PopoverContent>
-						</Popover>
-
-						<div className="flex items-center gap-2 flex-wrap">
-							<div className="flex items-center gap-1 text-xs text-muted-foreground">
-								<ArrowRightLeft className="h-3 w-3" />
-								<span>Range:</span>
 							</div>
-							<Input
-								placeholder="Start key"
-								value={startKeyInput}
-								onChange={(e) => setStartKeyInput(e.target.value)}
-								className="h-8 w-28 text-xs"
-							/>
-							<span className="text-muted-foreground">-</span>
-							<Input
-								placeholder="End key"
-								value={endKeyInput}
-								onChange={(e) => setEndKeyInput(e.target.value)}
-								className="h-8 w-28 text-xs"
-							/>
-						</div>
+						</PopoverContent>
+					</Popover>
 
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-8 px-2"
-									onClick={() => setSortAscending(!sortAscending)}
-								>
-									{sortAscending ? (
-										<ArrowDownAZ className="h-4 w-4" />
-									) : (
-										<ArrowUpZA className="h-4 w-4" />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								Sort {sortAscending ? "ascending" : "descending"}
-							</TooltipContent>
-						</Tooltip>
-
-						<Tabs
-							value={viewMode}
-							onValueChange={(v) => setViewMode(v as "flat" | "tree")}
-						>
-							<TabsList className="h-8">
-								<TabsTrigger value="flat" className="text-xs gap-1">
-									<List className="h-3.5 w-3.5" />
-									<span className="hidden sm:inline">Flat</span>
-								</TabsTrigger>
-								<TabsTrigger value="tree" className="text-xs gap-1">
-									<FolderTree className="h-3.5 w-3.5" />
-									<span className="hidden sm:inline">Tree</span>
-								</TabsTrigger>
-							</TabsList>
-						</Tabs>
-					</div>
-
-					<div className="flex items-center gap-2 flex-wrap justify-end">
-						<Badge variant="outline" className="text-xs whitespace-nowrap">
-							{keys.length} keys
-						</Badge>
-
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									onClick={handleRefresh}
-									disabled={isLoading}
-								>
-									<RefreshCw
-										className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-									/>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								<span>Refresh keys</span>
-								<kbd className="ml-2 bg-muted px-1 rounded text-xs">
-									{formatShortcut("r")}
-								</kbd>
-							</TooltipContent>
-						</Tooltip>
-
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									onClick={() => setShowExportDialog(true)}
-								>
-									<Download className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								<span>Export keys</span>
-							</TooltipContent>
-						</Tooltip>
-
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									onClick={() => importKeys()}
-								>
-									<Upload className="h-4 w-4" />
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								<span>Import keys</span>
-							</TooltipContent>
-						</Tooltip>
-
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									size="sm"
-									className="h-8 gap-1"
-									onClick={() => setShowAddDialog(true)}
-								>
-									<Plus className="h-3.5 w-3.5" />
-									Add Key
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="bottom">
-								<span>Add new key</span>
-							</TooltipContent>
-						</Tooltip>
-					</div>
-				</div>
-
-				<div className="flex flex-wrap items-center gap-3 pb-2 px-4">
-					<div className="flex items-center gap-2 flex-1 flex-wrap">
-						<div className="flex items-center gap-1">
-							<span className="text-xs text-muted-foreground">Limit:</span>
-							<Select
-								value={pagination.limit.toString()}
-								onValueChange={(v) => setPageSize(parseInt(v, 10))}
+					<div className="flex items-center gap-1.5 shrink-0">
+						{(hasActiveFilters) && (
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-9 px-3 text-xs font-medium border-border/80"
+								onClick={handleClearFilters}
 							>
-								<SelectTrigger className="h-7 w-20 text-xs">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="25">25</SelectItem>
-									<SelectItem value="50">50</SelectItem>
-									<SelectItem value="100">100</SelectItem>
-									<SelectItem value="500">500</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						{recentQueries.length > 0 && (
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-7 text-xs gap-1"
-									>
-										<History className="h-3 w-3" />
-										Recent
-										<ChevronDown className="h-3 w-3" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="start" className="w-72">
-									<DropdownMenuLabel className="text-xs">
-										Recent queries (last 20)
-									</DropdownMenuLabel>
-									<DropdownMenuSeparator />
-									{recentQueries.map((query) => (
-										<DropdownMenuItem
-											key={query.id}
-											onClick={() => handleLoadRecentQuery(query)}
-											className="text-xs cursor-pointer"
-										>
-											<div className="flex flex-col gap-0.5">
-												<span className="font-medium truncate max-w-60">
-													{formatRecentQueryLabel(query)}
-												</span>
-												<span className="text-muted-foreground text-[10px]">
-													{new Date(query.timestamp).toLocaleString()}
-												</span>
-											</div>
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
+								Reset
+							</Button>
 						)}
-
 						<Button
-							variant="outline"
+							variant="default"
 							size="sm"
-							className="h-7 text-xs"
+							className="h-9 px-4 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white"
 							onClick={handleApplyFilters}
 						>
 							Apply
 						</Button>
 
-						{hasActiveFilters && (
-							<Button
-								variant="ghost"
-								size="sm"
-								className="h-7 text-xs gap-1"
-								onClick={handleClearFilters}
-							>
-								<X className="h-3 w-3" />
-								Clear
-							</Button>
-						)}
+						{/* Options Popover */}
+						<Popover>
+							<PopoverTrigger asChild>
+								<Button variant="ghost" size="sm" className="h-9 px-3 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1.5">
+									Options <ChevronDown className="h-3 w-3" />
+								</Button>
+							</PopoverTrigger>
+							<PopoverContent className="w-80 p-4 space-y-4" align="end">
+								<div className="space-y-2">
+									<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Range Filter</h4>
+									<div className="flex items-center gap-2">
+										<div className="flex-1 space-y-1.5">
+											<Input
+												placeholder="Start key"
+												value={startKeyInput}
+												onChange={(e) => setStartKeyInput(e.target.value)}
+												className="h-8 text-xs font-mono"
+											/>
+										</div>
+										<span className="text-muted-foreground text-xs">-</span>
+										<div className="flex-1 space-y-1.5">
+											<Input
+												placeholder="End key"
+												value={endKeyInput}
+												onChange={(e) => setEndKeyInput(e.target.value)}
+												className="h-8 text-xs font-mono"
+											/>
+										</div>
+									</div>
+								</div>
+								<div className="flex items-center gap-4">
+									<div className="space-y-1.5 flex-1">
+										<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Limit</h4>
+										<Select
+											value={pagination.limit.toString()}
+											onValueChange={(v) => setPageSize(parseInt(v, 10))}
+										>
+											<SelectTrigger className="h-8 text-xs w-full">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="25">25</SelectItem>
+												<SelectItem value="50">50</SelectItem>
+												<SelectItem value="100">100</SelectItem>
+												<SelectItem value="500">500</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+									<div className="space-y-1.5 flex-1">
+										<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Sort</h4>
+										<Button
+											variant="outline"
+											size="sm"
+											className="h-8 w-full text-xs justify-start gap-2"
+											onClick={() => setSortAscending(!sortAscending)}
+										>
+											{sortAscending ? <ArrowDownAZ className="h-4 w-4" /> : <ArrowUpZA className="h-4 w-4" />}
+											{sortAscending ? "Ascending" : "Descending"}
+										</Button>
+									</div>
+								</div>
+							</PopoverContent>
+						</Popover>
+					</div>
+				</div>
+
+				{/* Action Buttons Row */}
+				<div className="flex flex-wrap items-center justify-between px-1 gap-4">
+					<div className="flex items-center gap-2 flex-wrap">
+						<Button
+							size="sm"
+							className="h-7 text-[11px] font-bold px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded uppercase tracking-wide border border-transparent shadow-sm"
+							onClick={() => setShowAddDialog(true)}
+						>
+							<Plus className="h-3.5 w-3.5 stroke-[3]" />
+							ADD KEY
+						</Button>
+
+						<div className="h-4 w-px bg-border mx-1" />
+
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-7 text-[11px] font-bold px-3 gap-1.5 text-foreground hover:bg-secondary rounded uppercase tracking-wide border-border/60 hover:border-border shadow-sm bg-background"
+							onClick={handleRefresh}
+							disabled={isLoading}
+						>
+							<RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
+							REFRESH
+						</Button>
+
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-7 text-[11px] font-bold px-3 gap-1.5 text-foreground hover:bg-secondary rounded uppercase tracking-wide border-border/60 hover:border-border shadow-sm bg-background"
+							onClick={() => importKeys()}
+						>
+							<Upload className="h-3 w-3" />
+							IMPORT
+						</Button>
+
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-7 text-[11px] font-bold px-3 gap-1.5 text-foreground hover:bg-secondary rounded uppercase tracking-wide border-border/60 hover:border-border shadow-sm bg-background"
+							onClick={() => setShowExportDialog(true)}
+						>
+							<Download className="h-3 w-3" />
+							EXPORT
+						</Button>
 					</div>
 
-					{hasActiveFilters && (
-						<div className="flex items-center gap-1">
-							<span className="text-xs text-muted-foreground">Active:</span>
-							{prefixInput && (
-								<Badge variant="secondary" className="text-xs h-5">
-									prefix: {prefixInput}
-								</Badge>
-							)}
-							{startKeyInput && (
-								<Badge variant="secondary" className="text-xs h-5">
-									start: {startKeyInput}
-								</Badge>
-							)}
-							{endKeyInput && (
-								<Badge variant="secondary" className="text-xs h-5">
-									end: {endKeyInput}
-								</Badge>
-							)}
-						</div>
-					)}
+					<div className="flex items-center gap-3">
+						<Badge variant="secondary" className="text-[10px] font-medium uppercase tracking-wider h-5 flex items-center bg-muted/50 text-muted-foreground border-border/40">
+							{keys.length} keys
+						</Badge>
+						<Tabs
+							value={viewMode}
+							onValueChange={(v) => setViewMode(v as "flat" | "tree")}
+							className="h-7"
+						>
+							<TabsList className="h-7 p-0.5 bg-muted/50 border border-border/40 object-contain rounded-md">
+								<TabsTrigger value="flat" className="text-[10px] uppercase tracking-wide px-2 h-5 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+									<List className="h-3 w-3 mr-1.5" />
+									Flat
+								</TabsTrigger>
+								<TabsTrigger value="tree" className="text-[10px] uppercase tracking-wide px-2 h-5 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+									<FolderTree className="h-3 w-3 mr-1.5" />
+									Tree
+								</TabsTrigger>
+							</TabsList>
+						</Tabs>
+					</div>
 				</div>
 			</div>
 		</TooltipProvider>
