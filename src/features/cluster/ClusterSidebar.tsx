@@ -6,6 +6,7 @@ import {
 	Download,
 	Edit,
 	Folder,
+	MoreHorizontal,
 	MoreVertical,
 	PanelLeftClose,
 	PanelLeftOpen,
@@ -35,7 +36,6 @@ import {
 	writeFile,
 } from "@/commands/native";
 import type { EtcdConfig } from "@/commands/types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	ContextMenu,
@@ -53,7 +53,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
 	Sidebar,
 	SidebarContent,
@@ -89,7 +88,8 @@ export function ClusterSidebar({
 	onAddCluster,
 	onEditCluster,
 }: ClusterSidebarProps) {
-	const { connectionId, disconnect } = useConnectionStore();
+	const { connectionId, disconnect, setActiveConnectionId } =
+		useConnectionStore();
 	const { state, toggleSidebar } = useSidebar();
 	const [connections, setConnections] = useState<ConnectionInfo[]>([]);
 	const [filter, setFilter] = useState("");
@@ -122,6 +122,7 @@ export function ClusterSidebar({
 				"Failed to list connections: " +
 					(e instanceof Error ? e.message : String(e)),
 			);
+			throw e;
 		}
 	}, []);
 
@@ -168,9 +169,13 @@ export function ClusterSidebar({
 		}
 	};
 
-	const handleRefresh = () => {
-		loadConnections();
-		toast.success("Refreshed cluster list");
+	const handleRefresh = async () => {
+		try {
+			await loadConnections();
+			toast.success("Refreshed cluster list");
+		} catch (_e) {
+			toast.error("Failed to refresh cluster list");
+		}
 	};
 
 	const handleToggleFavorite = async (
@@ -224,10 +229,39 @@ export function ClusterSidebar({
 
 			if (filePath && typeof filePath === "string") {
 				const content = await readFile(filePath);
-				const configs: EtcdConfig[] = JSON.parse(content);
-				await importConnections(configs);
+				const parsed: unknown[] = JSON.parse(content);
+				if (!Array.isArray(parsed)) {
+					toast.error("Invalid file: expected an array of connections");
+					return;
+				}
+				const valid: EtcdConfig[] = [];
+				let skipped = 0;
+				for (const item of parsed) {
+					if (
+						typeof item === "object" &&
+						item !== null &&
+						"endpoint" in item &&
+						typeof (item as Record<string, unknown>).endpoint === "string" &&
+						(item as Record<string, unknown>).endpoint !== ""
+					) {
+						valid.push(item as EtcdConfig);
+					} else {
+						skipped++;
+					}
+				}
+				if (valid.length === 0) {
+					toast.error(
+						`No valid connections found (${skipped} entries skipped — missing endpoint)`,
+					);
+					return;
+				}
+				await importConnections(valid);
 				await loadConnections();
-				toast.success(`${configs.length} connections imported successfully`);
+				const msg =
+					skipped > 0
+						? `${valid.length} connections imported (${skipped} invalid entries skipped)`
+						: `${valid.length} connections imported successfully`;
+				toast.success(msg);
 			}
 		} catch (e: unknown) {
 			toast.error(
@@ -283,7 +317,7 @@ export function ClusterSidebar({
 				<div className="flex items-center gap-2 px-3 py-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-1">
 					<Database className="h-5 w-5 text-primary shrink-0" />
 					<span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">
-						ETCD Compass
+						Compass
 					</span>
 					<Button
 						variant="ghost"
@@ -304,32 +338,54 @@ export function ClusterSidebar({
 			</SidebarHeader>
 
 			<SidebarContent>
-				<SidebarGroup className="group-data-[collapsible=icon]:px-0">
-					<div className="px-3 py-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-						<Button
-							variant="default"
-							size="sm"
-							className="w-full justify-start gap-2 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
-							onClick={onAddCluster}
-						>
-							<Plus className="h-4 w-4 shrink-0" />
-							<span className="group-data-[collapsible=icon]:hidden">
-								Add Cluster
-							</span>
-						</Button>
-					</div>
-				</SidebarGroup>
-
-				<Separator className="my-1 group-data-[collapsible=icon]:hidden" />
-
-				<SidebarGroup className="flex-1 min-h-0 overflow-hidden">
-					<SidebarGroupLabel className="px-3">
+				<SidebarGroup className="flex-1 min-h-0 overflow-hidden pt-2">
+					<SidebarGroupLabel className="px-3 text-[11px] font-bold tracking-wider text-muted-foreground uppercase h-8">
 						<div className="flex items-center justify-between w-full">
-							<span>Clusters</span>
-							<div className="flex items-center gap-1">
-								<Badge variant="outline" className="text-xs font-medium">
-									{connections.length}
-								</Badge>
+							<span>
+								Connections{" "}
+								{connections.length > 0 && `(${connections.length})`}
+							</span>
+							<div className="flex items-center">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-5 w-5 hover:bg-muted"
+									onClick={onAddCluster}
+								>
+									<Plus className="h-3.5 w-3.5" />
+								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-5 w-5 hover:bg-muted"
+										>
+											<MoreHorizontal className="h-3 w-3" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end" className="w-48">
+										<DropdownMenuItem onClick={handleRefresh} className="gap-2">
+											<RefreshCw className="h-4 w-4" />
+											Refresh list
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											onClick={handleExportProfiles}
+											className="gap-2"
+										>
+											<Download className="h-4 w-4" />
+											Export connections
+										</DropdownMenuItem>
+										<DropdownMenuItem
+											onClick={handleImportProfiles}
+											className="gap-2"
+										>
+											<Upload className="h-4 w-4" />
+											Import connections
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</div>
 						</div>
 					</SidebarGroupLabel>
@@ -338,10 +394,10 @@ export function ClusterSidebar({
 						<div className="relative">
 							<Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
 							<Input
-								placeholder="Filter..."
+								placeholder="Search connections"
 								value={filter}
 								onChange={(e) => setFilter(e.target.value)}
-								className="h-7 pl-7 text-xs"
+								className="h-8 pl-8 text-xs bg-background border-border/60"
 							/>
 						</div>
 					</div>
@@ -349,9 +405,32 @@ export function ClusterSidebar({
 					<SidebarGroupContent className="flex-1 min-h-0">
 						<ScrollArea className="h-full">
 							<SidebarMenu>
-								{filteredConnections.length === 0 ? (
-									<div className="px-3 py-4 text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden">
-										No clusters found
+								{connections.length === 0 ? (
+									<div className="px-3 py-6 text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden space-y-4">
+										<p className="text-left w-full px-1">
+											You have not connected to any deployments.
+										</p>
+										<Button
+											variant="default"
+											size="sm"
+											className="w-full justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md h-9"
+											onClick={onAddCluster}
+										>
+											<Plus className="h-4 w-4 shrink-0" />
+											Add new connection
+										</Button>
+									</div>
+								) : filteredConnections.length === 0 ? (
+									<div className="px-3 py-6 text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden space-y-2">
+										<p>No connections match your filter.</p>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="text-xs"
+											onClick={() => setFilter("")}
+										>
+											Clear filter
+										</Button>
 									</div>
 								) : (
 									Object.entries(groupedConnections).map(([group, conns]) => (
@@ -374,9 +453,10 @@ export function ClusterSidebar({
 																>
 																	<button
 																		type="button"
-																		onClick={() =>
-																			toggleClusterExpanded(conn.id)
-																		}
+																		onClick={() => {
+																			setActiveConnectionId(conn.id);
+																			toggleClusterExpanded(conn.id);
+																		}}
 																		className="flex items-center gap-2"
 																	>
 																		<span className="flex items-center gap-2">

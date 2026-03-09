@@ -56,7 +56,7 @@ export function TabBar() {
 	if (tabs.length === 0) return null;
 
 	return (
-		<div className="border-b bg-muted/50">
+		<div className="border-b bg-background/60 backdrop-blur-xl z-10 sticky top-0 transition-all duration-300">
 			<div className="flex items-center px-2">
 				{tabs.map((tab) => (
 					<div
