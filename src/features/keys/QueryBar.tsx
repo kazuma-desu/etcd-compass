@@ -174,7 +174,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 								<FolderSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
 								<Input
 									ref={searchInputRef}
-									placeholder="Search by prefix: { key: 'value' }"
+									placeholder="Search by prefix, e.g. /config/"
 									value={prefixInput}
 									onChange={(e) => setPrefixInput(e.target.value)}
 									className="pl-9 h-9 font-mono text-xs border border-border/80 rounded-md bg-secondary/30 focus-visible:ring-1 focus-visible:ring-primary/50"

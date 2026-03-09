@@ -52,9 +52,12 @@ export function FlatView({ keys }: FlatViewProps) {
 						</div>
 					</div>
 					<div className="pl-8 pr-2">
-						<pre className="text-xs font-mono text-muted-foreground bg-secondary/30 p-2.5 rounded-md max-h-40 overflow-hidden text-ellipsis whitespace-pre-wrap border border-border/50">
-							{key.value}
-						</pre>
+						<div className="relative">
+							<pre className="text-xs font-mono text-muted-foreground bg-secondary/30 p-2.5 rounded-md max-h-40 overflow-hidden whitespace-pre-wrap border border-border/50">
+								{key.value}
+							</pre>
+							<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-secondary/30 to-transparent pointer-events-none rounded-b-md" />
+						</div>
 					</div>
 				</div>
 			))}

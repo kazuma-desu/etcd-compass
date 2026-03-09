@@ -223,10 +223,39 @@ export function ClusterSidebar({
 
 			if (filePath && typeof filePath === "string") {
 				const content = await readFile(filePath);
-				const configs: EtcdConfig[] = JSON.parse(content);
-				await importConnections(configs);
+				const parsed: unknown[] = JSON.parse(content);
+				if (!Array.isArray(parsed)) {
+					toast.error("Invalid file: expected an array of connections");
+					return;
+				}
+				const valid: EtcdConfig[] = [];
+				let skipped = 0;
+				for (const item of parsed) {
+					if (
+						typeof item === "object" &&
+						item !== null &&
+						"endpoint" in item &&
+						typeof (item as Record<string, unknown>).endpoint === "string" &&
+						(item as Record<string, unknown>).endpoint !== ""
+					) {
+						valid.push(item as EtcdConfig);
+					} else {
+						skipped++;
+					}
+				}
+				if (valid.length === 0) {
+					toast.error(
+						`No valid connections found (${skipped} entries skipped — missing endpoint)`,
+					);
+					return;
+				}
+				await importConnections(valid);
 				await loadConnections();
-				toast.success(`${configs.length} connections imported successfully`);
+				const msg =
+					skipped > 0
+						? `${valid.length} connections imported (${skipped} invalid entries skipped)`
+						: `${valid.length} connections imported successfully`;
+				toast.success(msg);
 			}
 		} catch (e: unknown) {
 			toast.error(
