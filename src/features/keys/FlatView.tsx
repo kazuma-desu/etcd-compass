@@ -31,6 +31,7 @@ export function FlatView({ keys }: FlatViewProps) {
 					role="button"
 					tabIndex={0}
 					aria-pressed={selectedKey?.key === key.key}
+					data-testid={`flatview-card-${key.key}`}
 					className={`border rounded-lg p-3 bg-card hover:border-primary/40 transition-shadow shadow-sm cursor-pointer ${
 						selectedKey?.key === key.key
 							? "ring-1 ring-primary border-primary shadow-md"

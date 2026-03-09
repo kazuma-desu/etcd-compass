@@ -108,9 +108,8 @@ export function ClusterSidebar({
 			);
 
 			setConnections(
-				history.map((config, index) => ({
-					id:
-						endpointToId.get(config.endpoint) || `${config.endpoint}-${index}`,
+				history.map((config) => ({
+					id: endpointToId.get(config.endpoint) || config.endpoint,
 					endpoint: config.endpoint,
 					name: config.name,
 					color: config.color,

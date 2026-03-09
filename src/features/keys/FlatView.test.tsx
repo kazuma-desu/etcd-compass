@@ -63,11 +63,8 @@ describe("FlatView", () => {
 		const keys = [makeKey("/config/db", "localhost:5432")];
 		render(<FlatView keys={keys} />);
 
-		const card = screen
-			.getByText("/config/db")
-			.closest("[class*='border rounded-lg']");
-		expect(card).toBeTruthy();
-		if (card) fireEvent.click(card);
+		const card = screen.getByTestId("flatview-card-/config/db");
+		fireEvent.click(card);
 
 		const state = useKeysStore.getState();
 		expect(state.selectedKey).toEqual(keys[0]);
@@ -77,11 +74,12 @@ describe("FlatView", () => {
 		const keys = [makeKey("/key1", "val1"), makeKey("/key2", "val2")];
 		useKeysStore.setState({ selectedKey: keys[0] });
 
-		const { container } = render(<FlatView keys={keys} />);
+		render(<FlatView keys={keys} />);
 
-		const cards = container.querySelectorAll("[class*='border rounded-lg']");
-		expect(cards[0]).toHaveClass("ring-1");
-		expect(cards[1]).not.toHaveClass("ring-1");
+		const card1 = screen.getByTestId("flatview-card-/key1");
+		const card2 = screen.getByTestId("flatview-card-/key2");
+		expect(card1).toHaveClass("ring-1");
+		expect(card2).not.toHaveClass("ring-1");
 	});
 
 	it("should render checkboxes for bulk selection", () => {
@@ -107,11 +105,8 @@ describe("FlatView", () => {
 		const keys = [makeKey("/config/db", "localhost:5432")];
 		render(<FlatView keys={keys} />);
 
-		const card = screen
-			.getByText("/config/db")
-			.closest("[class*='border rounded-lg']");
-		expect(card).toBeTruthy();
-		if (card) fireEvent.keyDown(card, { key: "Enter" });
+		const card = screen.getByTestId("flatview-card-/config/db");
+		fireEvent.keyDown(card, { key: "Enter" });
 
 		const state = useKeysStore.getState();
 		expect(state.selectedKey).toEqual(keys[0]);
@@ -121,11 +116,8 @@ describe("FlatView", () => {
 		const keys = [makeKey("/config/db", "localhost:5432")];
 		render(<FlatView keys={keys} />);
 
-		const card = screen
-			.getByText("/config/db")
-			.closest("[class*='border rounded-lg']");
-		expect(card).toBeTruthy();
-		if (card) fireEvent.keyDown(card, { key: " " });
+		const card = screen.getByTestId("flatview-card-/config/db");
+		fireEvent.keyDown(card, { key: " " });
 
 		const state = useKeysStore.getState();
 		expect(state.selectedKey).toEqual(keys[0]);
@@ -136,10 +128,8 @@ describe("FlatView", () => {
 		useKeysStore.setState({ selectedKey: null });
 		render(<FlatView keys={keys} />);
 
-		const card = screen.getByText("/key1").closest("[role='button']");
-		expect(card).toBeTruthy();
-		if (card) {
-			expect(card).toHaveAttribute("aria-pressed", "false");
-		}
+		const card = screen.getByTestId("flatview-card-/key1");
+		expect(card).toHaveAttribute("role", "button");
+		expect(card).toHaveAttribute("aria-pressed", "false");
 	});
 });
