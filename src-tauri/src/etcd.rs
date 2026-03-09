@@ -463,7 +463,7 @@ impl EtcdClient {
             }
             options = options.with_prev_key();
 
-            let (_, mut stream) = match watch_client.watch(key, Some(options)).await {
+            let mut stream = match watch_client.watch(key, Some(options)).await {
                 Ok(result) => result,
                 Err(e) => {
                     eprintln!("Failed to start watch: {}", e);
