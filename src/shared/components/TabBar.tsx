@@ -66,9 +66,10 @@ export function TabBar() {
               group flex items-center gap-2 px-3 py-2 text-sm cursor-pointer
               border-r border-border/50 min-w-[120px] max-w-[200px]
               transition-colors relative
-              ${tab.id === connectionId
-								? "bg-background text-foreground border-t-2 border-t-primary"
-								: "text-muted-foreground hover:text-foreground hover:bg-muted"
+              ${
+								tab.id === connectionId
+									? "bg-background text-foreground border-t-2 border-t-primary"
+									: "text-muted-foreground hover:text-foreground hover:bg-muted"
 							}
             `}
 					>

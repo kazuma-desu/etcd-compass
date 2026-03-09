@@ -63,10 +63,28 @@ export function KeyBrowser({ connectionId }: KeyBrowserProps) {
 						) : (
 							<div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in duration-500">
 								<div className="w-12 h-12 bg-muted/50 rounded-full flex items-center justify-center mb-3">
-									<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-muted-foreground/60"><circle cx="7.5" cy="15.5" r="5.5" /><path d="m21 2-9.6 9.6" /><path d="m15.5 7.5 3 3L22 7l-3-3" /></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="24"
+										height="24"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										strokeWidth="2"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										className="w-5 h-5 text-muted-foreground/60"
+									>
+										<title>No keys found</title>
+										<circle cx="7.5" cy="15.5" r="5.5" />
+										<path d="m21 2-9.6 9.6" />
+										<path d="m15.5 7.5 3 3L22 7l-3-3" />
+									</svg>
 								</div>
 								<h3 className="text-sm font-medium">No keys found</h3>
-								<p className="text-xs text-muted-foreground mt-1">Try a different prefix or filter</p>
+								<p className="text-xs text-muted-foreground mt-1">
+									Try a different prefix or filter
+								</p>
 							</div>
 						)}
 					</div>

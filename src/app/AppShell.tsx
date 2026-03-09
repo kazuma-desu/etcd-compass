@@ -1,5 +1,14 @@
-import { BarChart3, Clock, Eye, KeyRound, Server, Plus, ExternalLink } from "lucide-react";
+import {
+	BarChart3,
+	Clock,
+	ExternalLink,
+	Eye,
+	KeyRound,
+	Plus,
+	Server,
+} from "lucide-react";
 import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -10,7 +19,6 @@ import {
 	SidebarProvider,
 	useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClusterSidebar } from "@/features/cluster/ClusterSidebar";
 import { ClusterStatus } from "@/features/cluster/ClusterStatus";
@@ -92,7 +100,10 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 									</TabsList>
 								</div>
 							</div>
-							<TabsContent value="keys" className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4">
+							<TabsContent
+								value="keys"
+								className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4"
+							>
 								<QueryBar searchInputRef={searchInputRef} />
 								{connectionId ? (
 									<ResizablePanelGroup
@@ -108,7 +119,10 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 										</ResizablePanel>
 										<ResizableHandle withHandle />
 										<ResizablePanel defaultSize={25} minSize={20}>
-											<Tabs defaultValue="watch" className="h-full flex flex-col">
+											<Tabs
+												defaultValue="watch"
+												className="h-full flex flex-col"
+											>
 												<TabsList className="grid w-full grid-cols-2">
 													<TabsTrigger
 														value="watch"
@@ -154,7 +168,8 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 													Welcome to ETCD Compass
 												</h3>
 												<p className="text-sm text-muted-foreground pb-2">
-													To get started, connect to an existing server or cluster.
+													To get started, connect to an existing server or
+													cluster.
 												</p>
 												<Button
 													onClick={() => setShowConnectionDialog(true)}
@@ -170,9 +185,13 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 														New to Compass and don't have a cluster?
 													</h4>
 													<p className="text-xs text-muted-foreground">
-														If you don't already have a cluster, you can run a local ETCD instance using Docker.
+														If you don't already have a cluster, you can run a
+														local ETCD instance using Docker.
 													</p>
-													<Button variant="outline" className="h-7 px-3 text-xs font-medium border-primary/20 text-primary hover:bg-primary/10 mt-2">
+													<Button
+														variant="outline"
+														className="h-7 px-3 text-xs font-medium border-primary/20 text-primary hover:bg-primary/10 mt-2"
+													>
 														LEARN MORE
 														<ExternalLink className="w-3 h-3 ml-2" />
 													</Button>

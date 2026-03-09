@@ -28,8 +28,11 @@ export function FlatView({ keys }: FlatViewProps) {
 			{keys.map((key) => (
 				<div
 					key={key.key}
-					className={`border rounded-lg p-3 bg-card hover:border-primary/40 transition-shadow shadow-sm cursor-pointer ${selectedKey?.key === key.key ? "ring-1 ring-primary border-primary shadow-md" : "border-border/60"
-						}`}
+					className={`border rounded-lg p-3 bg-card hover:border-primary/40 transition-shadow shadow-sm cursor-pointer ${
+						selectedKey?.key === key.key
+							? "ring-1 ring-primary border-primary shadow-md"
+							: "border-border/60"
+					}`}
 					onClick={() => setSelectedKey(key)}
 				>
 					<div className="flex items-start justify-between mb-2">

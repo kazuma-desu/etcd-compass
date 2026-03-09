@@ -6,13 +6,13 @@ import {
 	Download,
 	Edit,
 	Folder,
+	MoreHorizontal,
 	MoreVertical,
 	PanelLeftClose,
 	PanelLeftOpen,
 	Plus,
 	RefreshCw,
 	Search,
-	MoreHorizontal,
 	Star,
 	StarOff,
 	Trash2,
@@ -119,7 +119,7 @@ export function ClusterSidebar({
 		} catch (e: unknown) {
 			toast.error(
 				"Failed to list connections: " +
-				(e instanceof Error ? e.message : String(e)),
+					(e instanceof Error ? e.message : String(e)),
 			);
 		}
 	}, []);
@@ -231,7 +231,7 @@ export function ClusterSidebar({
 		} catch (e: unknown) {
 			toast.error(
 				"Failed to import connections: " +
-				(e instanceof Error ? e.message : String(e)),
+					(e instanceof Error ? e.message : String(e)),
 			);
 		}
 	};
@@ -306,14 +306,26 @@ export function ClusterSidebar({
 				<SidebarGroup className="flex-1 min-h-0 overflow-hidden pt-2">
 					<SidebarGroupLabel className="px-3 text-[11px] font-bold tracking-wider text-muted-foreground uppercase h-8">
 						<div className="flex items-center justify-between w-full">
-							<span>Connections {connections.length > 0 && `(${connections.length})`}</span>
+							<span>
+								Connections{" "}
+								{connections.length > 0 && `(${connections.length})`}
+							</span>
 							<div className="flex items-center">
-								<Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-muted" onClick={onAddCluster}>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-5 w-5 hover:bg-muted"
+									onClick={onAddCluster}
+								>
 									<Plus className="h-3.5 w-3.5" />
 								</Button>
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
-										<Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-muted">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-5 w-5 hover:bg-muted"
+										>
 											<MoreHorizontal className="h-3 w-3" />
 										</Button>
 									</DropdownMenuTrigger>
@@ -323,11 +335,17 @@ export function ClusterSidebar({
 											Refresh list
 										</DropdownMenuItem>
 										<DropdownMenuSeparator />
-										<DropdownMenuItem onClick={handleExportProfiles} className="gap-2">
+										<DropdownMenuItem
+											onClick={handleExportProfiles}
+											className="gap-2"
+										>
 											<Download className="h-4 w-4" />
 											Export connections
 										</DropdownMenuItem>
-										<DropdownMenuItem onClick={handleImportProfiles} className="gap-2">
+										<DropdownMenuItem
+											onClick={handleImportProfiles}
+											className="gap-2"
+										>
 											<Upload className="h-4 w-4" />
 											Import connections
 										</DropdownMenuItem>
@@ -354,7 +372,9 @@ export function ClusterSidebar({
 							<SidebarMenu>
 								{filteredConnections.length === 0 ? (
 									<div className="px-3 py-6 text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden space-y-4">
-										<p className="text-left w-full px-1">You have not connected to any deployments.</p>
+										<p className="text-left w-full px-1">
+											You have not connected to any deployments.
+										</p>
 										<Button
 											variant="default"
 											size="sm"

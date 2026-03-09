@@ -203,8 +203,12 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 												onClick={() => handleLoadRecentQuery(query)}
 												className="w-full px-3 py-1.5 text-xs text-left flex flex-col gap-0.5 hover:bg-accent/50 transition-colors"
 											>
-												<span className="font-mono truncate">{formatRecentQueryLabel(query)}</span>
-												<span className="text-[10px] text-muted-foreground">{new Date(query.timestamp).toLocaleString()}</span>
+												<span className="font-mono truncate">
+													{formatRecentQueryLabel(query)}
+												</span>
+												<span className="text-[10px] text-muted-foreground">
+													{new Date(query.timestamp).toLocaleString()}
+												</span>
 											</button>
 										))}
 									</div>
@@ -235,7 +239,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 					</Popover>
 
 					<div className="flex items-center gap-1.5 shrink-0">
-						{(hasActiveFilters) && (
+						{hasActiveFilters && (
 							<Button
 								variant="outline"
 								size="sm"
@@ -257,13 +261,19 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 						{/* Options Popover */}
 						<Popover>
 							<PopoverTrigger asChild>
-								<Button variant="ghost" size="sm" className="h-9 px-3 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1.5">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-9 px-3 text-xs font-medium text-primary hover:text-primary hover:bg-primary/10 gap-1.5"
+								>
 									Options <ChevronDown className="h-3 w-3" />
 								</Button>
 							</PopoverTrigger>
 							<PopoverContent className="w-80 p-4 space-y-4" align="end">
 								<div className="space-y-2">
-									<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Range Filter</h4>
+									<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+										Range Filter
+									</h4>
 									<div className="flex items-center gap-2">
 										<div className="flex-1 space-y-1.5">
 											<Input
@@ -286,7 +296,9 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 								</div>
 								<div className="flex items-center gap-4">
 									<div className="space-y-1.5 flex-1">
-										<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Limit</h4>
+										<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+											Limit
+										</h4>
 										<Select
 											value={pagination.limit.toString()}
 											onValueChange={(v) => setPageSize(parseInt(v, 10))}
@@ -303,14 +315,20 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 										</Select>
 									</div>
 									<div className="space-y-1.5 flex-1">
-										<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">Sort</h4>
+										<h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+											Sort
+										</h4>
 										<Button
 											variant="outline"
 											size="sm"
 											className="h-8 w-full text-xs justify-start gap-2"
 											onClick={() => setSortAscending(!sortAscending)}
 										>
-											{sortAscending ? <ArrowDownAZ className="h-4 w-4" /> : <ArrowUpZA className="h-4 w-4" />}
+											{sortAscending ? (
+												<ArrowDownAZ className="h-4 w-4" />
+											) : (
+												<ArrowUpZA className="h-4 w-4" />
+											)}
 											{sortAscending ? "Ascending" : "Descending"}
 										</Button>
 									</div>
@@ -341,7 +359,9 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 							onClick={handleRefresh}
 							disabled={isLoading}
 						>
-							<RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
+							<RefreshCw
+								className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`}
+							/>
 							REFRESH
 						</Button>
 
@@ -367,7 +387,10 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 					</div>
 
 					<div className="flex items-center gap-3">
-						<Badge variant="secondary" className="text-[10px] font-medium uppercase tracking-wider h-5 flex items-center bg-muted/50 text-muted-foreground border-border/40">
+						<Badge
+							variant="secondary"
+							className="text-[10px] font-medium uppercase tracking-wider h-5 flex items-center bg-muted/50 text-muted-foreground border-border/40"
+						>
 							{keys.length} keys
 						</Badge>
 						<Tabs
@@ -376,11 +399,17 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 							className="h-7"
 						>
 							<TabsList className="h-7 p-0.5 bg-muted/50 border border-border/40 object-contain rounded-md">
-								<TabsTrigger value="flat" className="text-[10px] uppercase tracking-wide px-2 h-5 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+								<TabsTrigger
+									value="flat"
+									className="text-[10px] uppercase tracking-wide px-2 h-5 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+								>
 									<List className="h-3 w-3 mr-1.5" />
 									Flat
 								</TabsTrigger>
-								<TabsTrigger value="tree" className="text-[10px] uppercase tracking-wide px-2 h-5 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm">
+								<TabsTrigger
+									value="tree"
+									className="text-[10px] uppercase tracking-wide px-2 h-5 rounded-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+								>
 									<FolderTree className="h-3 w-3 mr-1.5" />
 									Tree
 								</TabsTrigger>
