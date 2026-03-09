@@ -109,7 +109,10 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 								value="keys"
 								className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4"
 							>
-								<QueryBar searchInputRef={searchInputRef} />
+								<QueryBar
+									connectionId={connectionId ?? undefined}
+									searchInputRef={searchInputRef}
+								/>
 								{connectionId ? (
 									<ResizablePanelGroup
 										orientation="horizontal"

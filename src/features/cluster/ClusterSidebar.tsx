@@ -88,7 +88,8 @@ export function ClusterSidebar({
 	onAddCluster,
 	onEditCluster,
 }: ClusterSidebarProps) {
-	const { connectionId, disconnect } = useConnectionStore();
+	const { connectionId, disconnect, setActiveConnectionId } =
+		useConnectionStore();
 	const { state, toggleSidebar } = useSidebar();
 	const [connections, setConnections] = useState<ConnectionInfo[]>([]);
 	const [filter, setFilter] = useState("");
@@ -107,8 +108,9 @@ export function ClusterSidebar({
 			);
 
 			setConnections(
-				history.map((config) => ({
-					id: endpointToId.get(config.endpoint) || config.endpoint,
+				history.map((config, index) => ({
+					id:
+						endpointToId.get(config.endpoint) || `${config.endpoint}-${index}`,
 					endpoint: config.endpoint,
 					name: config.name,
 					color: config.color,
@@ -121,6 +123,7 @@ export function ClusterSidebar({
 				"Failed to list connections: " +
 					(e instanceof Error ? e.message : String(e)),
 			);
+			throw e;
 		}
 	}, []);
 
@@ -167,9 +170,13 @@ export function ClusterSidebar({
 		}
 	};
 
-	const handleRefresh = () => {
-		loadConnections();
-		toast.success("Refreshed cluster list");
+	const handleRefresh = async () => {
+		try {
+			await loadConnections();
+			toast.success("Refreshed cluster list");
+		} catch (_e) {
+			toast.error("Failed to refresh cluster list");
+		}
 	};
 
 	const handleToggleFavorite = async (
@@ -399,7 +406,7 @@ export function ClusterSidebar({
 					<SidebarGroupContent className="flex-1 min-h-0">
 						<ScrollArea className="h-full">
 							<SidebarMenu>
-								{filteredConnections.length === 0 ? (
+								{connections.length === 0 ? (
 									<div className="px-3 py-6 text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden space-y-4">
 										<p className="text-left w-full px-1">
 											You have not connected to any deployments.
@@ -412,6 +419,18 @@ export function ClusterSidebar({
 										>
 											<Plus className="h-4 w-4 shrink-0" />
 											Add new connection
+										</Button>
+									</div>
+								) : filteredConnections.length === 0 ? (
+									<div className="px-3 py-6 text-xs text-muted-foreground text-center group-data-[collapsible=icon]:hidden space-y-2">
+										<p>No connections match your filter.</p>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="text-xs"
+											onClick={() => setFilter("")}
+										>
+											Clear filter
 										</Button>
 									</div>
 								) : (
@@ -435,9 +454,10 @@ export function ClusterSidebar({
 																>
 																	<button
 																		type="button"
-																		onClick={() =>
-																			toggleClusterExpanded(conn.id)
-																		}
+																		onClick={() => {
+																			setActiveConnectionId(conn.id);
+																			toggleClusterExpanded(conn.id);
+																		}}
 																		className="flex items-center gap-2"
 																	>
 																		<span className="flex items-center gap-2">

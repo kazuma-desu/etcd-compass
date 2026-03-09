@@ -102,4 +102,44 @@ describe("FlatView", () => {
 		const state = useKeysStore.getState();
 		expect(state.selectedKeys.has("/key1")).toBe(true);
 	});
+
+	it("should select a key when Enter is pressed", () => {
+		const keys = [makeKey("/config/db", "localhost:5432")];
+		render(<FlatView keys={keys} />);
+
+		const card = screen
+			.getByText("/config/db")
+			.closest("[class*='border rounded-lg']");
+		expect(card).toBeTruthy();
+		if (card) fireEvent.keyDown(card, { key: "Enter" });
+
+		const state = useKeysStore.getState();
+		expect(state.selectedKey).toEqual(keys[0]);
+	});
+
+	it("should select a key when Space is pressed", () => {
+		const keys = [makeKey("/config/db", "localhost:5432")];
+		render(<FlatView keys={keys} />);
+
+		const card = screen
+			.getByText("/config/db")
+			.closest("[class*='border rounded-lg']");
+		expect(card).toBeTruthy();
+		if (card) fireEvent.keyDown(card, { key: " " });
+
+		const state = useKeysStore.getState();
+		expect(state.selectedKey).toEqual(keys[0]);
+	});
+
+	it("should have role button and aria-pressed on key cards", () => {
+		const keys = [makeKey("/key1", "val1")];
+		useKeysStore.setState({ selectedKey: null });
+		render(<FlatView keys={keys} />);
+
+		const card = screen.getByText("/key1").closest("[role='button']");
+		expect(card).toBeTruthy();
+		if (card) {
+			expect(card).toHaveAttribute("aria-pressed", "false");
+		}
+	});
 });

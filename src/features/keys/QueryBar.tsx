@@ -114,6 +114,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 	}, [connectionId, refreshKeys]);
 
 	const handleApplyFilters = useCallback(() => {
+		setSearchQuery(prefixInput);
 		setRangeStart(startKeyInput);
 		setRangeEnd(endKeyInput);
 		addRecentQuery();
@@ -122,8 +123,10 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 		}
 	}, [
 		connectionId,
+		prefixInput,
 		startKeyInput,
 		endKeyInput,
+		setSearchQuery,
 		setRangeStart,
 		setRangeEnd,
 		addRecentQuery,

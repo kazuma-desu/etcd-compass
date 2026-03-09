@@ -34,6 +34,7 @@ vi.mock("@/features/connections/connection-store", () => ({
 	useConnectionStore: () => ({
 		connectionId: null,
 		disconnect: vi.fn(),
+		setActiveConnectionId: vi.fn(),
 	}),
 }));
 
@@ -225,5 +226,41 @@ describe("ClusterSidebar", () => {
 				);
 			});
 		});
+	});
+
+	it("should show no-match state when filter has no results", async () => {
+		mockGetConnectionHistory.mockResolvedValue([
+			{ endpoint: "localhost:2379", name: "My Cluster" },
+		]);
+		mockListConnections.mockResolvedValue([]);
+		render(<ClusterSidebar {...defaultProps} />);
+
+		await waitFor(() =>
+			expect(screen.getByText("My Cluster")).toBeInTheDocument(),
+		);
+
+		fireEvent.change(screen.getByPlaceholderText("Search connections"), {
+			target: { value: "nonexistent" },
+		});
+
+		await waitFor(() =>
+			expect(
+				screen.getByText("No connections match your filter."),
+			).toBeInTheDocument(),
+		);
+		expect(screen.getByText("Clear filter")).toBeInTheDocument();
+	});
+
+	it("should show onboarding state when zero connections exist", async () => {
+		mockGetConnectionHistory.mockResolvedValue([]);
+		mockListConnections.mockResolvedValue([]);
+		render(<ClusterSidebar {...defaultProps} />);
+
+		await waitFor(() =>
+			expect(
+				screen.getByText("You have not connected to any deployments."),
+			).toBeInTheDocument(),
+		);
+		expect(screen.getByText("Add new connection")).toBeInTheDocument();
 	});
 });

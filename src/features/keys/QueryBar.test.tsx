@@ -1,5 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { useKeysStore } from "./keys-store";
 import { QueryBar } from "./QueryBar";
 
 describe("QueryBar", () => {
@@ -38,5 +39,19 @@ describe("QueryBar", () => {
 		render(<QueryBar />);
 
 		expect(screen.getByRole("button", { name: /apply/i })).toBeInTheDocument();
+	});
+
+	it("should sync prefixInput to searchQuery when Apply is clicked", async () => {
+		render(<QueryBar />);
+
+		fireEvent.change(
+			screen.getByPlaceholderText("Search by prefix, e.g. /config/"),
+			{ target: { value: "/myprefix/" } },
+		);
+		fireEvent.click(screen.getByRole("button", { name: /apply/i }));
+
+		await waitFor(() =>
+			expect(useKeysStore.getState().searchQuery).toBe("/myprefix/"),
+		);
 	});
 });

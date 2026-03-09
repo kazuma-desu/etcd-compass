@@ -28,12 +28,21 @@ export function FlatView({ keys }: FlatViewProps) {
 			{keys.map((key) => (
 				<div
 					key={key.key}
+					role="button"
+					tabIndex={0}
+					aria-pressed={selectedKey?.key === key.key}
 					className={`border rounded-lg p-3 bg-card hover:border-primary/40 transition-shadow shadow-sm cursor-pointer ${
 						selectedKey?.key === key.key
 							? "ring-1 ring-primary border-primary shadow-md"
 							: "border-border/60"
 					}`}
 					onClick={() => setSelectedKey(key)}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							setSelectedKey(key);
+						}
+					}}
 				>
 					<div className="flex items-start justify-between mb-2">
 						<div className="flex items-center gap-2">
@@ -53,7 +62,7 @@ export function FlatView({ keys }: FlatViewProps) {
 					</div>
 					<div className="pl-8 pr-2">
 						<div className="relative">
-							<pre className="text-xs font-mono text-muted-foreground bg-secondary/30 p-2.5 rounded-md max-h-40 overflow-hidden whitespace-pre-wrap border border-border/50">
+							<pre className="text-xs font-mono text-muted-foreground bg-secondary/30 p-2.5 rounded-md max-h-40 overflow-hidden whitespace-pre-wrap break-words break-all border border-border/50">
 								{key.value}
 							</pre>
 							<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-secondary/30 to-transparent pointer-events-none rounded-b-md" />
