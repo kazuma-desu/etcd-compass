@@ -1,3 +1,4 @@
+import { open } from "@tauri-apps/plugin-shell";
 import {
 	BarChart3,
 	Clock,
@@ -46,6 +47,10 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 	const [showConnectionDialog, setShowConnectionDialog] = useState(false);
 	const [showHelpDialog, setShowHelpDialog] = useState(false);
 	const searchInputRef = useRef<HTMLInputElement>(null);
+
+	const handleLearnMoreClick = () => {
+		open("https://etcd.io/docs/v3.5/quickstart/");
+	};
 
 	useKeyboardShortcuts(
 		connectionId,
@@ -191,6 +196,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 													<Button
 														variant="outline"
 														className="h-7 px-3 text-xs font-medium border-primary/20 text-primary hover:bg-primary/10 mt-2"
+														onClick={handleLearnMoreClick}
 													>
 														LEARN MORE
 														<ExternalLink className="w-3 h-3 ml-2" />
