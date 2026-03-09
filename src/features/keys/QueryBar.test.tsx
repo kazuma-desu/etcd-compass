@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useKeysStore } from "./keys-store";
 import { QueryBar } from "./QueryBar";
 
@@ -53,5 +53,66 @@ describe("QueryBar", () => {
 		await waitFor(() =>
 			expect(useKeysStore.getState().searchQuery).toBe("/myprefix/"),
 		);
+	});
+	describe("with connectionId", () => {
+		beforeEach(() => {
+			useKeysStore.setState({
+				searchQuery: "",
+				rangeStart: "",
+				rangeEnd: "",
+				recentQueries: [],
+			});
+		});
+
+		it("should call refreshKeys when Apply is clicked with connectionId", async () => {
+			const refreshKeysSpy = vi.spyOn(useKeysStore.getState(), "refreshKeys");
+			render(<QueryBar connectionId="test-uuid" />);
+
+			fireEvent.change(
+				screen.getByPlaceholderText("Search by prefix, e.g. /config/"),
+				{ target: { value: "/prefix/" } },
+			);
+			fireEvent.click(screen.getByRole("button", { name: /apply/i }));
+
+			await waitFor(() => {
+				expect(refreshKeysSpy).toHaveBeenCalledWith("test-uuid");
+			});
+			refreshKeysSpy.mockRestore();
+		});
+
+		it("should call refreshKeys on Refresh button click with connectionId", () => {
+			const refreshKeysSpy = vi.spyOn(useKeysStore.getState(), "refreshKeys");
+			render(<QueryBar connectionId="test-uuid" />);
+
+			fireEvent.click(screen.getByText("REFRESH"));
+
+			expect(refreshKeysSpy).toHaveBeenCalledWith("test-uuid");
+			refreshKeysSpy.mockRestore();
+		});
+
+		it("should show and handle Reset button when filters are active", async () => {
+			const refreshKeysSpy = vi.spyOn(useKeysStore.getState(), "refreshKeys");
+			render(<QueryBar connectionId="test-uuid" />);
+
+			// Type in the search input to activate filters
+			fireEvent.change(
+				screen.getByPlaceholderText("Search by prefix, e.g. /config/"),
+				{ target: { value: "/active/" } },
+			);
+
+			// Reset button should appear
+			await waitFor(() => {
+				expect(screen.getByText("Reset")).toBeInTheDocument();
+			});
+
+			// Click Reset
+			fireEvent.click(screen.getByText("Reset"));
+
+			await waitFor(() => {
+				expect(useKeysStore.getState().searchQuery).toBe("");
+			});
+			expect(refreshKeysSpy).toHaveBeenCalledWith("test-uuid");
+			refreshKeysSpy.mockRestore();
+		});
 	});
 });

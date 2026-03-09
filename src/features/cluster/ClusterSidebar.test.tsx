@@ -263,4 +263,30 @@ describe("ClusterSidebar", () => {
 		);
 		expect(screen.getByText("Add new connection")).toBeInTheDocument();
 	});
+
+	it("should show error toast when refresh fails", async () => {
+		// Initial load succeeds
+		mockGetConnectionHistory.mockResolvedValueOnce([]);
+		mockListConnections.mockResolvedValueOnce([]);
+		render(<ClusterSidebar {...defaultProps} />);
+
+		// Wait for initial render to settle
+		await waitFor(() => {
+			expect(
+				screen.getByText("You have not connected to any deployments."),
+			).toBeInTheDocument();
+		});
+
+		// Now mock refresh to fail
+		mockGetConnectionHistory.mockRejectedValueOnce(new Error("Refresh error"));
+
+		const refreshButtons = screen.getAllByText("Refresh list");
+		fireEvent.click(refreshButtons[0]);
+
+		await waitFor(() => {
+			expect(toast.error).toHaveBeenCalledWith(
+				"Failed to refresh cluster list",
+			);
+		});
+	});
 });

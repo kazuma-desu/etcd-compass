@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock @tauri-apps/plugin-shell
@@ -62,6 +63,16 @@ vi.mock("@/shared/components/TabBar", () => ({
 	TabBar: () => <div data-testid="tab-bar" />,
 }));
 
+vi.mock("@/components/ui/resizable", () => ({
+	ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => (
+		<div data-testid="resizable-panel-group">{children}</div>
+	),
+	ResizablePanel: ({ children }: { children: React.ReactNode }) => (
+		<div data-testid="resizable-panel">{children}</div>
+	),
+	ResizableHandle: () => <div data-testid="resizable-handle" />,
+}));
+
 vi.mock("@/shared/hooks/use-keyboard-shortcuts", () => ({
 	useKeyboardShortcuts: vi.fn(),
 }));
@@ -114,5 +125,11 @@ describe("AppShell", () => {
 		expect(screen.getByRole("tab", { name: /keys/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /cluster/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /metrics/i })).toBeInTheDocument();
+	});
+	it("should render key browser when connected", () => {
+		render(<AppShell connectionId="test-uuid-123" onConnect={vi.fn()} />);
+
+		expect(screen.getByTestId("key-browser")).toBeInTheDocument();
+		expect(screen.getByTestId("query-bar")).toBeInTheDocument();
 	});
 });
