@@ -40,8 +40,8 @@ export function ConnectionStatus({
 		if (status === "connected") {
 			return (
 				<Badge
-					variant="outline"
-					className="bg-green-500/10 text-green-500 border-green-500/20 transition-colors"
+					variant="secondary"
+					className="text-green-600 dark:text-green-400 transition-colors"
 				>
 					<Wifi className="size-3" />
 					Connected
@@ -53,7 +53,7 @@ export function ConnectionStatus({
 			return (
 				<Badge
 					variant="outline"
-					className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20 transition-colors"
+					className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 transition-colors"
 				>
 					<Loader2 className="size-3 animate-spin" />
 					Connecting
@@ -62,10 +62,7 @@ export function ConnectionStatus({
 		}
 
 		return (
-			<Badge
-				variant="outline"
-				className="bg-red-500/10 text-red-500 border-red-500/20 transition-colors pr-1"
-			>
+			<Badge variant="destructive" className="pr-1">
 				<WifiOff className="size-3" />
 				Error
 				{onRetry && (
@@ -75,7 +72,7 @@ export function ConnectionStatus({
 							e.preventDefault();
 							onRetry();
 						}}
-						className="ml-1 rounded-full p-0.5 hover:bg-red-500/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/40"
+						className="ml-1 rounded-full p-0.5 hover:bg-destructive-foreground/20 transition-colors focus:outline-none focus:ring-2 focus:ring-destructive-foreground/40"
 						title="Retry connection"
 					>
 						<RefreshCw className="size-3" />

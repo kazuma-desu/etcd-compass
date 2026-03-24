@@ -603,7 +603,7 @@ export function ClusterSidebar({
 													className="flex items-center gap-2"
 												>
 													<span className="flex items-center gap-2 flex-1 min-w-0">
-														<Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
+														<Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
 														<span className="truncate text-xs">
 															{keyPath.split("/").pop() || keyPath}
 														</span>
