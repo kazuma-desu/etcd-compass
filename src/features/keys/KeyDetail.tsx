@@ -1,4 +1,4 @@
-import { Clock, Edit, Key, Trash2, X } from "lucide-react";
+import { Clock, Edit, Key, Star, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,9 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useConnectionStore } from "@/features/connections/connection-store";
 import { formatShortcut } from "@/shared/hooks/use-keyboard-shortcuts";
+import { useBookmarksStore } from "./bookmarks-store";
 import { useKeysStore } from "./keys-store";
 import { ValueViewer } from "./ValueViewer";
 
@@ -25,6 +27,8 @@ export function KeyDetail() {
 		openEditDialog,
 		setShowDeleteDialog,
 	} = useKeysStore();
+	const { connectionId } = useConnectionStore();
+	const { addBookmark, removeBookmark, isBookmarked } = useBookmarksStore();
 
 	if (openTabs.length === 0) {
 		return (
@@ -46,6 +50,19 @@ export function KeyDetail() {
 			</div>
 		);
 	}
+
+	const bookmarked = connectionId
+		? isBookmarked(connectionId, activeKeyData.key)
+		: false;
+
+	const toggleBookmark = () => {
+		if (!connectionId) return;
+		if (bookmarked) {
+			removeBookmark(connectionId, activeKeyData.key);
+		} else {
+			addBookmark(connectionId, activeKeyData.key);
+		}
+	};
 
 	return (
 		<TooltipProvider delayDuration={300}>
@@ -89,6 +106,31 @@ export function KeyDetail() {
 								Key Details
 							</h2>
 							<div className="flex gap-2">
+								{connectionId && (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="outline"
+												size="icon"
+												onClick={toggleBookmark}
+												className="shrink-0"
+											>
+												<Star
+													className={`w-4 h-4 ${
+														bookmarked
+															? "fill-yellow-400 text-yellow-400"
+															: "text-muted-foreground"
+													}`}
+												/>
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent side="bottom">
+											<span>
+												{bookmarked ? "Remove bookmark" : "Add bookmark"}
+											</span>
+										</TooltipContent>
+									</Tooltip>
+								)}
 								<Button variant="outline" size="sm" onClick={openEditDialog}>
 									<Edit className="w-4 h-4 mr-2" />
 									Edit

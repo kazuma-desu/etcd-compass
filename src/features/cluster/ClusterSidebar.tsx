@@ -68,6 +68,8 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { useConnectionStore } from "@/features/connections/connection-store";
+import { useBookmarksStore } from "@/features/keys/bookmarks-store";
+import { useKeysStore } from "@/features/keys/keys-store";
 import { ThemeToggle } from "@/shared/components/ThemeToggle";
 
 interface ClusterSidebarProps {
@@ -96,6 +98,10 @@ export function ClusterSidebar({
 	const [expandedClusters, setExpandedClusters] = useState<Set<string>>(
 		new Set(),
 	);
+
+	const { getBookmarks, removeBookmark } = useBookmarksStore();
+	const { addTab } = useKeysStore();
+	const connectionBookmarks = connectionId ? getBookmarks(connectionId) : [];
 
 	const loadConnections = useCallback(async () => {
 		try {
@@ -576,6 +582,52 @@ export function ClusterSidebar({
 						</ScrollArea>
 					</SidebarGroupContent>
 				</SidebarGroup>
+
+				{connectionId && connectionBookmarks.length > 0 && (
+					<SidebarGroup className="border-t pt-2">
+						<SidebarGroupLabel className="px-3 text-[11px] font-bold tracking-wider text-muted-foreground uppercase h-8">
+							<span>Bookmarks ({connectionBookmarks.length})</span>
+						</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<ScrollArea className="max-h-[200px]">
+								<SidebarMenu>
+									{connectionBookmarks.map((keyPath) => (
+										<SidebarMenuItem key={keyPath}>
+											<SidebarMenuButton
+												asChild
+												className="w-full justify-between group"
+											>
+												<button
+													type="button"
+													onClick={() => addTab(keyPath)}
+													className="flex items-center gap-2"
+												>
+													<span className="flex items-center gap-2 flex-1 min-w-0">
+														<Star className="h-3 w-3 fill-yellow-400 text-yellow-400 shrink-0" />
+														<span className="truncate text-xs">
+															{keyPath.split("/").pop() || keyPath}
+														</span>
+													</span>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
+														onClick={(e) => {
+															e.stopPropagation();
+															removeBookmark(connectionId!, keyPath);
+														}}
+													>
+														<StarOff className="h-3 w-3" />
+													</Button>
+												</button>
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+									))}
+								</SidebarMenu>
+							</ScrollArea>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
 			</SidebarContent>
 
 			<SidebarFooter className="border-t group-data-[collapsible=icon]:px-0">
