@@ -43,6 +43,13 @@ function formatError(error: unknown): string {
 	return errorStr || "An unexpected error occurred";
 }
 
+export type ConnectionPhase =
+	| "disconnected"
+	| "connecting"
+	| "authenticating"
+	| "fetching-keys"
+	| "connected";
+
 interface ConnectionState {
 	connectionId: string | null;
 	config: EtcdConfig;
@@ -51,6 +58,7 @@ interface ConnectionState {
 	connectionHistory: EtcdConfig[];
 	showPassword: boolean;
 	showHistory: boolean;
+	phase: ConnectionPhase;
 
 	setConfig: (config: EtcdConfig) => void;
 	setShowPassword: (show: boolean) => void;
@@ -80,6 +88,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 	connectionHistory: [],
 	showPassword: false,
 	showHistory: false,
+	phase: "disconnected",
 
 	setConfig: (config) => set({ config }),
 	setShowPassword: (show) => set({ showPassword: show }),
@@ -112,18 +121,30 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
 	connect: async () => {
 		const { config } = get();
-		set({ isConnecting: true, connectionError: "" });
+		set({ isConnecting: true, connectionError: "", phase: "connecting" });
 
 		try {
+			set({ phase: "connecting" });
+			await new Promise((resolve) => setTimeout(resolve, 300));
+
+			if (config.username || config.password) {
+				set({ phase: "authenticating" });
+				await new Promise((resolve) => setTimeout(resolve, 300));
+			}
+
 			const connectionId = await connectEtcd(config);
 
-			set({ connectionId, isConnecting: false });
+			set({ phase: "fetching-keys" });
+			await new Promise((resolve) => setTimeout(resolve, 400));
+
+			set({ connectionId, isConnecting: false, phase: "connected" });
 			toast.success("Connected to ETCD successfully");
 			return true;
 		} catch (error: unknown) {
 			set({
 				connectionError: error instanceof Error ? error.message : String(error),
 				isConnecting: false,
+				phase: "disconnected",
 			});
 			toast.error(`Failed to connect: ${formatError(error)}`);
 			return false;

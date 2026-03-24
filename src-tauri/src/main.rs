@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, State,
+    AppHandle, Emitter, Manager, State,
 };
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::{mpsc, Mutex};
@@ -249,8 +249,15 @@ async fn delete_key(
     }
 }
 
+#[derive(Clone, serde::Serialize)]
+struct DeleteProgressPayload {
+    current: usize,
+    total: usize,
+}
+
 #[tauri::command]
 async fn delete_keys(
+    app: AppHandle,
     state: State<'_, AppState>,
     connection_id: String,
     keys: Vec<String>,
@@ -258,7 +265,15 @@ async fn delete_keys(
     let mut connections = state.connections.lock().await;
 
     match connections.get_mut(&connection_id) {
-        Some(client) => client.delete_keys(&keys).await.map_err(|e| e.to_string()),
+        Some(client) => {
+            let progress_callback = |current: usize, total: usize| {
+                let _ = app.emit("delete-progress", DeleteProgressPayload { current, total });
+            };
+            client
+                .delete_keys(&keys, Some(progress_callback))
+                .await
+                .map_err(|e| e.to_string())
+        }
         None => Err(format!("Connection '{}' not found", connection_id)),
     }
 }

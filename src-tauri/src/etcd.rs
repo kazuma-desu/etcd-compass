@@ -110,6 +110,50 @@ pub struct WatchHandle {
 
 pub struct EtcdClient {
     client: Client,
+    config: EtcdConfig,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ErrorKind {
+    Transient,
+    Permanent,
+    Auth,
+}
+
+pub fn classify_error(error: &anyhow::Error) -> ErrorKind {
+    let error_str = error.to_string().to_lowercase();
+
+    if error_str.contains("authentication failed")
+        || error_str.contains("invalid auth")
+        || error_str.contains("permission denied")
+        || error_str.contains("unauthenticated")
+    {
+        return ErrorKind::Auth;
+    }
+
+    if error_str.contains("transport error")
+        || error_str.contains("connection refused")
+        || error_str.contains("connection reset")
+        || error_str.contains("broken pipe")
+        || error_str.contains("connection closed")
+        || error_str.contains("timeout")
+        || error_str.contains("temporarily unavailable")
+        || error_str.contains("dns error")
+        || error_str.contains("name resolution")
+        || error_str.contains("io error")
+        || error_str.contains("stream closed")
+    {
+        return ErrorKind::Transient;
+    }
+
+    if error_str.contains("tls")
+        || error_str.contains("certificate")
+        || error_str.contains("handshake")
+    {
+        return ErrorKind::Permanent;
+    }
+
+    ErrorKind::Permanent
 }
 
 impl EtcdClient {
@@ -118,7 +162,19 @@ impl EtcdClient {
     }
 
     pub fn from_client(client: Client) -> Self {
-        EtcdClient { client }
+        // Create a default config for cloned clients
+        // Note: Reconnection won't work for cloned clients without config
+        let config = EtcdConfig {
+            endpoint: "cloned".to_string(),
+            username: None,
+            password: None,
+            tls_enabled: false,
+            ca_cert_path: None,
+            client_cert_path: None,
+            client_key_path: None,
+            skip_verify: false,
+        };
+        EtcdClient { client, config }
     }
 
     pub async fn connect(config: &EtcdConfig) -> anyhow::Result<Self> {
@@ -172,8 +228,45 @@ impl EtcdClient {
         }
 
         let client = Client::connect([&config.endpoint], Some(options)).await?;
+        let config = config.clone();
 
-        Ok(EtcdClient { client })
+        Ok(EtcdClient { client, config })
+    }
+
+    async fn reconnect(&mut self) -> anyhow::Result<()> {
+        let new_client = Self::connect(&self.config).await?;
+        self.client = new_client.client;
+        Ok(())
+    }
+
+    async fn execute_op<T>(
+        &mut self,
+        result: Result<T, etcd_client::Error>,
+        operation_name: &str,
+    ) -> anyhow::Result<T> {
+        match result {
+            Ok(value) => Ok(value),
+            Err(e) => {
+                let error = anyhow::Error::from(e);
+                match classify_error(&error) {
+                    ErrorKind::Transient => {
+                        eprintln!(
+                            "[etcd] Transient error in {}, attempting reconnect...",
+                            operation_name
+                        );
+                        self.reconnect().await.map_err(|e| {
+                            anyhow::anyhow!("Failed to reconnect: {}. Original error: {}", e, error)
+                        })?;
+                        Err(error)
+                    }
+                    ErrorKind::Auth => Err(anyhow::anyhow!(
+                        "Authentication failed: {}. Please check your credentials.",
+                        error
+                    )),
+                    ErrorKind::Permanent => Err(error),
+                }
+            }
+        }
     }
 
     pub async fn get_all_keys(
@@ -194,7 +287,16 @@ impl EtcdClient {
 
         if let Some(cursor_key) = cursor {
             options = options.with_from_key();
-            let resp = self.client.get(cursor_key.as_str(), Some(options)).await?;
+            let key = cursor_key.clone();
+            let opts = options.clone();
+            let result = self.client.get(key.clone(), Some(opts)).await;
+            let resp = match self.execute_op(result, "get_all_keys").await {
+                Ok(r) => r,
+                Err(_) => {
+                    let result = self.client.get(key, Some(options)).await;
+                    self.execute_op(result, "get_all_keys").await?
+                }
+            };
 
             let keys: Vec<EtcdKey> = resp
                 .kvs()
@@ -215,7 +317,15 @@ impl EtcdClient {
             Ok((keys, has_more))
         } else {
             options = options.with_all_keys();
-            let resp = self.client.get("", Some(options)).await?;
+            let opts = options.clone();
+            let result = self.client.get("", Some(opts)).await;
+            let resp = match self.execute_op(result, "get_all_keys").await {
+                Ok(r) => r,
+                Err(_) => {
+                    let result = self.client.get("", Some(options)).await;
+                    self.execute_op(result, "get_all_keys").await?
+                }
+            };
 
             let keys: Vec<EtcdKey> = resp
                 .kvs()
@@ -237,7 +347,15 @@ impl EtcdClient {
     }
 
     pub async fn get_key(&mut self, key: &str) -> anyhow::Result<Option<EtcdKey>> {
-        let resp = self.client.get(key, None).await?;
+        let key = key.to_string();
+        let result = self.client.get(key.clone(), None).await;
+        let resp = match self.execute_op(result, "get_key").await {
+            Ok(r) => r,
+            Err(_) => {
+                let result = self.client.get(key, None).await;
+                self.execute_op(result, "get_key").await?
+            }
+        };
 
         Ok(resp.kvs().first().map(|kv| EtcdKey {
             key: kv.key_str().unwrap_or_default().to_string(),
@@ -259,9 +377,26 @@ impl EtcdClient {
         if let Some(lease) = lease_id {
             options = options.with_lease(lease);
         }
-        self.client.put(key, value, Some(options)).await?;
+        let k = key.to_string();
+        let v = value.to_string();
+        let opts = options.clone();
+        let result = self.client.put(k.clone(), v.clone(), Some(opts)).await;
+        match self.execute_op(result, "put_key").await {
+            Ok(_) => (),
+            Err(_) => {
+                let result = self.client.put(k.clone(), v, Some(options.clone())).await;
+                self.execute_op(result, "put_key").await?;
+            }
+        };
 
-        let resp = self.client.get(key, None).await?;
+        let result = self.client.get(k.clone(), None).await;
+        let resp = match self.execute_op(result, "put_key (verify)").await {
+            Ok(r) => r,
+            Err(_) => {
+                let result = self.client.get(k, None).await;
+                self.execute_op(result, "put_key (verify)").await?
+            }
+        };
 
         resp.kvs()
             .first()
@@ -277,15 +412,45 @@ impl EtcdClient {
     }
 
     pub async fn delete_key(&mut self, key: &str) -> anyhow::Result<()> {
-        self.client.delete(key, None).await?;
+        let k = key.to_string();
+        let result = self.client.delete(k.clone(), None).await;
+        match self.execute_op(result, "delete_key").await {
+            Ok(_) => (),
+            Err(_) => {
+                let result = self.client.delete(k, None).await;
+                self.execute_op(result, "delete_key").await?;
+            }
+        };
         Ok(())
     }
 
-    pub async fn delete_keys(&mut self, keys: &[String]) -> anyhow::Result<usize> {
+    pub async fn delete_keys<F>(
+        &mut self,
+        keys: &[String],
+        mut progress_callback: Option<F>,
+    ) -> anyhow::Result<usize>
+    where
+        F: FnMut(usize, usize),
+    {
+        let total = keys.len();
         let mut deleted_count = 0;
-        for key in keys {
-            match self.client.delete(key.as_str(), None).await {
-                Ok(_) => deleted_count += 1,
+        for (idx, key) in keys.iter().enumerate() {
+            let k = key.clone();
+            let result = self.client.delete(k.clone(), None).await;
+            let delete_result: Result<(), _> = match self.execute_op(result, "delete_keys").await {
+                Ok(_) => Ok(()),
+                Err(_) => {
+                    let result = self.client.delete(k, None).await;
+                    self.execute_op(result, "delete_keys").await.map(|_| ())
+                }
+            };
+            match delete_result {
+                Ok(_) => {
+                    deleted_count += 1;
+                    if let Some(ref mut cb) = progress_callback {
+                        cb(idx + 1, total);
+                    }
+                }
                 Err(e) => eprintln!("Failed to delete key {}: {}", key, e),
             }
         }
@@ -311,8 +476,16 @@ impl EtcdClient {
                 .with_limit(limit)
                 .with_sort(SortTarget::Key, sort_order)
                 .with_from_key();
-
-            let resp = self.client.get(cursor_key.as_str(), Some(options)).await?;
+            let key = cursor_key.clone();
+            let opts = options.clone();
+            let result = self.client.get(key.clone(), Some(opts)).await;
+            let resp = match self.execute_op(result, "get_keys_with_prefix").await {
+                Ok(r) => r,
+                Err(_) => {
+                    let result = self.client.get(key, Some(options)).await;
+                    self.execute_op(result, "get_keys_with_prefix").await?
+                }
+            };
 
             let keys: Vec<EtcdKey> = resp
                 .kvs()
@@ -336,8 +509,16 @@ impl EtcdClient {
                 .with_prefix()
                 .with_limit(limit)
                 .with_sort(SortTarget::Key, sort_order);
-
-            let resp = self.client.get(prefix, Some(options)).await?;
+            let prefix = prefix.to_string();
+            let opts = options.clone();
+            let result = self.client.get(prefix.clone(), Some(opts)).await;
+            let resp = match self.execute_op(result, "get_keys_with_prefix").await {
+                Ok(r) => r,
+                Err(_) => {
+                    let result = self.client.get(prefix, Some(options)).await;
+                    self.execute_op(result, "get_keys_with_prefix").await?
+                }
+            };
 
             let keys: Vec<EtcdKey> = resp
                 .kvs()

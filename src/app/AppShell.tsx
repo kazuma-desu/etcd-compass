@@ -1,15 +1,19 @@
 import { open } from "@tauri-apps/plugin-shell";
 import {
 	BarChart3,
+	Check,
 	Clock,
+	Compass,
 	ExternalLink,
 	Eye,
 	KeyRound,
+	Loader2,
 	Plus,
 	Server,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -25,12 +29,17 @@ import { ClusterSidebar } from "@/features/cluster/ClusterSidebar";
 import { ClusterStatus } from "@/features/cluster/ClusterStatus";
 import { MetricsDashboard } from "@/features/cluster/MetricsDashboard";
 import { ConnectionForm } from "@/features/connections/ConnectionForm";
+import {
+	type ConnectionPhase,
+	useConnectionStore,
+} from "@/features/connections/connection-store";
 import { KeyBrowser } from "@/features/keys/KeyBrowser";
 import { KeyDetail } from "@/features/keys/KeyDetail";
 import { useKeysStore } from "@/features/keys/keys-store";
 import { QueryBar } from "@/features/keys/QueryBar";
 import { LeasePanel } from "@/features/leases/LeasePanel";
 import { WatchPanel } from "@/features/watch/WatchPanel";
+import { cn } from "@/lib/utils";
 import { BreadcrumbNav } from "@/shared/components/BreadcrumbNav";
 import { ShortcutHelp } from "@/shared/components/ShortcutHelp";
 import { TabBar } from "@/shared/components/TabBar";
@@ -41,8 +50,100 @@ interface AppShellProps {
 	onConnect: (connectionId: string) => void;
 }
 
+const phaseOrder: ConnectionPhase[] = [
+	"connecting",
+	"authenticating",
+	"fetching-keys",
+	"connected",
+];
+
+const phaseLabels: Record<ConnectionPhase, string> = {
+	disconnected: "Disconnected",
+	connecting: "Establishing connection",
+	authenticating: "Authenticating",
+	"fetching-keys": "Fetching keys",
+	connected: "Connected",
+};
+
+function ConnectionPhaseProgress({
+	phase,
+	isConnecting,
+}: {
+	phase: ConnectionPhase;
+	isConnecting: boolean;
+}) {
+	if (!isConnecting || phase === "disconnected" || phase === "connected") {
+		return null;
+	}
+
+	const currentIndex = phaseOrder.indexOf(phase);
+	const progress = ((currentIndex + 1) / phaseOrder.length) * 100;
+
+	return (
+		<div className="w-full max-w-md mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+			<div className="space-y-2">
+				<div className="flex items-center justify-between text-sm">
+					<span className="font-medium text-foreground">
+						{phaseLabels[phase]}
+					</span>
+					<span className="text-muted-foreground text-xs">
+						Step {currentIndex + 1} of {phaseOrder.length}
+					</span>
+				</div>
+				<Progress value={progress} className="h-2" />
+			</div>
+
+			<div className="flex items-center justify-between gap-2">
+				{phaseOrder.map((p, index) => {
+					const isActive = p === phase;
+					const isCompleted = index < currentIndex;
+					const isPending = index > currentIndex;
+
+					return (
+						<div
+							key={p}
+							className={cn(
+								"flex flex-col items-center gap-1 flex-1 transition-all duration-300",
+								isPending && "opacity-40",
+							)}
+						>
+							<div
+								className={cn(
+									"w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300",
+									isCompleted && "bg-primary text-primary-foreground",
+									isActive &&
+										"bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-2",
+									isPending &&
+										"bg-muted text-muted-foreground border border-border",
+								)}
+							>
+								{isCompleted ? (
+									<Check className="w-4 h-4" />
+								) : isActive ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<span>{index + 1}</span>
+								)}
+							</div>
+							<span
+								className={cn(
+									"text-[10px] font-medium transition-colors duration-300",
+									isActive ? "text-primary" : "text-muted-foreground",
+								)}
+							>
+								{phaseLabels[p]}
+							</span>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
 function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 	const { setSelectedKey, setSearchQuery } = useKeysStore();
+	const { isConnecting, phase } = useConnectionStore();
 	const { toggleSidebar } = useSidebar();
 	const [showConnectionDialog, setShowConnectionDialog] = useState(false);
 	const [showHelpDialog, setShowHelpDialog] = useState(false);
@@ -164,48 +265,82 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 									</ResizablePanelGroup>
 								) : (
 									<div className="flex-1 flex items-center justify-center h-full bg-background">
-										<div className="text-center space-y-6 max-w-md mx-auto animate-in fade-in zoom-in duration-500">
-											<div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-												{/* Illustration placeholder mimicking the Compass telescope */}
-												<div className="absolute inset-0 bg-primary/5 rounded-full" />
-												<Server className="w-16 h-16 text-primary z-10" />
-												<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 border-4 border-primary/20 rounded-full z-0" />
-											</div>
-											<div className="space-y-3">
-												<h3 className="text-xl font-bold tracking-tight text-foreground">
-													Welcome to ETCD Compass
-												</h3>
-												<p className="text-sm text-muted-foreground pb-2">
-													To get started, connect to an existing server or
-													cluster.
-												</p>
-												<Button
-													onClick={() => setShowConnectionDialog(true)}
-													className="gap-2 px-4 h-9 w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md"
-												>
-													<Plus className="w-4 h-4" />
-													Add new connection
-												</Button>
-
-												<div className="mt-8 p-4 bg-primary/5 rounded-lg border border-primary/10 text-left space-y-2 relative overflow-hidden">
-													<div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-													<h4 className="font-semibold text-sm text-foreground">
-														New to Compass and don't have a cluster?
-													</h4>
-													<p className="text-xs text-muted-foreground">
-														If you don't already have a cluster, you can run a
-														local ETCD instance using Docker.
-													</p>
-													<Button
-														variant="outline"
-														className="h-7 px-3 text-xs font-medium border-primary/20 text-primary hover:bg-primary/10 mt-2"
-														onClick={handleLearnMoreClick}
-													>
-														LEARN MORE
-														<ExternalLink className="w-3 h-3 ml-2" />
-													</Button>
+										<div className="text-center space-y-8 max-w-md mx-auto">
+											{isConnecting ? (
+												<div className="space-y-8 animate-in fade-in zoom-in duration-500">
+													<div className="relative w-40 h-40 mx-auto flex items-center justify-center">
+														<div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse" />
+														<div className="absolute inset-4 bg-primary/20 rounded-full animate-pulse delay-150" />
+														<Compass className="w-16 h-16 text-primary z-10" />
+													</div>
+													<div className="space-y-2">
+														<h3 className="text-xl font-semibold text-foreground">
+															Connecting to ETCD
+														</h3>
+														<p className="text-sm text-muted-foreground">
+															Please wait while we establish the connection
+														</p>
+													</div>
+													<ConnectionPhaseProgress
+														phase={phase}
+														isConnecting={isConnecting}
+													/>
 												</div>
-											</div>
+											) : (
+												<>
+													<div className="relative w-40 h-40 mx-auto flex items-center justify-center animate-in fade-in zoom-in duration-500">
+														<div className="absolute inset-0 bg-primary/5 rounded-full animate-pulse" />
+														<div className="absolute inset-4 bg-primary/10 rounded-full" />
+														<Compass className="w-16 h-16 text-primary z-10" />
+														<div className="absolute top-0 right-4 w-8 h-8 bg-background rounded-full flex items-center justify-center shadow-sm border">
+															<Server className="w-4 h-4 text-muted-foreground" />
+														</div>
+													</div>
+
+													<div className="space-y-4">
+														<div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75 fill-mode-both">
+															<h3 className="text-2xl font-bold tracking-tight text-foreground">
+																Welcome to ETCD Compass
+															</h3>
+															<p className="text-base text-muted-foreground">
+																To get started, connect to an existing server or
+																cluster.
+															</p>
+														</div>
+
+														<div className="pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
+															<Button
+																onClick={() => setShowConnectionDialog(true)}
+																size="lg"
+																className="gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md shadow-lg shadow-primary/20 transition-all hover:scale-105"
+															>
+																<Plus className="w-5 h-5" />
+																Add new connection
+															</Button>
+														</div>
+
+														<div className="mt-8 p-5 bg-muted/50 rounded-xl border border-border/50 text-left space-y-3 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both group hover:border-primary/20 transition-colors">
+															<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-primary/10" />
+															<h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+																<Server className="w-4 h-4 text-primary" />
+																New to Compass?
+															</h4>
+															<p className="text-sm text-muted-foreground">
+																If you don't already have a cluster, you can run
+																a local ETCD instance using Docker.
+															</p>
+															<Button
+																variant="link"
+																className="h-auto p-0 text-sm font-medium text-primary hover:text-primary/80 mt-1"
+																onClick={handleLearnMoreClick}
+															>
+																Learn how to set up a local cluster
+																<ExternalLink className="w-3 h-3 ml-1" />
+															</Button>
+														</div>
+													</div>
+												</>
+											)}
 										</div>
 									</div>
 								)}
