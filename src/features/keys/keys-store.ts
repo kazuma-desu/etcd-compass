@@ -65,6 +65,11 @@ export interface ExportImportKey {
 	lease_id: string | null;
 }
 
+export interface Tab {
+	key: string;
+	scrollPosition: number;
+}
+
 export interface ExportData {
 	keys: ExportImportKey[];
 }
@@ -99,6 +104,8 @@ interface RecentQuery {
 interface KeysState {
 	keys: EtcdKey[];
 	selectedKey: EtcdKey | null;
+	openTabs: Tab[];
+	activeTab: string | null;
 	searchQuery: string;
 	viewMode: "flat" | "tree";
 	isLoading: boolean;
@@ -134,6 +141,10 @@ interface KeysState {
 	setSearchQuery: (query: string) => void;
 	setViewMode: (mode: "flat" | "tree") => void;
 	setSelectedKey: (key: EtcdKey | null) => void;
+	addTab: (key: string) => void;
+	closeTab: (key: string) => void;
+	setActiveTab: (key: string) => void;
+	updateTabScroll: (key: string, scrollPosition: number) => void;
 	setRangeStart: (start: string) => void;
 	setRangeEnd: (end: string) => void;
 	setSortAscending: (ascending: boolean) => void;
@@ -241,6 +252,8 @@ const buildTree = (
 export const useKeysStore = create<KeysState>((set, get) => ({
 	keys: [],
 	selectedKey: null,
+	openTabs: [],
+	activeTab: null,
 	searchQuery: "",
 	viewMode: "flat",
 	isLoading: false,
@@ -283,6 +296,36 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	setSearchQuery: (query) => set({ searchQuery: query }),
 	setViewMode: (mode) => set({ viewMode: mode }),
 	setSelectedKey: (key) => set({ selectedKey: key }),
+	addTab: (key: string) => {
+		const { openTabs } = get();
+		if (!openTabs.find((t) => t.key === key)) {
+			set({
+				openTabs: [...openTabs, { key, scrollPosition: 0 }],
+				activeTab: key,
+			});
+		} else {
+			set({ activeTab: key });
+		}
+	},
+	closeTab: (key: string) => {
+		const { openTabs, activeTab } = get();
+		const newTabs = openTabs.filter((t) => t.key !== key);
+		let newActiveTab = activeTab;
+		if (activeTab === key) {
+			newActiveTab =
+				newTabs.length > 0 ? newTabs[newTabs.length - 1].key : null;
+		}
+		set({ openTabs: newTabs, activeTab: newActiveTab });
+	},
+	setActiveTab: (key: string) => set({ activeTab: key }),
+	updateTabScroll: (key: string, scrollPosition: number) => {
+		const { openTabs } = get();
+		set({
+			openTabs: openTabs.map((t) =>
+				t.key === key ? { ...t, scrollPosition } : t,
+			),
+		});
+	},
 	setRangeStart: (start: string) => set({ rangeStart: start }),
 	setRangeEnd: (end: string) => set({ rangeEnd: end }),
 	setSortAscending: (ascending: boolean) => set({ sortAscending: ascending }),
