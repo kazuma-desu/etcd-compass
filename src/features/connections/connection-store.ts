@@ -159,6 +159,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 			await disconnectEtcd(connectionId);
 			set({
 				connectionId: null,
+				phase: "disconnected",
 				config: {
 					endpoint: "localhost:2379",
 					username: "",

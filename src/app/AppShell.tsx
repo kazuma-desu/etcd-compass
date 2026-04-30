@@ -54,7 +54,6 @@ const phaseOrder: ConnectionPhase[] = [
 	"connecting",
 	"authenticating",
 	"fetching-keys",
-	"connected",
 ];
 
 const phaseLabels: Record<ConnectionPhase, string> = {
