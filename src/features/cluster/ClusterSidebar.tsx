@@ -29,6 +29,7 @@ import {
 	updateConnectionFavorite,
 } from "@/commands/config";
 import { disconnectEtcd, listConnections } from "@/commands/connection";
+import { getKey } from "@/commands/keys";
 import {
 	openFileDialog,
 	readFile,
@@ -100,8 +101,30 @@ export function ClusterSidebar({
 	);
 
 	const { getBookmarks, removeBookmark } = useBookmarksStore();
-	const { addTab } = useKeysStore();
+	const { addTab, upsertKey } = useKeysStore();
 	const connectionBookmarks = connectionId ? getBookmarks(connectionId) : [];
+
+	const openBookmarkedKey = useCallback(
+		async (keyPath: string) => {
+			if (!connectionId) return;
+
+			try {
+				const key = await getKey(connectionId, keyPath);
+				if (!key) {
+					toast.error("Bookmarked key was not found");
+					return;
+				}
+
+				upsertKey(key);
+				addTab(key.key);
+			} catch (error: unknown) {
+				toast.error(
+					`Failed to open bookmarked key: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		},
+		[addTab, connectionId, upsertKey],
+	);
 
 	const loadConnections = useCallback(async () => {
 		try {
@@ -605,7 +628,7 @@ export function ClusterSidebar({
 											>
 												<button
 													type="button"
-													onClick={() => addTab(keyPath)}
+													onClick={() => openBookmarkedKey(keyPath)}
 													className="flex items-center gap-2"
 												>
 													<span className="flex items-center gap-2 flex-1 min-w-0">

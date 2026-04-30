@@ -1,4 +1,5 @@
 import { Clock, Edit, Key, Star, Trash2, X } from "lucide-react";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,11 +25,18 @@ export function KeyDetail() {
 		setActiveTab,
 		closeTab,
 		keys,
+		setSelectedKey,
 		openEditDialog,
 		setShowDeleteDialog,
 	} = useKeysStore();
 	const { connectionId } = useConnectionStore();
 	const { addBookmark, removeBookmark, isBookmarked } = useBookmarksStore();
+
+	const activeKeyData = keys.find((k) => k.key === activeTab);
+
+	useEffect(() => {
+		setSelectedKey(activeKeyData ?? null);
+	}, [activeKeyData, setSelectedKey]);
 
 	if (openTabs.length === 0) {
 		return (
@@ -40,8 +48,6 @@ export function KeyDetail() {
 			</div>
 		);
 	}
-
-	const activeKeyData = keys.find((k) => k.key === activeTab);
 
 	if (!activeKeyData) {
 		return (

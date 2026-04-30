@@ -141,6 +141,7 @@ interface KeysState {
 	setSearchQuery: (query: string) => void;
 	setViewMode: (mode: "flat" | "tree") => void;
 	setSelectedKey: (key: EtcdKey | null) => void;
+	upsertKey: (key: EtcdKey) => void;
 	addTab: (key: string) => void;
 	closeTab: (key: string) => void;
 	setActiveTab: (key: string) => void;
@@ -296,6 +297,17 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	setSearchQuery: (query) => set({ searchQuery: query }),
 	setViewMode: (mode) => set({ viewMode: mode }),
 	setSelectedKey: (key) => set({ selectedKey: key }),
+	upsertKey: (key) => {
+		const { keys, expandedNodes } = get();
+		const nextKeys = keys.some((item) => item.key === key.key)
+			? keys.map((item) => (item.key === key.key ? key : item))
+			: [...keys, key];
+
+		set({
+			keys: nextKeys,
+			treeData: buildTree(nextKeys, expandedNodes),
+		});
+	},
 	addTab: (key: string) => {
 		const { openTabs } = get();
 		if (!openTabs.find((t) => t.key === key)) {

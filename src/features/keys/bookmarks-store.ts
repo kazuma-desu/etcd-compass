@@ -49,7 +49,7 @@ export const useBookmarksStore = create<BookmarksState>()(
 			},
 
 			getBookmarks: (connectionId: string) => {
-				return get().bookmarks[connectionId] || [];
+				return [...(get().bookmarks[connectionId] || [])];
 			},
 		}),
 		{

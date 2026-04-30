@@ -68,6 +68,11 @@ export function TreeView({
 		return result;
 	}, [nodes, expandedNodes, level]);
 
+	const keyByFullPath = useMemo(
+		() => new Map(allKeys.map((key) => [key.key, key])),
+		[allKeys],
+	);
+
 	const parentRef = useRef<HTMLDivElement>(null);
 
 	const virtualizer = useVirtualizer({
@@ -116,13 +121,12 @@ export function TreeView({
 
 	const handleNodeClick = (e: React.MouseEvent, node: TreeNode) => {
 		if (node.isLeaf) {
-			const key = allKeys.find((k) => k.key === node.fullPath);
+			const key = keyByFullPath.get(node.fullPath);
 			if (key) {
-				if (e.ctrlKey || e.metaKey) {
-					addTab(key.key);
-				} else {
+				if (!e.ctrlKey && !e.metaKey) {
 					setSelectedKey(key);
 				}
+				addTab(key.key);
 			}
 		} else {
 			toggleNode(node.fullPath);
@@ -148,9 +152,7 @@ export function TreeView({
 				{virtualizer.getVirtualItems().map((virtualItem) => {
 					const { node, level: nodeLevel } = flattenedNodes[virtualItem.index];
 					const isExpanded = expandedNodes.has(node.fullPath);
-					const keyData = node.isLeaf
-						? allKeys.find((k) => k.key === node.fullPath)
-						: null;
+					const keyData = node.isLeaf ? keyByFullPath.get(node.fullPath) : null;
 
 					return (
 						<div
@@ -176,9 +178,7 @@ export function TreeView({
 										onClick={(e) => handleNodeClick(e, node)}
 										onAuxClick={(e) => {
 											if (e.button === 1 && node.isLeaf) {
-												const key = allKeys.find(
-													(k) => k.key === node.fullPath,
-												);
+												const key = keyByFullPath.get(node.fullPath);
 												if (key) addTab(key.key);
 											}
 										}}
