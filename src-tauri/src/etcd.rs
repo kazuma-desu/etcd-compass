@@ -121,16 +121,24 @@ pub enum ErrorKind {
     Authz,
 }
 
-fn get_prefix_end(key: &[u8]) -> Vec<u8> {
+fn get_prefix_end(key: &[u8]) -> Option<Vec<u8>> {
     for (i, v) in key.iter().enumerate().rev() {
         if *v < 0xFF {
             let mut end = Vec::from(&key[..=i]);
             end[i] = *v + 1;
-            return end;
+            return Some(end);
         }
     }
 
-    vec![0]
+    None
+}
+
+fn range_for_descending_prefix(prefix: &[u8], cursor: &[u8]) -> Vec<u8> {
+    if cursor.starts_with(prefix) {
+        cursor.to_vec()
+    } else {
+        get_prefix_end(prefix).unwrap_or_else(|| cursor.to_vec())
+    }
 }
 
 pub fn classify_error(error: &anyhow::Error) -> ErrorKind {
@@ -303,16 +311,25 @@ impl EtcdClient {
         let page_limit = limit + 1;
 
         let (key, options) = if let Some(cursor_key) = cursor {
-            let key = cursor_key + "\0";
-            let mut opts = GetOptions::new()
-                .with_limit(page_limit)
-                .with_sort(SortTarget::Key, sort_order);
-            if let Some(end) = range_end {
-                opts = opts.with_range(end);
+            if sort_ascending {
+                let key = cursor_key + "\0";
+                let mut opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order);
+                if let Some(end) = range_end {
+                    opts = opts.with_range(end);
+                } else {
+                    opts = opts.with_from_key();
+                }
+                (key, opts)
             } else {
-                opts = opts.with_from_key();
+                let key = range_start.unwrap_or_else(|| "\0".to_string());
+                let opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order)
+                    .with_range(cursor_key);
+                (key, opts)
             }
-            (key, opts)
         } else if let Some(start) = range_start {
             let mut opts = GetOptions::new()
                 .with_limit(page_limit)
@@ -481,12 +498,28 @@ impl EtcdClient {
         let page_limit = limit + 1;
 
         let (key, options) = if let Some(cursor_key) = cursor {
-            let key = cursor_key + "\0";
-            let opts = GetOptions::new()
-                .with_limit(page_limit)
-                .with_sort(SortTarget::Key, sort_order)
-                .with_range(get_prefix_end(prefix.as_bytes()));
-            (key, opts)
+            if sort_ascending {
+                let key = cursor_key + "\0";
+                let mut opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order);
+                if let Some(end) = get_prefix_end(prefix.as_bytes()) {
+                    opts = opts.with_range(end);
+                } else {
+                    opts = opts.with_from_key();
+                }
+                (key, opts)
+            } else {
+                let key = prefix.to_string();
+                let opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order)
+                    .with_range(range_for_descending_prefix(
+                        prefix.as_bytes(),
+                        cursor_key.as_bytes(),
+                    ));
+                (key, opts)
+            }
         } else {
             let key = prefix.to_string();
             let opts = GetOptions::new()

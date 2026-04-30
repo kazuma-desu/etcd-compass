@@ -253,6 +253,8 @@ async fn delete_key(
 
 #[derive(Clone, serde::Serialize)]
 struct DeleteProgressPayload {
+    operation_id: String,
+    connection_id: String,
     current: usize,
     total: usize,
 }
@@ -273,8 +275,18 @@ async fn delete_keys(
     };
 
     let mut client = EtcdClient::from_client(client);
-    let progress_callback = |current: usize, total: usize| {
-        let _ = app.emit("delete-progress", DeleteProgressPayload { current, total });
+    let operation_id = Uuid::new_v4().to_string();
+    let progress_connection_id = connection_id.clone();
+    let progress_callback = move |current: usize, total: usize| {
+        let _ = app.emit(
+            "delete-progress",
+            DeleteProgressPayload {
+                operation_id: operation_id.clone(),
+                connection_id: progress_connection_id.clone(),
+                current,
+                total,
+            },
+        );
     };
     client
         .delete_keys(&keys, Some(progress_callback))
