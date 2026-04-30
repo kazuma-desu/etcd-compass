@@ -15,26 +15,38 @@ import {
 	CommandList,
 	CommandShortcut,
 } from "@/components/ui/command";
+import {
+	formatShortcut,
+	shortcuts,
+} from "@/shared/hooks/use-keyboard-shortcuts";
+
+function shortcutLabel(description: string) {
+	const shortcut = shortcuts.find((item) => item.description === description);
+	return shortcut
+		? formatShortcut(shortcut.key, shortcut.modifier, shortcut.shift)
+		: null;
+}
 
 export function CommandPalette() {
 	const [open, setOpen] = useState(false);
 
 	useEffect(() => {
-		const down = (e: KeyboardEvent) => {
-			if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-				e.preventDefault();
-				setOpen((open) => !open);
-			}
-		};
+		const handleToggle = () => setOpen((current) => !current);
 
-		document.addEventListener("keydown", down);
-		return () => document.removeEventListener("keydown", down);
+		window.addEventListener("etcd:command-palette", handleToggle);
+		return () =>
+			window.removeEventListener("etcd:command-palette", handleToggle);
 	}, []);
 
 	const runCommand = useCallback((command: () => void) => {
 		setOpen(false);
 		command();
 	}, []);
+
+	const newConnectionShortcut = shortcutLabel("New connection");
+	const refreshKeysShortcut = shortcutLabel("Refresh keys");
+	const toggleSidebarShortcut = shortcutLabel("Toggle sidebar");
+	const showHelpShortcut = shortcutLabel("Show shortcut help");
 
 	return (
 		<CommandDialog open={open} onOpenChange={setOpen}>
@@ -51,7 +63,9 @@ export function CommandPalette() {
 					>
 						<Server className="mr-2 size-4" />
 						Connect to cluster
-						<CommandShortcut>⌘N</CommandShortcut>
+						{newConnectionShortcut && (
+							<CommandShortcut>{newConnectionShortcut}</CommandShortcut>
+						)}
 					</CommandItem>
 					<CommandItem
 						onSelect={() =>
@@ -62,7 +76,9 @@ export function CommandPalette() {
 					>
 						<RefreshCw className="mr-2 size-4" />
 						Refresh keys
-						<CommandShortcut>⌘R</CommandShortcut>
+						{refreshKeysShortcut && (
+							<CommandShortcut>{refreshKeysShortcut}</CommandShortcut>
+						)}
 					</CommandItem>
 					<CommandItem
 						onSelect={() =>
@@ -73,7 +89,6 @@ export function CommandPalette() {
 					>
 						<CirclePlus className="mr-2 size-4" />
 						Add new key
-						<CommandShortcut>⌘N</CommandShortcut>
 					</CommandItem>
 					<CommandItem
 						onSelect={() =>
@@ -84,7 +99,9 @@ export function CommandPalette() {
 					>
 						<PanelLeft className="mr-2 size-4" />
 						Toggle sidebar
-						<CommandShortcut>⌘⇧D</CommandShortcut>
+						{toggleSidebarShortcut && (
+							<CommandShortcut>{toggleSidebarShortcut}</CommandShortcut>
+						)}
 					</CommandItem>
 					<CommandItem
 						onSelect={() =>
@@ -95,7 +112,9 @@ export function CommandPalette() {
 					>
 						<HelpCircle className="mr-2 size-4" />
 						Show keyboard shortcuts
-						<CommandShortcut>⌘?</CommandShortcut>
+						{showHelpShortcut && (
+							<CommandShortcut>{showHelpShortcut}</CommandShortcut>
+						)}
 					</CommandItem>
 				</CommandGroup>
 			</CommandList>

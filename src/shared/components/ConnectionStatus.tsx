@@ -71,6 +71,7 @@ export function ConnectionStatus({
 						}}
 						className="ml-1 rounded-full p-0.5 hover:bg-destructive-foreground/20 transition-colors focus:outline-none focus:ring-2 focus:ring-destructive-foreground/40"
 						title="Retry connection"
+						aria-label="Retry connection"
 					>
 						<RefreshCw className="size-3" />
 					</button>
