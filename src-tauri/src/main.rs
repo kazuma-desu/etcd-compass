@@ -187,13 +187,15 @@ async fn get_all_keys(
     limit: i64,
     cursor: Option<String>,
     sort_ascending: bool,
+    range_start: Option<String>,
+    range_end: Option<String>,
 ) -> Result<PaginatedKeysResult, String> {
     let mut connections = state.connections.lock().await;
 
     match connections.get_mut(&connection_id) {
         Some(client) => {
             let (keys, has_more) = client
-                .get_all_keys(limit, cursor, sort_ascending)
+                .get_all_keys(limit, cursor, sort_ascending, range_start, range_end)
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(PaginatedKeysResult { keys, has_more })
@@ -262,20 +264,22 @@ async fn delete_keys(
     connection_id: String,
     keys: Vec<String>,
 ) -> Result<usize, String> {
-    let mut connections = state.connections.lock().await;
+    let client = {
+        let mut connections = state.connections.lock().await;
+        connections
+            .get_mut(&connection_id)
+            .map(|c| c.clone_client())
+            .ok_or_else(|| format!("Connection '{}' not found", connection_id))?
+    };
 
-    match connections.get_mut(&connection_id) {
-        Some(client) => {
-            let progress_callback = |current: usize, total: usize| {
-                let _ = app.emit("delete-progress", DeleteProgressPayload { current, total });
-            };
-            client
-                .delete_keys(&keys, Some(progress_callback))
-                .await
-                .map_err(|e| e.to_string())
-        }
-        None => Err(format!("Connection '{}' not found", connection_id)),
-    }
+    let mut client = EtcdClient::from_client(client);
+    let progress_callback = |current: usize, total: usize| {
+        let _ = app.emit("delete-progress", DeleteProgressPayload { current, total });
+    };
+    client
+        .delete_keys(&keys, Some(progress_callback))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

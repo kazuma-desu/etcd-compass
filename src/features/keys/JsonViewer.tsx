@@ -192,15 +192,16 @@ function JSONNode({
 						<TooltipProvider>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<span
-										className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
+									<button
+										type="button"
+										className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors bg-transparent border-none p-0 font-mono text-sm"
 										onClick={(e) => {
 											e.stopPropagation();
 											onCopyPath(path);
 										}}
 									>
 										{highlightText(`"${name}"`, searchQuery)}
-									</span>
+									</button>
 								</TooltipTrigger>
 								<TooltipContent side="top" className="text-xs">
 									<p>
@@ -252,15 +253,16 @@ function JSONNode({
 						<TooltipProvider>
 							<Tooltip>
 								<TooltipTrigger asChild>
-									<span
-										className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
+									<button
+										type="button"
+										className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors bg-transparent border-none p-0 font-mono text-sm"
 										onClick={(e) => {
 											e.stopPropagation();
 											onCopyPath(path);
 										}}
 									>
 										{highlightText(`"${name}"`, searchQuery)}
-									</span>
+									</button>
 								</TooltipTrigger>
 								<TooltipContent side="top" className="text-xs">
 									<p>

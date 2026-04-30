@@ -118,6 +118,19 @@ pub enum ErrorKind {
     Transient,
     Permanent,
     Auth,
+    Authz,
+}
+
+fn get_prefix_end(key: &[u8]) -> Vec<u8> {
+    for (i, v) in key.iter().enumerate().rev() {
+        if *v < 0xFF {
+            let mut end = Vec::from(&key[..=i]);
+            end[i] = *v + 1;
+            return end;
+        }
+    }
+
+    vec![0]
 }
 
 pub fn classify_error(error: &anyhow::Error) -> ErrorKind {
@@ -125,10 +138,13 @@ pub fn classify_error(error: &anyhow::Error) -> ErrorKind {
 
     if error_str.contains("authentication failed")
         || error_str.contains("invalid auth")
-        || error_str.contains("permission denied")
         || error_str.contains("unauthenticated")
     {
         return ErrorKind::Auth;
+    }
+
+    if error_str.contains("permission denied") {
+        return ErrorKind::Authz;
     }
 
     if error_str.contains("transport error")
@@ -261,6 +277,10 @@ impl EtcdClient {
                         "Authentication failed: {}. Please check your credentials.",
                         error
                     )),
+                    ErrorKind::Authz => Err(anyhow::anyhow!(
+                        "Authorization failed: {}. You may not have permission for this operation.",
+                        error
+                    )),
                     ErrorKind::Permanent => Err(error),
                 }
             }
@@ -272,78 +292,80 @@ impl EtcdClient {
         limit: i64,
         cursor: Option<String>,
         sort_ascending: bool,
+        range_start: Option<String>,
+        range_end: Option<String>,
     ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
         let sort_order = if sort_ascending {
             SortOrder::Ascend
         } else {
             SortOrder::Descend
         };
+        let page_limit = limit + 1;
 
-        let mut options = GetOptions::new()
-            .with_limit(limit)
-            .with_sort(SortTarget::Key, sort_order);
-
-        if let Some(cursor_key) = cursor {
-            options = options.with_from_key();
-            let key = cursor_key.clone();
-            let opts = options.clone();
-            let result = self.client.get(key.clone(), Some(opts)).await;
-            let resp = match self.execute_op(result, "get_all_keys").await {
-                Ok(r) => r,
-                Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                    let result = self.client.get(key, Some(options)).await;
-                    self.execute_op(result, "get_all_keys").await?
-                }
-                Err(e) => return Err(e),
-            };
-
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .skip(1)
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
-
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
+        let (key, options) = if let Some(cursor_key) = cursor {
+            let key = cursor_key + "\0";
+            let mut opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order);
+            if let Some(end) = range_end {
+                opts = opts.with_range(end);
+            } else {
+                opts = opts.with_from_key();
+            }
+            (key, opts)
+        } else if let Some(start) = range_start {
+            let mut opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order);
+            if let Some(end) = range_end {
+                opts = opts.with_range(end);
+            } else {
+                opts = opts.with_from_key();
+            }
+            (start, opts)
+        } else if let Some(end) = range_end {
+            let key = "\0".to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_range(end);
+            (key, opts)
         } else {
-            options = options.with_all_keys();
-            let opts = options.clone();
-            let result = self.client.get("", Some(opts)).await;
-            let resp = match self.execute_op(result, "get_all_keys").await {
-                Ok(r) => r,
-                Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                    let result = self.client.get("", Some(options)).await;
-                    self.execute_op(result, "get_all_keys").await?
-                }
-                Err(e) => return Err(e),
-            };
+            let key = "\0".to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_all_keys();
+            (key, opts)
+        };
 
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
+        let opts = options.clone();
+        let result = self.client.get(key.clone(), Some(opts)).await;
+        let resp = match self.execute_op(result, "get_all_keys").await {
+            Ok(r) => r,
+            Err(e) if classify_error(&e) == ErrorKind::Transient => {
+                let result = self.client.get(key, Some(options)).await;
+                self.execute_op(result, "get_all_keys").await?
+            }
+            Err(e) => return Err(e),
+        };
 
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
-        }
+        let keys: Vec<EtcdKey> = resp
+            .kvs()
+            .iter()
+            .take(limit as usize)
+            .map(|kv| EtcdKey {
+                key: kv.key_str().unwrap_or_default().to_string(),
+                value: kv.value_str().unwrap_or_default().to_string(),
+                version: kv.version(),
+                create_revision: kv.create_revision(),
+                mod_revision: kv.mod_revision(),
+                lease: kv.lease(),
+            })
+            .collect();
+
+        let has_more = resp.kvs().len() > limit as usize;
+        Ok((keys, has_more))
     }
 
     pub async fn get_key(&mut self, key: &str) -> anyhow::Result<Option<EtcdKey>> {
@@ -456,76 +478,51 @@ impl EtcdClient {
         } else {
             SortOrder::Descend
         };
+        let page_limit = limit + 1;
 
-        if let Some(cursor_key) = cursor {
-            let options = GetOptions::new()
-                .with_prefix()
-                .with_limit(limit)
+        let (key, options) = if let Some(cursor_key) = cursor {
+            let key = cursor_key + "\0";
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
                 .with_sort(SortTarget::Key, sort_order)
-                .with_from_key();
-            let key = cursor_key.clone();
-            let opts = options.clone();
-            let result = self.client.get(key.clone(), Some(opts)).await;
-            let resp = match self.execute_op(result, "get_keys_with_prefix").await {
-                Ok(r) => r,
-                Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                    let result = self.client.get(key, Some(options)).await;
-                    self.execute_op(result, "get_keys_with_prefix").await?
-                }
-                Err(e) => return Err(e),
-            };
-
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .skip(1)
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
-
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
+                .with_range(get_prefix_end(prefix.as_bytes()));
+            (key, opts)
         } else {
-            let options = GetOptions::new()
-                .with_prefix()
-                .with_limit(limit)
-                .with_sort(SortTarget::Key, sort_order);
-            let prefix = prefix.to_string();
-            let opts = options.clone();
-            let result = self.client.get(prefix.clone(), Some(opts)).await;
-            let resp = match self.execute_op(result, "get_keys_with_prefix").await {
-                Ok(r) => r,
-                Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                    let result = self.client.get(prefix, Some(options)).await;
-                    self.execute_op(result, "get_keys_with_prefix").await?
-                }
-                Err(e) => return Err(e),
-            };
+            let key = prefix.to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_prefix();
+            (key, opts)
+        };
 
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
+        let opts = options.clone();
+        let result = self.client.get(key.clone(), Some(opts)).await;
+        let resp = match self.execute_op(result, "get_keys_with_prefix").await {
+            Ok(r) => r,
+            Err(e) if classify_error(&e) == ErrorKind::Transient => {
+                let result = self.client.get(key, Some(options)).await;
+                self.execute_op(result, "get_keys_with_prefix").await?
+            }
+            Err(e) => return Err(e),
+        };
 
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
-        }
+        let keys: Vec<EtcdKey> = resp
+            .kvs()
+            .iter()
+            .take(limit as usize)
+            .map(|kv| EtcdKey {
+                key: kv.key_str().unwrap_or_default().to_string(),
+                value: kv.value_str().unwrap_or_default().to_string(),
+                version: kv.version(),
+                create_revision: kv.create_revision(),
+                mod_revision: kv.mod_revision(),
+                lease: kv.lease(),
+            })
+            .collect();
+
+        let has_more = resp.kvs().len() > limit as usize;
+        Ok((keys, has_more))
     }
 
     pub async fn status(&mut self) -> anyhow::Result<etcd_client::StatusResponse> {
@@ -1026,12 +1023,16 @@ mod tests {
             ErrorKind::Auth
         );
         assert_eq!(
-            classify_error(&anyhow::anyhow!("permission denied")),
-            ErrorKind::Auth
-        );
-        assert_eq!(
             classify_error(&anyhow::anyhow!("unauthenticated request")),
             ErrorKind::Auth
+        );
+    }
+
+    #[test]
+    fn test_classify_error_authz() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("permission denied")),
+            ErrorKind::Authz
         );
     }
 

@@ -100,11 +100,7 @@ export function KeyDetail() {
 
 				{openTabs.map((tab) => (
 					<TabsContent key={tab.key} value={tab.key} className="p-6 space-y-6">
-						{!activeKeyData ? (
-							<div className="h-full flex items-center justify-center text-muted-foreground">
-								<p>Key data not found</p>
-							</div>
-						) : (
+						{activeKeyData ? (
 							<>
 								<div className="flex items-center justify-between">
 									<h2 className="text-lg font-semibold flex items-center gap-2">
@@ -237,6 +233,10 @@ export function KeyDetail() {
 									</CardContent>
 								</Card>
 							</>
+						) : (
+							<div className="h-full flex items-center justify-center text-muted-foreground">
+								<p>Key data not found</p>
+							</div>
 						)}
 					</TabsContent>
 				))}

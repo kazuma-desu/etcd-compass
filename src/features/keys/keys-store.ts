@@ -299,7 +299,7 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	setViewMode: (mode) => set({ viewMode: mode }),
 	setSelectedKey: (key) => set({ selectedKey: key }),
 	upsertKey: (key) => {
-		const { keys, expandedNodes } = get();
+		const { keys, expandedNodes, openTabs } = get();
 		const nextKeys = keys.some((item) => item.key === key.key)
 			? keys.map((item) => (item.key === key.key ? key : item))
 			: [...keys, key];
@@ -307,6 +307,9 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		set({
 			keys: nextKeys,
 			treeData: buildTree(nextKeys, expandedNodes),
+			openTabs: openTabs.map((t) =>
+				t.key === key.key ? { ...t, snapshot: key } : t,
+			),
 		});
 	},
 	addTab: (key: string, snapshot?: EtcdKey) => {

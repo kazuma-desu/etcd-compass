@@ -619,5 +619,69 @@ describe("Keys Store", () => {
 			expect(keys).toHaveLength(1);
 			expect(keys[0].value).toBe("mysql");
 		});
+
+		it("should sync tab snapshot when upserting an existing key", () => {
+			const { addTab, upsertKey } = useKeysStore.getState();
+			addTab("/config/db", {
+				key: "/config/db",
+				value: "postgres",
+				version: 1,
+				create_revision: 1,
+				mod_revision: 1,
+				lease: 0,
+			});
+
+			upsertKey({
+				key: "/config/db",
+				value: "mysql",
+				version: 2,
+				create_revision: 1,
+				mod_revision: 2,
+				lease: 0,
+			});
+
+			const tab = useKeysStore
+				.getState()
+				.openTabs.find((t) => t.key === "/config/db");
+			expect(tab?.snapshot?.value).toBe("mysql");
+			expect(tab?.snapshot?.version).toBe(2);
+		});
+
+		it("should not affect other tabs when upserting a key", () => {
+			const { addTab, upsertKey } = useKeysStore.getState();
+			addTab("/config/db", {
+				key: "/config/db",
+				value: "postgres",
+				version: 1,
+				create_revision: 1,
+				mod_revision: 1,
+				lease: 0,
+			});
+			addTab("/config/cache", {
+				key: "/config/cache",
+				value: "redis",
+				version: 1,
+				create_revision: 1,
+				mod_revision: 1,
+				lease: 0,
+			});
+
+			upsertKey({
+				key: "/config/db",
+				value: "mysql",
+				version: 2,
+				create_revision: 1,
+				mod_revision: 2,
+				lease: 0,
+			});
+
+			const tabs = useKeysStore.getState().openTabs;
+			expect(tabs.find((t) => t.key === "/config/db")?.snapshot?.value).toBe(
+				"mysql",
+			);
+			expect(tabs.find((t) => t.key === "/config/cache")?.snapshot?.value).toBe(
+				"redis",
+			);
+		});
 	});
 });

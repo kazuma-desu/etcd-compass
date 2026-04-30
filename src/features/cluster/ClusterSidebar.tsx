@@ -637,7 +637,7 @@ export function ClusterSidebar({
 												<Button
 													variant="ghost"
 													size="icon"
-													className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+													className="h-5 w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0"
 													onClick={(e) => {
 														e.stopPropagation();
 														if (connectionId) {

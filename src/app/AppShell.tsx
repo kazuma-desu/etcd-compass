@@ -11,7 +11,7 @@ import {
 	Plus,
 	Server,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -177,6 +177,39 @@ function AppShellContent() {
 		toggleSidebar,
 		searchInputRef,
 	);
+
+	useEffect(() => {
+		const handleNewConnection = () => setShowConnectionDialog(true);
+		const handleRefreshKeys = () => {
+			const currentConnectionId = useConnectionStore.getState().connectionId;
+			if (currentConnectionId) {
+				useKeysStore.getState().refreshKeys(currentConnectionId);
+			}
+		};
+		const handleAddKey = () => useKeysStore.getState().setShowAddDialog(true);
+		const handleToggleSidebar = () => toggleSidebar();
+		const handleShowHelp = () => setShowHelpDialog(true);
+
+		globalThis.addEventListener("etcd:new-connection", handleNewConnection);
+		globalThis.addEventListener("etcd:refresh-keys", handleRefreshKeys);
+		globalThis.addEventListener("etcd:add-key", handleAddKey);
+		globalThis.addEventListener("etcd:toggle-sidebar", handleToggleSidebar);
+		globalThis.addEventListener("etcd:show-help", handleShowHelp);
+
+		return () => {
+			globalThis.removeEventListener(
+				"etcd:new-connection",
+				handleNewConnection,
+			);
+			globalThis.removeEventListener("etcd:refresh-keys", handleRefreshKeys);
+			globalThis.removeEventListener("etcd:add-key", handleAddKey);
+			globalThis.removeEventListener(
+				"etcd:toggle-sidebar",
+				handleToggleSidebar,
+			);
+			globalThis.removeEventListener("etcd:show-help", handleShowHelp);
+		};
+	}, [toggleSidebar]);
 
 	const handleConnect = () => {
 		setSelectedKey(null);
