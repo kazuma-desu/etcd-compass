@@ -381,13 +381,7 @@ impl EtcdClient {
         let v = value.to_string();
         let opts = options.clone();
         let result = self.client.put(k.clone(), v.clone(), Some(opts)).await;
-        match self.execute_op(result, "put_key").await {
-            Ok(_) => (),
-            Err(_) => {
-                let result = self.client.put(k.clone(), v, Some(options.clone())).await;
-                self.execute_op(result, "put_key").await?;
-            }
-        };
+        self.execute_op(result, "put_key").await?;
 
         let result = self.client.get(k.clone(), None).await;
         let resp = match self.execute_op(result, "put_key (verify)").await {
@@ -434,7 +428,7 @@ impl EtcdClient {
     {
         let total = keys.len();
         let mut deleted_count = 0;
-        for (idx, key) in keys.iter().enumerate() {
+        for key in keys {
             let k = key.clone();
             let result = self.client.delete(k.clone(), None).await;
             let delete_result: Result<(), _> = match self.execute_op(result, "delete_keys").await {
@@ -448,10 +442,10 @@ impl EtcdClient {
                 Ok(_) => {
                     deleted_count += 1;
                     if let Some(ref mut cb) = progress_callback {
-                        cb(idx + 1, total);
+                        cb(deleted_count, total);
                     }
                 }
-                Err(e) => eprintln!("Failed to delete key {}: {}", key, e),
+                Err(e) => eprintln!("Failed to delete key <redacted-key>: {}", e),
             }
         }
         Ok(deleted_count)
