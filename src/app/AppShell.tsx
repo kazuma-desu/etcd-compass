@@ -170,8 +170,8 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 	return (
 		<>
 			<ClusterSidebar onAddCluster={() => setShowConnectionDialog(true)} />
-			<SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-muted/30 p-2">
-				<div className="flex flex-col flex-1 min-h-0 min-w-0 bg-background rounded-lg shadow-sm border overflow-hidden">
+			<SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_28rem),hsl(var(--background))] p-2">
+				<div className="flex flex-col flex-1 min-h-0 min-w-0 bg-card/95 rounded-xl shadow-workspace border border-border/70 ring-1 ring-white/60 dark:ring-white/5 overflow-hidden">
 					<TabBar />
 					<div className="flex flex-col flex-1 min-h-0 min-w-0 px-4 py-2">
 						<Tabs
@@ -180,25 +180,25 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 						>
 							<div className="flex flex-col px-4 pt-2">
 								<BreadcrumbNav />
-								<div className="flex items-center gap-4 border-b mt-3">
+								<div className="flex items-center gap-4 border-b border-border/70 mt-3">
 									<TabsList className="h-9 w-auto bg-transparent justify-start space-x-2 p-0 rounded-none mb-[-1px]">
 										<TabsTrigger
 											value="keys"
-											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-none"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
 										>
 											<KeyRound className="w-3.5 h-3.5" />
 											Keys
 										</TabsTrigger>
 										<TabsTrigger
 											value="cluster"
-											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-none"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
 										>
 											<Server className="w-3.5 h-3.5" />
 											Cluster
 										</TabsTrigger>
 										<TabsTrigger
 											value="metrics"
-											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-none"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
 										>
 											<BarChart3 className="w-3.5 h-3.5" />
 											Metrics
@@ -208,7 +208,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 							</div>
 							<TabsContent
 								value="keys"
-								className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4"
+								className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4 pb-4"
 							>
 								<QueryBar
 									connectionId={connectionId ?? undefined}
@@ -217,7 +217,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 								{connectionId ? (
 									<ResizablePanelGroup
 										orientation="horizontal"
-										className="h-full rounded-lg border"
+										className="h-full rounded-xl border border-border/70 bg-background/60 shadow-panel overflow-hidden"
 									>
 										<ResizablePanel defaultSize={45} minSize={25}>
 											<KeyBrowser connectionId={connectionId} />
@@ -227,24 +227,24 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 											<KeyDetail />
 										</ResizablePanel>
 										<ResizableHandle withHandle />
-										<ResizablePanel defaultSize={25} minSize={20}>
+										<ResizablePanel defaultSize={26} minSize={22}>
 											<Tabs
 												defaultValue="watch"
-												className="h-full flex flex-col"
+												className="h-full flex flex-col gap-0 bg-card/40"
 											>
-												<TabsList className="grid w-full grid-cols-2">
+												<TabsList className="grid w-full grid-cols-2 h-9 rounded-none border-b border-border/70 bg-muted/35 p-1">
 													<TabsTrigger
 														value="watch"
-														className="flex items-center gap-2"
+														className="h-7 rounded-md text-xs flex items-center gap-1.5 data-[state=active]:shadow-none"
 													>
-														<Eye className="w-4 h-4" />
+														<Eye className="w-3.5 h-3.5" />
 														Watch
 													</TabsTrigger>
 													<TabsTrigger
 														value="leases"
-														className="flex items-center gap-2"
+														className="h-7 rounded-md text-xs flex items-center gap-1.5 data-[state=active]:shadow-none"
 													>
-														<Clock className="w-4 h-4" />
+														<Clock className="w-3.5 h-3.5" />
 														Leases
 													</TabsTrigger>
 												</TabsList>
@@ -289,17 +289,17 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 											) : (
 												<>
 													<div className="relative w-40 h-40 mx-auto flex items-center justify-center animate-in fade-in zoom-in duration-500">
-														<div className="absolute inset-0 bg-primary/5 rounded-full animate-pulse" />
-														<div className="absolute inset-4 bg-primary/10 rounded-full" />
+														<div className="absolute inset-0 bg-primary/5 rounded-[2rem] rotate-6" />
+														<div className="absolute inset-4 bg-primary/10 rounded-[1.5rem] border border-primary/10 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.20)]" />
 														<Compass className="w-16 h-16 text-primary z-10" />
-														<div className="absolute top-0 right-4 w-8 h-8 bg-background rounded-full flex items-center justify-center shadow-sm border">
+														<div className="absolute top-0 right-4 w-8 h-8 bg-background rounded-lg flex items-center justify-center shadow-sm border border-border/70">
 															<Server className="w-4 h-4 text-muted-foreground" />
 														</div>
 													</div>
 
 													<div className="space-y-4">
 														<div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75 fill-mode-both">
-															<h3 className="text-2xl font-bold tracking-tight text-foreground">
+															<h3 className="text-2xl font-semibold tracking-tight text-foreground">
 																Welcome to ETCD Compass
 															</h3>
 															<p className="text-base text-muted-foreground">
@@ -312,14 +312,14 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 															<Button
 																onClick={() => setShowConnectionDialog(true)}
 																size="lg"
-																className="gap-2 w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md shadow-lg shadow-primary/20 transition-all hover:scale-105"
+																className="gap-2 w-full sm:w-auto font-medium rounded-lg"
 															>
 																<Plus className="w-5 h-5" />
 																Add new connection
 															</Button>
 														</div>
 
-														<div className="mt-8 p-5 bg-muted/50 rounded-xl border border-border/50 text-left space-y-3 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both group hover:border-primary/20 transition-colors">
+														<div className="mt-8 p-5 bg-muted/45 rounded-xl border border-border/60 text-left space-y-3 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both group hover:border-primary/25 transition-colors">
 															<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-primary/10" />
 															<h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
 																<Server className="w-4 h-4 text-primary" />
@@ -334,7 +334,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 																className="h-auto p-0 text-sm font-medium text-primary hover:text-primary/80 mt-1"
 																onClick={handleLearnMoreClick}
 															>
-																Learn how to set up a local cluster
+																LEARN MORE
 																<ExternalLink className="w-3 h-3 ml-1" />
 															</Button>
 														</div>
@@ -347,14 +347,14 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 							</TabsContent>
 							<TabsContent
 								value="cluster"
-								className="flex-1 min-h-0 mt-0 overflow-auto"
+								className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
 							>
 								{connectionId ? (
 									<ClusterStatus connectionId={connectionId} />
 								) : (
 									<div className="flex-1 flex items-center justify-center h-full">
 										<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-75">
-											<div className="w-20 h-20 bg-background shadow-lg shadow-black/5 dark:shadow-white/5 border border-border/50 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+											<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
 												<Server className="w-10 h-10 text-primary/80" />
 											</div>
 											<div className="space-y-1">
@@ -371,14 +371,14 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 							</TabsContent>
 							<TabsContent
 								value="metrics"
-								className="flex-1 min-h-0 mt-0 overflow-auto"
+								className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
 							>
 								{connectionId ? (
 									<MetricsDashboard connectionId={connectionId} />
 								) : (
 									<div className="flex-1 flex items-center justify-center h-full">
 										<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-150">
-											<div className="w-20 h-20 bg-background shadow-lg shadow-black/5 dark:shadow-white/5 border border-border/50 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+											<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
 												<BarChart3 className="w-10 h-10 text-primary/80" />
 											</div>
 											<div className="space-y-1">
@@ -413,7 +413,7 @@ export function AppShell({ connectionId, onConnect }: AppShellProps) {
 	return (
 		<SidebarProvider
 			defaultOpen={true}
-			className="h-screen overflow-hidden bg-background"
+			className="min-h-[100dvh] h-[100dvh] overflow-hidden bg-background"
 		>
 			<AppShellContent connectionId={connectionId} onConnect={onConnect} />
 		</SidebarProvider>

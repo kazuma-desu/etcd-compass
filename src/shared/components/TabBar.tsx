@@ -82,7 +82,7 @@ export function TabBar() {
 								}
 							`}
 						>
-							<Database className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+							<Database className="h-3.5 w-3.5 shrink-0 text-primary" />
 							<span className="truncate flex-1">{tab.endpoint}</span>
 							<Button
 								variant="ghost"
