@@ -71,6 +71,22 @@ export function LeasePanel({ connectionId }: LeasePanelProps) {
 	}, [connectionId, loadLeases]);
 
 	useEffect(() => {
+		setCountdowns((prev) => {
+			const next: Record<number, number> = {};
+			leases.forEach((lease) => {
+				if (prev[lease.id] === undefined) {
+					next[lease.id] = lease.remaining;
+				} else if (lease.remaining > prev[lease.id]) {
+					next[lease.id] = lease.remaining;
+				} else {
+					next[lease.id] = prev[lease.id];
+				}
+			});
+			return next;
+		});
+	}, [leases]);
+
+	useEffect(() => {
 		const interval = setInterval(() => {
 			setCountdowns((prev) => {
 				const next: Record<number, number> = {};
@@ -168,10 +184,7 @@ export function LeasePanel({ connectionId }: LeasePanelProps) {
 				) : (
 					<div className="space-y-2">
 						{leases.map((lease) => {
-							const remaining = Math.max(
-								lease.remaining,
-								countdowns[lease.id] ?? Number.NEGATIVE_INFINITY,
-							);
+							const remaining = countdowns[lease.id] ?? lease.remaining;
 							const isExpiring = remaining < 10;
 
 							return (

@@ -50,11 +50,14 @@ interface AppShellProps {
 	onConnect: (connectionId: string) => void;
 }
 
-const phaseOrder: ConnectionPhase[] = [
-	"connecting",
-	"authenticating",
-	"fetching-keys",
-];
+function buildPhaseOrder(hasCredentials: boolean): ConnectionPhase[] {
+	const order: ConnectionPhase[] = ["connecting"];
+	if (hasCredentials) {
+		order.push("authenticating");
+	}
+	order.push("fetching-keys");
+	return order;
+}
 
 const phaseLabels: Record<ConnectionPhase, string> = {
 	disconnected: "Disconnected",
@@ -85,9 +88,11 @@ function StepIcon({
 function ConnectionPhaseProgress({
 	phase,
 	isConnecting,
+	phaseOrder,
 }: {
 	readonly phase: ConnectionPhase;
 	readonly isConnecting: boolean;
+	readonly phaseOrder: ConnectionPhase[];
 }) {
 	if (!isConnecting || phase === "disconnected" || phase === "connected") {
 		return null;
@@ -156,9 +161,16 @@ function ConnectionPhaseProgress({
 	);
 }
 
-function AppShellContent({ connectionId, onConnect }: AppShellProps) {
+function AppShellContent({
+	onConnect,
+}: {
+	readonly onConnect: (connectionId: string) => void;
+}) {
 	const { setSelectedKey, setSearchQuery } = useKeysStore();
-	const { isConnecting, phase } = useConnectionStore();
+	const { connectionId, isConnecting, phase, config } = useConnectionStore();
+	const phaseOrder = buildPhaseOrder(
+		Boolean(config.username || config.password),
+	);
 	const { toggleSidebar } = useSidebar();
 	const [showConnectionDialog, setShowConnectionDialog] = useState(false);
 	const [showHelpDialog, setShowHelpDialog] = useState(false);
@@ -299,6 +311,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 													<ConnectionPhaseProgress
 														phase={phase}
 														isConnecting={isConnecting}
+														phaseOrder={phaseOrder}
 													/>
 												</div>
 											) : (
@@ -424,13 +437,13 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 	);
 }
 
-export function AppShell({ connectionId, onConnect }: AppShellProps) {
+export function AppShell({ onConnect }: AppShellProps) {
 	return (
 		<SidebarProvider
 			defaultOpen={true}
 			className="min-h-[100dvh] h-[100dvh] overflow-hidden bg-background"
 		>
-			<AppShellContent connectionId={connectionId} onConnect={onConnect} />
+			<AppShellContent onConnect={onConnect} />
 		</SidebarProvider>
 	);
 }

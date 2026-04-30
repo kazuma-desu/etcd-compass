@@ -41,6 +41,8 @@ describe("Keys Store", () => {
 			bulkOperationProgress: 0,
 			isBulkOperationInProgress: false,
 			showBulkDeleteDialog: false,
+			openTabs: [],
+			activeTab: null,
 		});
 		vi.clearAllMocks();
 	});

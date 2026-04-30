@@ -124,18 +124,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 		set({ isConnecting: true, connectionError: "", phase: "connecting" });
 
 		try {
-			set({ phase: "connecting" });
-			await new Promise((resolve) => setTimeout(resolve, 300));
-
 			if (config.username || config.password) {
 				set({ phase: "authenticating" });
-				await new Promise((resolve) => setTimeout(resolve, 300));
 			}
 
 			const connectionId = await connectEtcd(config);
 
 			set({ phase: "fetching-keys" });
-			await new Promise((resolve) => setTimeout(resolve, 400));
 
 			set({ connectionId, isConnecting: false, phase: "connected" });
 			toast.success("Connected to ETCD successfully");

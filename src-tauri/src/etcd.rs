@@ -110,7 +110,7 @@ pub struct WatchHandle {
 
 pub struct EtcdClient {
     client: Client,
-    config: EtcdConfig,
+    config: Option<EtcdConfig>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -162,19 +162,11 @@ impl EtcdClient {
     }
 
     pub fn from_client(client: Client) -> Self {
-        // Create a default config for cloned clients
-        // Note: Reconnection won't work for cloned clients without config
-        let config = EtcdConfig {
-            endpoint: "cloned".to_string(),
-            username: None,
-            password: None,
-            tls_enabled: false,
-            ca_cert_path: None,
-            client_cert_path: None,
-            client_key_path: None,
-            skip_verify: false,
-        };
-        EtcdClient { client, config }
+        // Cloned clients have no config — reconnect is unavailable.
+        EtcdClient {
+            client,
+            config: None,
+        }
     }
 
     pub async fn connect(config: &EtcdConfig) -> anyhow::Result<Self> {
@@ -228,13 +220,19 @@ impl EtcdClient {
         }
 
         let client = Client::connect([&config.endpoint], Some(options)).await?;
-        let config = config.clone();
 
-        Ok(EtcdClient { client, config })
+        Ok(EtcdClient {
+            client,
+            config: Some(config.clone()),
+        })
     }
 
     async fn reconnect(&mut self) -> anyhow::Result<()> {
-        let new_client = Self::connect(&self.config).await?;
+        let config = self
+            .config
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Reconnect unavailable: client was cloned"))?;
+        let new_client = Self::connect(config).await?;
         self.client = new_client.client;
         Ok(())
     }
@@ -406,15 +404,8 @@ impl EtcdClient {
     }
 
     pub async fn delete_key(&mut self, key: &str) -> anyhow::Result<()> {
-        let k = key.to_string();
-        let result = self.client.delete(k.clone(), None).await;
-        match self.execute_op(result, "delete_key").await {
-            Ok(_) => (),
-            Err(_) => {
-                let result = self.client.delete(k, None).await;
-                self.execute_op(result, "delete_key").await?;
-            }
-        };
+        let result = self.client.delete(key, None).await;
+        self.execute_op(result, "delete_key").await?;
         Ok(())
     }
 
@@ -429,16 +420,8 @@ impl EtcdClient {
         let total = keys.len();
         let mut deleted_count = 0;
         for key in keys {
-            let k = key.clone();
-            let result = self.client.delete(k.clone(), None).await;
-            let delete_result: Result<(), _> = match self.execute_op(result, "delete_keys").await {
-                Ok(_) => Ok(()),
-                Err(_) => {
-                    let result = self.client.delete(k, None).await;
-                    self.execute_op(result, "delete_keys").await.map(|_| ())
-                }
-            };
-            match delete_result {
+            let result = self.client.delete(key.as_str(), None).await;
+            match self.execute_op(result, "delete_keys").await {
                 Ok(_) => {
                     deleted_count += 1;
                     if let Some(ref mut cb) = progress_callback {

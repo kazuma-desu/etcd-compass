@@ -77,6 +77,7 @@ vi.mock("@/shared/hooks/use-keyboard-shortcuts", () => ({
 	useKeyboardShortcuts: vi.fn(),
 }));
 
+import { useConnectionStore } from "@/features/connections/connection-store";
 import { AppShell } from "./AppShell";
 
 describe("AppShell", () => {
@@ -87,6 +88,12 @@ describe("AppShell", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		useConnectionStore.setState({
+			connectionId: null,
+			isConnecting: false,
+			phase: "disconnected",
+			connectionError: "",
+		});
 	});
 
 	it("should render the welcome screen when not connected", () => {
@@ -127,7 +134,8 @@ describe("AppShell", () => {
 		expect(screen.getByRole("tab", { name: /metrics/i })).toBeInTheDocument();
 	});
 	it("should render key browser when connected", () => {
-		render(<AppShell connectionId="test-uuid-123" onConnect={vi.fn()} />);
+		useConnectionStore.setState({ connectionId: "test-uuid-123" });
+		render(<AppShell {...defaultProps} />);
 
 		expect(screen.getByTestId("key-browser")).toBeInTheDocument();
 		expect(screen.getByTestId("query-bar")).toBeInTheDocument();

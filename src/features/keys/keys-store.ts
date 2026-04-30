@@ -68,6 +68,7 @@ export interface ExportImportKey {
 export interface Tab {
 	key: string;
 	scrollPosition: number;
+	snapshot?: EtcdKey;
 }
 
 export interface ExportData {
@@ -142,7 +143,7 @@ interface KeysState {
 	setViewMode: (mode: "flat" | "tree") => void;
 	setSelectedKey: (key: EtcdKey | null) => void;
 	upsertKey: (key: EtcdKey) => void;
-	addTab: (key: string) => void;
+	addTab: (key: string, snapshot?: EtcdKey) => void;
 	closeTab: (key: string) => void;
 	setActiveTab: (key: string) => void;
 	updateTabScroll: (key: string, scrollPosition: number) => void;
@@ -308,13 +309,13 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			treeData: buildTree(nextKeys, expandedNodes),
 		});
 	},
-	addTab: (key: string) => {
+	addTab: (key: string, snapshot?: EtcdKey) => {
 		const { openTabs } = get();
 		if (openTabs.some((t) => t.key === key)) {
 			set({ activeTab: key });
 		} else {
 			set({
-				openTabs: [...openTabs, { key, scrollPosition: 0 }],
+				openTabs: [...openTabs, { key, scrollPosition: 0, snapshot }],
 				activeTab: key,
 			});
 		}

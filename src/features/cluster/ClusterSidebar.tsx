@@ -101,7 +101,7 @@ export function ClusterSidebar({
 	);
 
 	const { getBookmarks, removeBookmark } = useBookmarksStore();
-	const { addTab, upsertKey } = useKeysStore();
+	const { addTab } = useKeysStore();
 	const connectionBookmarks = connectionId ? getBookmarks(connectionId) : [];
 
 	const openBookmarkedKey = useCallback(
@@ -115,15 +115,14 @@ export function ClusterSidebar({
 					return;
 				}
 
-				upsertKey(key);
-				addTab(key.key);
+				addTab(key.key, key);
 			} catch (error: unknown) {
 				toast.error(
 					`Failed to open bookmarked key: ${error instanceof Error ? error.message : String(error)}`,
 				);
 			}
 		},
-		[addTab, connectionId, upsertKey],
+		[addTab, connectionId],
 	);
 
 	const loadConnections = useCallback(async () => {
@@ -622,36 +621,34 @@ export function ClusterSidebar({
 								<SidebarMenu>
 									{connectionBookmarks.map((keyPath) => (
 										<SidebarMenuItem key={keyPath}>
-											<SidebarMenuButton
-												asChild
-												className="w-full justify-between group"
-											>
-												<button
-													type="button"
-													onClick={() => openBookmarkedKey(keyPath)}
-													className="flex items-center gap-2"
-												>
-													<span className="flex items-center gap-2 flex-1 min-w-0">
+											<div className="flex items-center gap-1 w-full group">
+												<SidebarMenuButton asChild className="flex-1 min-w-0">
+													<button
+														type="button"
+														onClick={() => openBookmarkedKey(keyPath)}
+														className="flex items-center gap-2"
+													>
 														<Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
 														<span className="truncate text-xs">
 															{keyPath.split("/").pop() || keyPath}
 														</span>
-													</span>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-														onClick={(e) => {
-															e.stopPropagation();
-															if (connectionId) {
-																removeBookmark(connectionId, keyPath);
-															}
-														}}
-													>
-														<StarOff className="h-3 w-3" />
-													</Button>
-												</button>
-											</SidebarMenuButton>
+													</button>
+												</SidebarMenuButton>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+													onClick={(e) => {
+														e.stopPropagation();
+														if (connectionId) {
+															removeBookmark(connectionId, keyPath);
+														}
+													}}
+													aria-label={`Remove bookmark ${keyPath}`}
+												>
+													<StarOff className="h-3 w-3" />
+												</Button>
+											</div>
 										</SidebarMenuItem>
 									))}
 								</SidebarMenu>

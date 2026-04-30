@@ -126,7 +126,7 @@ export function TreeView({
 				if (!e.ctrlKey && !e.metaKey) {
 					setSelectedKey(key);
 				}
-				addTab(key.key);
+				addTab(key.key, key);
 			}
 		} else {
 			toggleNode(node.fullPath);
@@ -179,7 +179,7 @@ export function TreeView({
 										onAuxClick={(e) => {
 											if (e.button === 1 && node.isLeaf) {
 												const key = keyByFullPath.get(node.fullPath);
-												if (key) addTab(key.key);
+												if (key) addTab(key.key, key);
 											}
 										}}
 									>
@@ -193,15 +193,18 @@ export function TreeView({
 											</span>
 										)}
 										{node.isLeaf && (
-											<div onClick={(e) => handleCheckboxClick(e, node)}>
+											<button
+												type="button"
+												onClick={(e) => handleCheckboxClick(e, node)}
+												className="cursor-pointer bg-transparent border-none p-0"
+												aria-label={`Select ${node.fullPath}`}
+											>
 												<Checkbox
 													checked={isKeySelected(node.fullPath)}
-													onCheckedChange={() =>
-														toggleKeySelectionForBulk(node.fullPath)
-													}
-													aria-label={`Select ${node.fullPath}`}
+													onCheckedChange={() => {}}
+													tabIndex={-1}
 												/>
-											</div>
+											</button>
 										)}
 										{node.isLeaf ? (
 											<FileKey className="w-4 h-4 text-primary" />
