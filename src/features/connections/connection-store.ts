@@ -50,6 +50,17 @@ export type ConnectionPhase =
 	| "fetching-keys"
 	| "connected";
 
+export function buildConnectionPhaseOrder(
+	hasCredentials: boolean,
+): ConnectionPhase[] {
+	const order: ConnectionPhase[] = ["connecting"];
+	if (hasCredentials) {
+		order.push("authenticating");
+	}
+	order.push("fetching-keys");
+	return order;
+}
+
 interface ConnectionState {
 	connectionId: string | null;
 	config: EtcdConfig;
@@ -59,6 +70,7 @@ interface ConnectionState {
 	showPassword: boolean;
 	showHistory: boolean;
 	phase: ConnectionPhase;
+	phaseOrder: ConnectionPhase[];
 
 	setConfig: (config: EtcdConfig) => void;
 	setShowPassword: (show: boolean) => void;
@@ -89,6 +101,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 	showPassword: false,
 	showHistory: false,
 	phase: "disconnected",
+	phaseOrder: buildConnectionPhaseOrder(false),
 
 	setConfig: (config) => set({ config }),
 	setShowPassword: (show) => set({ showPassword: show }),
@@ -121,10 +134,16 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
 	connect: async () => {
 		const { config } = get();
-		set({ isConnecting: true, connectionError: "", phase: "connecting" });
+		const hasCredentials = Boolean(config.username || config.password);
+		set({
+			isConnecting: true,
+			connectionError: "",
+			phase: "connecting",
+			phaseOrder: buildConnectionPhaseOrder(hasCredentials),
+		});
 
 		try {
-			if (config.username || config.password) {
+			if (hasCredentials) {
 				set({ phase: "authenticating" });
 			}
 
@@ -155,6 +174,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 			set({
 				connectionId: null,
 				phase: "disconnected",
+				phaseOrder: buildConnectionPhaseOrder(false),
 				config: {
 					endpoint: "localhost:2379",
 					username: "",
@@ -179,6 +199,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 		set({
 			connectionId: id,
 			phase: id ? "connected" : "disconnected",
+			phaseOrder: buildConnectionPhaseOrder(false),
 		});
 	},
 }));

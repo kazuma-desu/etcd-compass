@@ -77,7 +77,10 @@ vi.mock("@/shared/hooks/use-keyboard-shortcuts", () => ({
 	useKeyboardShortcuts: vi.fn(),
 }));
 
-import { useConnectionStore } from "@/features/connections/connection-store";
+import {
+	buildConnectionPhaseOrder,
+	useConnectionStore,
+} from "@/features/connections/connection-store";
 import { AppShell } from "./AppShell";
 
 describe("AppShell", () => {
@@ -87,6 +90,7 @@ describe("AppShell", () => {
 			connectionId: null,
 			isConnecting: false,
 			phase: "disconnected",
+			phaseOrder: buildConnectionPhaseOrder(false),
 			connectionError: "",
 			config: {
 				endpoint: "localhost:2379",
@@ -138,6 +142,58 @@ describe("AppShell", () => {
 		expect(screen.getByRole("tab", { name: /cluster/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /metrics/i })).toBeInTheDocument();
 	});
+
+	it("should render anonymous in-progress connection steps", () => {
+		useConnectionStore.setState({
+			isConnecting: true,
+			phase: "connecting",
+			connectionId: null,
+			phaseOrder: buildConnectionPhaseOrder(false),
+			config: {
+				endpoint: "localhost:2379",
+				username: "",
+				password: "",
+				tls_enabled: false,
+				ca_cert_path: "",
+				client_cert_path: "",
+				client_key_path: "",
+				skip_verify: false,
+			},
+		});
+
+		render(<AppShell />);
+
+		expect(screen.getByText("Connecting to ETCD")).toBeInTheDocument();
+		expect(screen.getAllByText("Establishing connection")).toHaveLength(2);
+		expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+		expect(screen.queryByText("Authenticating")).not.toBeInTheDocument();
+	});
+
+	it("should render authenticated in-progress connection steps", () => {
+		useConnectionStore.setState({
+			isConnecting: true,
+			phase: "authenticating",
+			connectionId: null,
+			phaseOrder: buildConnectionPhaseOrder(true),
+			config: {
+				endpoint: "localhost:2379",
+				username: "x",
+				password: "y",
+				tls_enabled: false,
+				ca_cert_path: "",
+				client_cert_path: "",
+				client_key_path: "",
+				skip_verify: false,
+			},
+		});
+
+		render(<AppShell />);
+
+		expect(screen.getByText("Connecting to ETCD")).toBeInTheDocument();
+		expect(screen.getAllByText("Authenticating")).toHaveLength(2);
+		expect(screen.getByText("Step 2 of 3")).toBeInTheDocument();
+	});
+
 	it("should render key browser when connected", () => {
 		useConnectionStore.setState({ connectionId: "test-uuid-123" });
 		render(<AppShell />);

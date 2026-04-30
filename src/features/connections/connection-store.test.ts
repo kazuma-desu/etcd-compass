@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useConnectionStore } from "./connection-store";
+import {
+	buildConnectionPhaseOrder,
+	useConnectionStore,
+} from "./connection-store";
 
 const mockInvoke = vi.mocked(invoke);
 
@@ -18,6 +21,8 @@ describe("Connection Store", () => {
 			connectionHistory: [],
 			showPassword: false,
 			showHistory: false,
+			phase: "disconnected",
+			phaseOrder: buildConnectionPhaseOrder(false),
 		});
 		vi.clearAllMocks();
 	});
@@ -36,6 +41,7 @@ describe("Connection Store", () => {
 			expect(state.connectionHistory).toEqual([]);
 			expect(state.showPassword).toBe(false);
 			expect(state.showHistory).toBe(false);
+			expect(state.phaseOrder).toEqual(["connecting", "fetching-keys"]);
 		});
 
 		it("should update config with setConfig", () => {

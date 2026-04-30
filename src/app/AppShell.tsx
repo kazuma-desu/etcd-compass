@@ -45,15 +45,6 @@ import { ShortcutHelp } from "@/shared/components/ShortcutHelp";
 import { TabBar } from "@/shared/components/TabBar";
 import { useKeyboardShortcuts } from "@/shared/hooks/use-keyboard-shortcuts";
 
-function buildPhaseOrder(hasCredentials: boolean): ConnectionPhase[] {
-	const order: ConnectionPhase[] = ["connecting"];
-	if (hasCredentials) {
-		order.push("authenticating");
-	}
-	order.push("fetching-keys");
-	return order;
-}
-
 const phaseLabels: Record<ConnectionPhase, string> = {
 	disconnected: "Disconnected",
 	connecting: "Establishing connection",
@@ -158,10 +149,8 @@ function ConnectionPhaseProgress({
 
 function AppShellContent() {
 	const { setSelectedKey, setSearchQuery } = useKeysStore();
-	const { connectionId, isConnecting, phase, config } = useConnectionStore();
-	const phaseOrder = buildPhaseOrder(
-		Boolean(config.username || config.password),
-	);
+	const { connectionId, isConnecting, phase, phaseOrder } =
+		useConnectionStore();
 	const { toggleSidebar } = useSidebar();
 	const [showConnectionDialog, setShowConnectionDialog] = useState(false);
 	const [showHelpDialog, setShowHelpDialog] = useState(false);
