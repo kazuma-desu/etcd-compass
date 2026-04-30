@@ -5,7 +5,6 @@ import type { WatchEvent } from "@/commands/types";
 import { onWatchEvent, unwatchKey, watchKey } from "@/commands/watch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -129,43 +128,46 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 
 	if (!connectionId) {
 		return (
-			<Card className="h-full">
-				<CardContent className="h-full flex items-center justify-center text-muted-foreground">
-					<div className="text-center">
-						<Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-						<p>Connect to an ETCD cluster to use watch functionality</p>
-					</div>
-				</CardContent>
-			</Card>
+			<div className="h-full flex items-center justify-center p-4 text-muted-foreground">
+				<div className="text-center text-sm">
+					<Activity className="w-10 h-10 mx-auto mb-3 opacity-50" />
+					<p>Connect to use watch.</p>
+				</div>
+			</div>
 		);
 	}
 
 	return (
-		<Card className="h-full flex flex-col">
-			<CardHeader className="pb-4">
-				<div className="flex items-center justify-between">
-					<CardTitle className="text-lg font-semibold flex items-center gap-2">
-						<Eye className="w-5 h-5 text-primary" />
-						Watch Keys
-						{watchState.isWatching && (
-							<span className="relative flex h-3 w-3 ml-2">
-								<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-								<span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-							</span>
-						)}
-					</CardTitle>
+		<div className="h-full flex flex-col overflow-hidden">
+			<div className="px-4 py-3 border-b border-border/70">
+				<div className="flex items-center justify-between gap-2">
+					<div className="min-w-0">
+						<h2 className="text-sm font-semibold flex items-center gap-2 truncate">
+							<Eye className="w-4 h-4 text-primary" />
+							Watch Keys
+							{watchState.isWatching && (
+								<span className="relative flex h-2.5 w-2.5 ml-1">
+									<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60"></span>
+									<span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+								</span>
+							)}
+						</h2>
+						<p className="mt-0.5 text-[11px] text-muted-foreground truncate">
+							Stream changes for a key or prefix
+						</p>
+					</div>
 					<Badge variant={watchState.isWatching ? "default" : "secondary"}>
 						{watchState.isWatching ? "Active" : "Inactive"}
 					</Badge>
 				</div>
-			</CardHeader>
+			</div>
 
-			<CardContent className="flex-1 flex flex-col space-y-4">
-				<div className="space-y-4">
-					<div className="space-y-2">
+			<div className="flex-1 flex flex-col min-h-0 p-4 gap-4">
+				<div className="space-y-3">
+					<div className="space-y-1.5">
 						<Label
 							htmlFor="watch-key"
-							className="text-xs uppercase text-muted-foreground"
+							className="text-[11px] uppercase tracking-wide text-muted-foreground"
 						>
 							Key or Prefix
 						</Label>
@@ -177,12 +179,15 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 								setWatchState((prev) => ({ ...prev, key: e.target.value }))
 							}
 							disabled={watchState.isWatching}
-							className="font-mono text-sm"
+							className="h-9 font-mono text-xs"
 						/>
 					</div>
 
-					<div className="flex items-center justify-between">
-						<div className="flex items-center space-x-2">
+					<div className="grid gap-2">
+						<div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/35 px-3 py-2">
+							<Label htmlFor="prefix-mode" className="text-xs cursor-pointer">
+								Watch prefix
+							</Label>
 							<Switch
 								id="prefix-mode"
 								checked={watchState.isPrefix}
@@ -191,14 +196,16 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 								}
 								disabled={watchState.isWatching}
 							/>
-							<Label htmlFor="prefix-mode" className="text-sm cursor-pointer">
-								Watch as prefix
-							</Label>
 						</div>
 
 						{watchState.isWatching ? (
-							<Button variant="destructive" size="sm" onClick={stopWatching}>
-								<EyeOff className="w-4 h-4 mr-2" />
+							<Button
+								variant="destructive"
+								size="sm"
+								onClick={stopWatching}
+								className="w-full"
+							>
+								<EyeOff className="w-4 h-4" />
 								Stop Watching
 							</Button>
 						) : (
@@ -207,8 +214,9 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 								size="sm"
 								onClick={startWatching}
 								disabled={!watchState.key.trim()}
+								className="w-full"
 							>
-								<Eye className="w-4 h-4 mr-2" />
+								<Eye className="w-4 h-4" />
 								Start Watching
 							</Button>
 						)}
@@ -217,7 +225,7 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 
 				<div className="flex-1 flex flex-col min-h-0">
 					<div className="flex items-center justify-between mb-2">
-						<h3 className="text-sm font-medium text-muted-foreground uppercase">
+						<h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
 							Event History
 						</h3>
 						{history.length > 0 && (
@@ -227,9 +235,9 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 						)}
 					</div>
 
-					<ScrollArea className="flex-1 border rounded-md">
+					<ScrollArea className="flex-1 border border-border/60 rounded-md bg-background/45">
 						{history.length === 0 ? (
-							<div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
+							<div className="h-full min-h-32 flex items-center justify-center text-muted-foreground text-sm">
 								<p>No events yet</p>
 							</div>
 						) : (
@@ -300,7 +308,7 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 						)}
 					</ScrollArea>
 				</div>
-			</CardContent>
-		</Card>
+			</div>
+		</div>
 	);
 }
