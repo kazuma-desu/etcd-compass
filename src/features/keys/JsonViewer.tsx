@@ -82,10 +82,7 @@ function highlightText(text: string, query: string): React.ReactNode {
 	const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
 	return parts.map((part, i) =>
 		part.toLowerCase() === query.toLowerCase() ? (
-			<mark
-				key={i}
-				className="bg-primary/15 text-inherit px-0.5 rounded"
-			>
+			<mark key={i} className="bg-primary/15 text-inherit px-0.5 rounded">
 				{part}
 			</mark>
 		) : (
@@ -193,7 +190,7 @@ function JSONNode({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<span
-									className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
+										className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
 										onClick={(e) => {
 											e.stopPropagation();
 											onCopyPath(path);
@@ -253,7 +250,7 @@ function JSONNode({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<span
-									className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
+										className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
 										onClick={(e) => {
 											e.stopPropagation();
 											onCopyPath(path);

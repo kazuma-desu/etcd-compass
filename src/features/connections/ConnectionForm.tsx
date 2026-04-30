@@ -662,10 +662,10 @@ export function ConnectionForm({
 																className={cn(
 																	"h-8 w-full rounded-md transition-all",
 																	color.class,
-													field.value === color.value
-														? "ring-2 ring-offset-2 ring-primary -translate-y-0.5"
-														: "opacity-80 hover:opacity-100 hover:-translate-y-0.5",
-												)}
+																	field.value === color.value
+																		? "ring-2 ring-offset-2 ring-primary -translate-y-0.5"
+																		: "opacity-80 hover:opacity-100 hover:-translate-y-0.5",
+																)}
 																title={color.label}
 															/>
 														))}

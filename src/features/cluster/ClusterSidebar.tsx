@@ -316,7 +316,11 @@ export function ClusterSidebar({
 	);
 
 	return (
-		<Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border/80 bg-sidebar">
+		<Sidebar
+			collapsible="icon"
+			variant="sidebar"
+			className="border-r border-sidebar-border/80 bg-sidebar"
+		>
 			<SidebarRail />
 
 			<SidebarHeader className="pb-3 border-b border-sidebar-border/70 group-data-[collapsible=icon]:pb-1 group-data-[collapsible=icon]:px-0">
@@ -482,7 +486,7 @@ export function ClusterSidebar({
 																				/>
 																			) : (
 																				<span
-															className={`h-2 w-2 rounded-full ${conn.id === connectionId ? "bg-primary" : "bg-muted-foreground"}`}
+																					className={`h-2 w-2 rounded-full ${conn.id === connectionId ? "bg-primary" : "bg-muted-foreground"}`}
 																				/>
 																			)}
 																			<span className="truncate">
@@ -616,7 +620,9 @@ export function ClusterSidebar({
 														className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
 														onClick={(e) => {
 															e.stopPropagation();
-															removeBookmark(connectionId!, keyPath);
+															if (connectionId) {
+																removeBookmark(connectionId, keyPath);
+															}
 														}}
 													>
 														<StarOff className="h-3 w-3" />
