@@ -46,8 +46,10 @@ function HealthIndicator({ health }: { health: ClusterMember["health"] }) {
 	if (health === "healthy") {
 		return (
 			<div className="flex items-center gap-2">
-				<div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-				<span className="text-xs font-medium text-emerald-600">Healthy</span>
+				<div className="w-2.5 h-2.5 rounded-full bg-sky-600 animate-pulse dark:bg-sky-400" />
+				<span className="text-xs font-medium text-sky-700 dark:text-sky-300">
+					Healthy
+				</span>
 			</div>
 		);
 	}
@@ -62,7 +64,9 @@ function HealthIndicator({ health }: { health: ClusterMember["health"] }) {
 	return (
 		<div className="flex items-center gap-2">
 			<div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-			<span className="text-xs font-medium text-amber-600">Unknown</span>
+			<span className="text-xs font-medium text-amber-800 dark:text-amber-300">
+				Unknown
+			</span>
 		</div>
 	);
 }
@@ -79,7 +83,7 @@ function MetricCard({
 	icon: React.ElementType;
 }) {
 	return (
-		<Card className="border-l-4 border-l-indigo-500">
+		<Card className="border-l-4 border-l-primary/80 py-0">
 			<CardContent className="p-4">
 				<div className="flex items-start justify-between">
 					<div>
@@ -91,8 +95,8 @@ function MetricCard({
 							<p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
 						)}
 					</div>
-					<div className="p-2 bg-indigo-50 rounded-lg">
-						<Icon className="w-5 h-5 text-indigo-600" />
+					<div className="p-2 bg-primary/10 rounded-lg ring-1 ring-primary/15">
+						<Icon className="w-5 h-5 text-primary" />
 					</div>
 				</div>
 			</CardContent>
@@ -267,10 +271,12 @@ export function ClusterStatus({ connectionId }: ClusterStatusProps) {
 	const totalMembers = status.members.length;
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Cluster Status</h2>
+					<h2 className="text-2xl font-semibold tracking-tight">
+						Cluster Status
+					</h2>
 					<p className="text-sm text-muted-foreground">
 						Cluster ID:{" "}
 						<code className="text-xs bg-muted px-1.5 py-0.5 rounded">
@@ -334,8 +340,8 @@ export function ClusterStatus({ connectionId }: ClusterStatusProps) {
 				/>
 			</div>
 
-			<Card>
-				<CardHeader>
+			<Card className="gap-3 py-0">
+				<CardHeader className="px-5 pt-4 pb-0 gap-1">
 					<CardTitle className="flex items-center gap-2 text-lg">
 						<Users className="w-5 h-5" />
 						Cluster Members
@@ -353,14 +359,14 @@ export function ClusterStatus({ connectionId }: ClusterStatusProps) {
 						)}
 					</CardDescription>
 				</CardHeader>
-				<CardContent>
+				<CardContent className="px-5 pb-4">
 					<MembersTable members={status.members} />
 				</CardContent>
 			</Card>
 
-			<div className="flex items-center gap-6 text-xs text-muted-foreground pt-4 border-t">
+			<div className="flex items-center gap-6 text-xs text-muted-foreground pt-3 border-t border-border/70">
 				<div className="flex items-center gap-2">
-					<div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+					<div className="w-2.5 h-2.5 rounded-full bg-sky-600 dark:bg-sky-400" />
 					<span>Healthy</span>
 				</div>
 				<div className="flex items-center gap-2">

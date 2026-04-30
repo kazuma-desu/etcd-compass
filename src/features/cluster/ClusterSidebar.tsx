@@ -316,12 +316,14 @@ export function ClusterSidebar({
 	);
 
 	return (
-		<Sidebar collapsible="icon" variant="sidebar">
+		<Sidebar collapsible="icon" variant="sidebar" className="border-r border-sidebar-border/80 bg-sidebar">
 			<SidebarRail />
 
-			<SidebarHeader className="pb-3 group-data-[collapsible=icon]:pb-1 group-data-[collapsible=icon]:px-0">
+			<SidebarHeader className="pb-3 border-b border-sidebar-border/70 group-data-[collapsible=icon]:pb-1 group-data-[collapsible=icon]:px-0">
 				<div className="flex items-center gap-2 px-3 py-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-1">
-					<Database className="h-5 w-5 text-primary shrink-0" />
+					<div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
+						<Database className="h-4 w-4 text-primary" />
+					</div>
 					<span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">
 						Compass
 					</span>
@@ -403,7 +405,7 @@ export function ClusterSidebar({
 								placeholder="Search connections"
 								value={filter}
 								onChange={(e) => setFilter(e.target.value)}
-								className="h-8 pl-8 text-xs bg-background border-border/60"
+								className="h-8 pl-8 text-xs bg-background/75 border-border/60"
 							/>
 						</div>
 					</div>
@@ -480,7 +482,7 @@ export function ClusterSidebar({
 																				/>
 																			) : (
 																				<span
-																					className={`h-2 w-2 rounded-full ${conn.id === connectionId ? "bg-emerald-500" : "bg-muted-foreground"}`}
+															className={`h-2 w-2 rounded-full ${conn.id === connectionId ? "bg-primary" : "bg-muted-foreground"}`}
 																				/>
 																			)}
 																			<span className="truncate">

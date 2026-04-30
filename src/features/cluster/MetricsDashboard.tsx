@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 import { type MetricsDataPoint, useClusterStore } from "./cluster-store";
 
 interface MetricsDashboardProps {
@@ -49,6 +50,14 @@ const REFRESH_OPTIONS = [
 	{ value: "30000", label: "30s" },
 	{ value: "60000", label: "60s" },
 ];
+
+const chartColors = {
+	database: "hsl(var(--chart-database))",
+	latency: "hsl(var(--chart-latency))",
+	keys: "hsl(var(--chart-keys))",
+	grid: "hsl(var(--chart-grid))",
+	axis: "hsl(var(--chart-axis))",
+};
 
 function formatBytes(bytes: number): string {
 	if (bytes === 0) return "0 B";
@@ -80,13 +89,13 @@ function MetricCard({
 	trend?: "up" | "down" | "neutral";
 }) {
 	const trendColors = {
-		up: "text-emerald-500",
+		up: "text-primary",
 		down: "text-rose-500",
 		neutral: "text-muted-foreground",
 	};
 
 	return (
-		<Card className="border-l-4 border-l-violet-500 overflow-hidden">
+		<Card className="overflow-hidden border-l-4 border-l-primary/80 py-0">
 			<CardContent className="p-4">
 				<div className="flex items-start justify-between">
 					<div className="flex-1 min-w-0">
@@ -98,14 +107,17 @@ function MetricCard({
 						</p>
 						{subtitle && (
 							<p
-								className={`text-xs mt-0.5 truncate ${trend ? trendColors[trend] : "text-muted-foreground"}`}
+								className={cn(
+									"text-xs mt-0.5 truncate",
+									trend ? trendColors[trend] : "text-muted-foreground",
+								)}
 							>
 								{subtitle}
 							</p>
 						)}
 					</div>
-					<div className="p-2 bg-violet-50 rounded-lg shrink-0 ml-3">
-						<Icon className="w-5 h-5 text-violet-600" />
+					<div className="p-2 bg-primary/10 rounded-lg shrink-0 ml-3 ring-1 ring-primary/15">
+						<Icon className="w-5 h-5 text-primary" />
 					</div>
 				</div>
 			</CardContent>
@@ -123,15 +135,17 @@ function ChartCard({
 	children: React.ReactNode;
 }) {
 	return (
-		<Card className="flex flex-col">
-			<CardHeader className="pb-2">
+		<Card className="flex flex-col gap-3 py-0">
+			<CardHeader className="px-5 pt-4 pb-0 gap-1">
 				<CardTitle className="text-lg flex items-center gap-2">
-					<BarChart3 className="w-5 h-5 text-violet-500" />
+					<BarChart3 className="w-5 h-5 text-primary" />
 					{title}
 				</CardTitle>
 				{description && <CardDescription>{description}</CardDescription>}
 			</CardHeader>
-			<CardContent className="flex-1 min-h-[300px]">{children}</CardContent>
+			<CardContent className="flex-1 min-h-[300px] px-5 pb-4">
+				{children}
+			</CardContent>
 		</Card>
 	);
 }
@@ -145,20 +159,28 @@ function DBSizeChart({ data }: { data: MetricsDataPoint[] }) {
 			>
 				<defs>
 					<linearGradient id="dbSizeGradient" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-						<stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+						<stop
+							offset="5%"
+							stopColor={chartColors.database}
+							stopOpacity={0.3}
+						/>
+						<stop
+							offset="95%"
+							stopColor={chartColors.database}
+							stopOpacity={0}
+						/>
 					</linearGradient>
 				</defs>
-				<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+				<CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
 				<XAxis
 					dataKey="timestamp"
 					tickFormatter={formatTime}
-					stroke="#64748b"
+					stroke={chartColors.axis}
 					fontSize={12}
 					tickLine={false}
 				/>
 				<YAxis
-					stroke="#64748b"
+					stroke={chartColors.axis}
 					fontSize={12}
 					tickLine={false}
 					tickFormatter={(value) => formatBytes(value)}
@@ -168,7 +190,7 @@ function DBSizeChart({ data }: { data: MetricsDataPoint[] }) {
 						if (active && payload && payload.length) {
 							const point = payload[0].payload as MetricsDataPoint;
 							return (
-								<div className="bg-background border rounded-lg shadow-lg p-3">
+								<div className="bg-popover border border-border/70 rounded-lg shadow-panel p-3">
 									<p className="text-sm font-medium text-muted-foreground">
 										{formatTime(point.timestamp)}
 									</p>
@@ -187,7 +209,7 @@ function DBSizeChart({ data }: { data: MetricsDataPoint[] }) {
 				<Area
 					type="monotone"
 					dataKey="dbSize"
-					stroke="#8b5cf6"
+					stroke={chartColors.database}
 					strokeWidth={2}
 					fill="url(#dbSizeGradient)"
 				/>
@@ -203,16 +225,16 @@ function LatencyChart({ data }: { data: MetricsDataPoint[] }) {
 				data={data}
 				margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
 			>
-				<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+				<CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
 				<XAxis
 					dataKey="timestamp"
 					tickFormatter={formatTime}
-					stroke="#64748b"
+					stroke={chartColors.axis}
 					fontSize={12}
 					tickLine={false}
 				/>
 				<YAxis
-					stroke="#64748b"
+					stroke={chartColors.axis}
 					fontSize={12}
 					tickLine={false}
 					tickFormatter={(value) => `${value}ms`}
@@ -222,7 +244,7 @@ function LatencyChart({ data }: { data: MetricsDataPoint[] }) {
 						if (active && payload && payload.length) {
 							const point = payload[0].payload as MetricsDataPoint;
 							return (
-								<div className="bg-background border rounded-lg shadow-lg p-3">
+								<div className="bg-popover border border-border/70 rounded-lg shadow-panel p-3">
 									<p className="text-sm font-medium text-muted-foreground">
 										{formatTime(point.timestamp)}
 									</p>
@@ -238,10 +260,10 @@ function LatencyChart({ data }: { data: MetricsDataPoint[] }) {
 				<Line
 					type="monotone"
 					dataKey="latencyMs"
-					stroke="#f59e0b"
+					stroke={chartColors.latency}
 					strokeWidth={2}
 					dot={false}
-					activeDot={{ r: 6, fill: "#f59e0b" }}
+					activeDot={{ r: 6, fill: chartColors.latency }}
 				/>
 			</LineChart>
 		</ResponsiveContainer>
@@ -257,25 +279,25 @@ function KeyCountChart({ data }: { data: MetricsDataPoint[] }) {
 			>
 				<defs>
 					<linearGradient id="keyCountGradient" x1="0" y1="0" x2="0" y2="1">
-						<stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-						<stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+						<stop offset="5%" stopColor={chartColors.keys} stopOpacity={0.3} />
+						<stop offset="95%" stopColor={chartColors.keys} stopOpacity={0} />
 					</linearGradient>
 				</defs>
-				<CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+				<CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
 				<XAxis
 					dataKey="timestamp"
 					tickFormatter={formatTime}
-					stroke="#64748b"
+					stroke={chartColors.axis}
 					fontSize={12}
 					tickLine={false}
 				/>
-				<YAxis stroke="#64748b" fontSize={12} tickLine={false} />
+				<YAxis stroke={chartColors.axis} fontSize={12} tickLine={false} />
 				<Tooltip
 					content={({ active, payload }) => {
 						if (active && payload && payload.length) {
 							const point = payload[0].payload as MetricsDataPoint;
 							return (
-								<div className="bg-background border rounded-lg shadow-lg p-3">
+								<div className="bg-popover border border-border/70 rounded-lg shadow-panel p-3">
 									<p className="text-sm font-medium text-muted-foreground">
 										{formatTime(point.timestamp)}
 									</p>
@@ -291,7 +313,7 @@ function KeyCountChart({ data }: { data: MetricsDataPoint[] }) {
 				<Area
 					type="monotone"
 					dataKey="keyCount"
-					stroke="#10b981"
+					stroke={chartColors.keys}
 					strokeWidth={2}
 					fill="url(#keyCountGradient)"
 				/>
@@ -402,10 +424,10 @@ export function MetricsDashboard({ connectionId }: MetricsDashboardProps) {
 			: 0;
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-4">
 			<div className="flex items-center justify-between flex-wrap gap-4">
 				<div>
-					<h2 className="text-2xl font-bold tracking-tight">Metrics</h2>
+					<h2 className="text-2xl font-semibold tracking-tight">Metrics</h2>
 					<p className="text-sm text-muted-foreground">
 						Real-time performance monitoring and historical data
 					</p>
@@ -488,7 +510,7 @@ export function MetricsDashboard({ connectionId }: MetricsDashboardProps) {
 				/>
 			</div>
 
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 				<ChartCard
 					title="Database Size Over Time"
 					description="Total database size including free space"
@@ -539,26 +561,26 @@ export function MetricsDashboard({ connectionId }: MetricsDashboardProps) {
 					description="Current cluster health and activity"
 				>
 					<div className="h-full flex flex-col justify-center space-y-4">
-						<div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+						<div className="flex items-center justify-between p-3 bg-muted/45 rounded-lg border border-border/50">
 							<span className="text-sm font-medium">Cluster Health</span>
 							<Badge
 								variant="default"
-								className="bg-emerald-500 hover:bg-emerald-600"
+								className="bg-primary text-primary-foreground hover:bg-primary/95"
 							>
 								Healthy
 							</Badge>
 						</div>
-						<div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+						<div className="flex items-center justify-between p-3 bg-muted/45 rounded-lg border border-border/50">
 							<span className="text-sm font-medium">Leader ID</span>
 							<code className="text-xs bg-muted px-2 py-1 rounded">
 								{status.leader_id.slice(0, 16)}...
 							</code>
 						</div>
-						<div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+						<div className="flex items-center justify-between p-3 bg-muted/45 rounded-lg border border-border/50">
 							<span className="text-sm font-medium">ETCD Version</span>
 							<span className="text-sm font-mono">{status.version}</span>
 						</div>
-						<div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+						<div className="flex items-center justify-between p-3 bg-muted/45 rounded-lg border border-border/50">
 							<span className="text-sm font-medium">Data Points</span>
 							<span className="text-sm font-mono">
 								{metricsHistory.length} / {60}
@@ -568,17 +590,17 @@ export function MetricsDashboard({ connectionId }: MetricsDashboardProps) {
 				</ChartCard>
 			</div>
 
-			<div className="flex items-center gap-6 text-xs text-muted-foreground pt-4 border-t">
+			<div className="flex items-center gap-6 text-xs text-muted-foreground pt-3 border-t border-border/70">
 				<div className="flex items-center gap-2">
-					<div className="w-2 h-2 rounded-full bg-violet-500" />
+					<div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-database))]" />
 					<span>DB Size</span>
 				</div>
 				<div className="flex items-center gap-2">
-					<div className="w-2 h-2 rounded-full bg-amber-500" />
+					<div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-latency))]" />
 					<span>Latency</span>
 				</div>
 				<div className="flex items-center gap-2">
-					<div className="w-2 h-2 rounded-full bg-emerald-500" />
+					<div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-keys))]" />
 					<span>Key Count</span>
 				</div>
 				<div className="ml-auto">
