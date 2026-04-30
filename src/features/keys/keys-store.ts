@@ -310,13 +310,13 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	},
 	addTab: (key: string) => {
 		const { openTabs } = get();
-		if (!openTabs.find((t) => t.key === key)) {
+		if (openTabs.some((t) => t.key === key)) {
+			set({ activeTab: key });
+		} else {
 			set({
 				openTabs: [...openTabs, { key, scrollPosition: 0 }],
 				activeTab: key,
 			});
-		} else {
-			set({ activeTab: key });
 		}
 	},
 	closeTab: (key: string) => {

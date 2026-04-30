@@ -7,11 +7,11 @@ import {
 } from "@/components/ui/tooltip";
 
 interface ConnectionStatusProps {
-	connectionId?: string | null;
-	isConnecting: boolean;
-	connectionError?: string | null;
-	endpoint?: string;
-	onRetry?: () => void;
+	readonly connectionId?: string | null;
+	readonly isConnecting: boolean;
+	readonly connectionError?: string | null;
+	readonly endpoint?: string;
+	readonly onRetry?: () => void;
 }
 
 export function ConnectionStatus({

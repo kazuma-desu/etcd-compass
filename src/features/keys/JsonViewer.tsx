@@ -82,7 +82,10 @@ function highlightText(text: string, query: string): React.ReactNode {
 	const parts = text.split(new RegExp(`(${escapeRegExp(query)})`, "gi"));
 	return parts.map((part, i) =>
 		part.toLowerCase() === query.toLowerCase() ? (
-			<mark key={i} className="bg-primary/15 text-inherit px-0.5 rounded">
+			<mark
+				key={`${part.slice(0, 8)}-${i}`}
+				className="bg-primary/15 text-inherit px-0.5 rounded"
+			>
 				{part}
 			</mark>
 		) : (

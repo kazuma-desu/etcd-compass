@@ -509,4 +509,113 @@ describe("Keys Store", () => {
 			expect(state.sortAscending).toBe(false);
 		});
 	});
+
+	describe("Tab Management", () => {
+		it("should add a new tab", () => {
+			const { addTab } = useKeysStore.getState();
+			addTab("/config/db");
+			const state = useKeysStore.getState();
+			expect(state.openTabs).toHaveLength(1);
+			expect(state.openTabs[0].key).toBe("/config/db");
+			expect(state.activeTab).toBe("/config/db");
+		});
+
+		it("should not duplicate existing tabs", () => {
+			const { addTab } = useKeysStore.getState();
+			addTab("/config/db");
+			addTab("/config/db");
+			const state = useKeysStore.getState();
+			expect(state.openTabs).toHaveLength(1);
+			expect(state.activeTab).toBe("/config/db");
+		});
+
+		it("should switch to existing tab instead of duplicating", () => {
+			const { addTab } = useKeysStore.getState();
+			addTab("/config/db");
+			addTab("/config/cache");
+			addTab("/config/db");
+			const state = useKeysStore.getState();
+			expect(state.openTabs).toHaveLength(2);
+			expect(state.activeTab).toBe("/config/db");
+		});
+
+		it("should close a tab and activate the previous one", () => {
+			const { addTab, closeTab } = useKeysStore.getState();
+			addTab("/config/db");
+			addTab("/config/cache");
+			closeTab("/config/cache");
+			const state = useKeysStore.getState();
+			expect(state.openTabs).toHaveLength(1);
+			expect(state.activeTab).toBe("/config/db");
+		});
+
+		it("should close a non-active tab without changing active tab", () => {
+			const { addTab, closeTab } = useKeysStore.getState();
+			addTab("/config/db");
+			addTab("/config/cache");
+			closeTab("/config/db");
+			const state = useKeysStore.getState();
+			expect(state.openTabs).toHaveLength(1);
+			expect(state.activeTab).toBe("/config/cache");
+		});
+
+		it("should set active tab", () => {
+			const { addTab, setActiveTab } = useKeysStore.getState();
+			addTab("/config/db");
+			addTab("/config/cache");
+			setActiveTab("/config/db");
+			expect(useKeysStore.getState().activeTab).toBe("/config/db");
+		});
+
+		it("should update tab scroll position", () => {
+			const { addTab, updateTabScroll } = useKeysStore.getState();
+			addTab("/config/db");
+			updateTabScroll("/config/db", 150);
+			const tab = useKeysStore
+				.getState()
+				.openTabs.find((t) => t.key === "/config/db");
+			expect(tab?.scrollPosition).toBe(150);
+		});
+	});
+
+	describe("upsertKey", () => {
+		it("should add a new key to the store", () => {
+			const { upsertKey } = useKeysStore.getState();
+			upsertKey({
+				key: "/config/db",
+				value: "postgres",
+				version: 1,
+				create_revision: 1,
+				mod_revision: 1,
+				lease: 0,
+			});
+			const keys = useKeysStore.getState().keys;
+			expect(keys).toHaveLength(1);
+			expect(keys[0].key).toBe("/config/db");
+			expect(keys[0].value).toBe("postgres");
+		});
+
+		it("should update existing key instead of duplicating", () => {
+			const { upsertKey } = useKeysStore.getState();
+			upsertKey({
+				key: "/config/db",
+				value: "postgres",
+				version: 1,
+				create_revision: 1,
+				mod_revision: 1,
+				lease: 0,
+			});
+			upsertKey({
+				key: "/config/db",
+				value: "mysql",
+				version: 2,
+				create_revision: 1,
+				mod_revision: 2,
+				lease: 0,
+			});
+			const keys = useKeysStore.getState().keys;
+			expect(keys).toHaveLength(1);
+			expect(keys[0].value).toBe("mysql");
+		});
+	});
 });

@@ -33,9 +33,9 @@ export function CommandPalette() {
 	useEffect(() => {
 		const handleToggle = () => setOpen((current) => !current);
 
-		window.addEventListener("etcd:command-palette", handleToggle);
+		globalThis.addEventListener("etcd:command-palette", handleToggle);
 		return () =>
-			window.removeEventListener("etcd:command-palette", handleToggle);
+			globalThis.removeEventListener("etcd:command-palette", handleToggle);
 	}, []);
 
 	const runCommand = useCallback((command: () => void) => {
@@ -57,7 +57,9 @@ export function CommandPalette() {
 					<CommandItem
 						onSelect={() =>
 							runCommand(() =>
-								window.dispatchEvent(new CustomEvent("etcd:new-connection")),
+								globalThis.dispatchEvent(
+									new CustomEvent("etcd:new-connection"),
+								),
 							)
 						}
 					>
@@ -70,7 +72,7 @@ export function CommandPalette() {
 					<CommandItem
 						onSelect={() =>
 							runCommand(() =>
-								window.dispatchEvent(new CustomEvent("etcd:refresh-keys")),
+								globalThis.dispatchEvent(new CustomEvent("etcd:refresh-keys")),
 							)
 						}
 					>
@@ -83,7 +85,7 @@ export function CommandPalette() {
 					<CommandItem
 						onSelect={() =>
 							runCommand(() =>
-								window.dispatchEvent(new CustomEvent("etcd:add-key")),
+								globalThis.dispatchEvent(new CustomEvent("etcd:add-key")),
 							)
 						}
 					>
@@ -93,7 +95,9 @@ export function CommandPalette() {
 					<CommandItem
 						onSelect={() =>
 							runCommand(() =>
-								window.dispatchEvent(new CustomEvent("etcd:toggle-sidebar")),
+								globalThis.dispatchEvent(
+									new CustomEvent("etcd:toggle-sidebar"),
+								),
 							)
 						}
 					>
@@ -106,7 +110,7 @@ export function CommandPalette() {
 					<CommandItem
 						onSelect={() =>
 							runCommand(() =>
-								window.dispatchEvent(new CustomEvent("etcd:show-help")),
+								globalThis.dispatchEvent(new CustomEvent("etcd:show-help")),
 							)
 						}
 					>

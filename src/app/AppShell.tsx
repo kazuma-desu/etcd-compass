@@ -64,12 +64,30 @@ const phaseLabels: Record<ConnectionPhase, string> = {
 	connected: "Connected",
 };
 
+function StepIcon({
+	isCompleted,
+	isActive,
+	index,
+}: {
+	readonly isCompleted: boolean;
+	readonly isActive: boolean;
+	readonly index: number;
+}) {
+	if (isCompleted) {
+		return <Check className="w-4 h-4" />;
+	}
+	if (isActive) {
+		return <Loader2 className="w-4 h-4 animate-spin" />;
+	}
+	return <span>{index + 1}</span>;
+}
+
 function ConnectionPhaseProgress({
 	phase,
 	isConnecting,
 }: {
-	phase: ConnectionPhase;
-	isConnecting: boolean;
+	readonly phase: ConnectionPhase;
+	readonly isConnecting: boolean;
 }) {
 	if (!isConnecting || phase === "disconnected" || phase === "connected") {
 		return null;
@@ -116,13 +134,11 @@ function ConnectionPhaseProgress({
 										"bg-muted text-muted-foreground border border-border",
 								)}
 							>
-								{isCompleted ? (
-									<Check className="w-4 h-4" />
-								) : isActive ? (
-									<Loader2 className="w-4 h-4 animate-spin" />
-								) : (
-									<span>{index + 1}</span>
-								)}
+								<StepIcon
+									isCompleted={isCompleted}
+									isActive={isActive}
+									index={index}
+								/>
 							</div>
 							<span
 								className={cn(

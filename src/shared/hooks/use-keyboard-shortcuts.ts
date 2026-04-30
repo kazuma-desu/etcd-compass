@@ -144,12 +144,12 @@ export function useKeyboardShortcuts(
 			switch (true) {
 				case isCmd && e.key.toLowerCase() === "n":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:new-connection"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:new-connection"));
 					break;
 
 				case isCmd && e.key.toLowerCase() === "k":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:command-palette"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:command-palette"));
 					break;
 
 				case isCmd && e.key.toLowerCase() === "r":
@@ -161,17 +161,17 @@ export function useKeyboardShortcuts(
 
 				case isCmd && e.key.toLowerCase() === "t":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:new-tab"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:new-tab"));
 					break;
 
 				case isCmd && e.key.toLowerCase() === "w":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:close-tab"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:close-tab"));
 					break;
 
 				case isCmd && e.key === ",":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:open-settings"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:open-settings"));
 					break;
 
 				case isCmd && isShift && e.key.toLowerCase() === "d":
@@ -188,12 +188,12 @@ export function useKeyboardShortcuts(
 
 				case isCmd && isShift && e.key === "]":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:next-tab"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:next-tab"));
 					break;
 
 				case isCmd && isShift && e.key === "[":
 					e.preventDefault();
-					window.dispatchEvent(new CustomEvent("etcd:prev-tab"));
+					globalThis.dispatchEvent(new CustomEvent("etcd:prev-tab"));
 					break;
 			}
 		},
@@ -209,8 +209,8 @@ export function useKeyboardShortcuts(
 	);
 
 	useEffect(() => {
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
+		globalThis.addEventListener("keydown", handleKeyDown);
+		return () => globalThis.removeEventListener("keydown", handleKeyDown);
 	}, [handleKeyDown]);
 
 	return { setDialogOpen };
@@ -243,14 +243,14 @@ export function useTabShortcuts(
 			}
 		};
 
-		window.addEventListener("etcd:next-tab", handleNextTab);
-		window.addEventListener("etcd:prev-tab", handlePrevTab);
-		window.addEventListener("etcd:close-tab", handleCloseTab);
+		globalThis.addEventListener("etcd:next-tab", handleNextTab);
+		globalThis.addEventListener("etcd:prev-tab", handlePrevTab);
+		globalThis.addEventListener("etcd:close-tab", handleCloseTab);
 
 		return () => {
-			window.removeEventListener("etcd:next-tab", handleNextTab);
-			window.removeEventListener("etcd:prev-tab", handlePrevTab);
-			window.removeEventListener("etcd:close-tab", handleCloseTab);
+			globalThis.removeEventListener("etcd:next-tab", handleNextTab);
+			globalThis.removeEventListener("etcd:prev-tab", handlePrevTab);
+			globalThis.removeEventListener("etcd:close-tab", handleCloseTab);
 		};
 	}, [tabs, activeTabId, onSelectTab, onCloseTab]);
 }
