@@ -1,8 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PAGE_SIZE_OPTIONS, useKeysStore } from "./keys-store";
 
+const mockDeleteKeys = vi.hoisted(() => vi.fn());
+const mockGetAllKeys = vi.hoisted(() => vi.fn());
+
+vi.mock("@/commands/keys", () => ({
+	deleteKey: vi.fn(),
+	deleteKeys: mockDeleteKeys,
+	getAllKeys: mockGetAllKeys,
+	putKey: vi.fn(),
+}));
+
 describe("Keys Store", () => {
 	beforeEach(() => {
+		mockDeleteKeys.mockReset();
+		mockGetAllKeys.mockReset();
 		useKeysStore.setState({
 			keys: [],
 			selectedKey: null,
@@ -581,8 +593,21 @@ describe("Keys Store", () => {
 	});
 
 	describe("upsertKey", () => {
-		it("should add a new key to the store", () => {
+		it("should not append a missing key to the current paginated page", () => {
 			const { upsertKey } = useKeysStore.getState();
+			useKeysStore.setState({
+				keys: [
+					{
+						key: "/config/cache",
+						value: "redis",
+						version: 1,
+						create_revision: 1,
+						mod_revision: 1,
+						lease: 0,
+					},
+				],
+			});
+
 			upsertKey({
 				key: "/config/db",
 				value: "postgres",
@@ -591,21 +616,24 @@ describe("Keys Store", () => {
 				mod_revision: 1,
 				lease: 0,
 			});
-			const keys = useKeysStore.getState().keys;
+			const { keys } = useKeysStore.getState();
 			expect(keys).toHaveLength(1);
-			expect(keys[0].key).toBe("/config/db");
-			expect(keys[0].value).toBe("postgres");
+			expect(keys[0].key).toBe("/config/cache");
 		});
 
 		it("should update existing key instead of duplicating", () => {
 			const { upsertKey } = useKeysStore.getState();
-			upsertKey({
-				key: "/config/db",
-				value: "postgres",
-				version: 1,
-				create_revision: 1,
-				mod_revision: 1,
-				lease: 0,
+			useKeysStore.setState({
+				keys: [
+					{
+						key: "/config/db",
+						value: "postgres",
+						version: 1,
+						create_revision: 1,
+						mod_revision: 1,
+						lease: 0,
+					},
+				],
 			});
 			upsertKey({
 				key: "/config/db",
@@ -679,6 +707,68 @@ describe("Keys Store", () => {
 			expect(tabs.find((t) => t.key === "/config/db")?.snapshot?.value).toBe(
 				"mysql",
 			);
+			expect(tabs.find((t) => t.key === "/config/cache")?.snapshot?.value).toBe(
+				"redis",
+			);
+		});
+
+		it("should clear snapshots for tabs removed by bulk delete", async () => {
+			mockDeleteKeys.mockResolvedValue(2);
+			mockGetAllKeys.mockResolvedValue({ keys: [], has_more: false });
+			useKeysStore.setState({
+				keys: [
+					{
+						key: "/config/db",
+						value: "postgres",
+						version: 1,
+						create_revision: 1,
+						mod_revision: 1,
+						lease: 0,
+					},
+					{
+						key: "/config/cache",
+						value: "redis",
+						version: 1,
+						create_revision: 1,
+						mod_revision: 1,
+						lease: 0,
+					},
+				],
+				selectedKeys: new Set(["/config/db"]),
+				openTabs: [
+					{
+						key: "/config/db",
+						scrollPosition: 0,
+						snapshot: {
+							key: "/config/db",
+							value: "postgres",
+							version: 1,
+							create_revision: 1,
+							mod_revision: 1,
+							lease: 0,
+						},
+					},
+					{
+						key: "/config/cache",
+						scrollPosition: 0,
+						snapshot: {
+							key: "/config/cache",
+							value: "redis",
+							version: 1,
+							create_revision: 1,
+							mod_revision: 1,
+							lease: 0,
+						},
+					},
+				],
+			});
+
+			await useKeysStore.getState().deleteSelectedKeys("connection-1");
+
+			const tabs = useKeysStore.getState().openTabs;
+			expect(
+				tabs.find((t) => t.key === "/config/db")?.snapshot,
+			).toBeUndefined();
 			expect(tabs.find((t) => t.key === "/config/cache")?.snapshot?.value).toBe(
 				"redis",
 			);

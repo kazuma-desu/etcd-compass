@@ -300,16 +300,22 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	setSelectedKey: (key) => set({ selectedKey: key }),
 	upsertKey: (key) => {
 		const { keys, expandedNodes, openTabs } = get();
-		const nextKeys = keys.some((item) => item.key === key.key)
-			? keys.map((item) => (item.key === key.key ? key : item))
-			: [...keys, key];
+		const existingKeyOnPage = keys.some((item) => item.key === key.key);
+		const nextTabs = openTabs.map((t) =>
+			t.key === key.key ? { ...t, snapshot: key } : t,
+		);
+
+		if (!existingKeyOnPage) {
+			set({ openTabs: nextTabs });
+			return;
+		}
+
+		const nextKeys = keys.map((item) => (item.key === key.key ? key : item));
 
 		set({
 			keys: nextKeys,
 			treeData: buildTree(nextKeys, expandedNodes),
-			openTabs: openTabs.map((t) =>
-				t.key === key.key ? { ...t, snapshot: key } : t,
-			),
+			openTabs: nextTabs,
 		});
 	},
 	addTab: (key: string, snapshot?: EtcdKey) => {
@@ -754,13 +760,20 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 				rangeEnd || null,
 			);
 
+			const deletedKeys = new Set(keysArray);
+			const { openTabs } = get();
 			set({
 				keys: result.keys,
 				treeData: buildTree(result.keys, expandedNodes),
+				selectedKey: null,
 				selectedKeys: new Set(),
+				showDeleteDialog: false,
 				showBulkDeleteDialog: false,
 				isBulkOperationInProgress: false,
 				bulkOperationProgress: 0,
+				openTabs: openTabs.map((t) =>
+					deletedKeys.has(t.key) ? { ...t, snapshot: undefined } : t,
+				),
 				pagination: {
 					...pagination,
 					hasMore: result.has_more,

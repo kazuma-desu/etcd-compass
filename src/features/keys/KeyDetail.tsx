@@ -34,7 +34,7 @@ export function KeyDetail() {
 
 	const activeTabObj = openTabs.find((t) => t.key === activeTab);
 	const activeKeyData =
-		activeTabObj?.snapshot ?? keys.find((k) => k.key === activeTab);
+		keys.find((k) => k.key === activeTab) ?? activeTabObj?.snapshot;
 
 	useEffect(() => {
 		setSelectedKey(activeKeyData ?? null);
