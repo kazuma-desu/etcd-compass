@@ -168,7 +168,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 
 	return (
 		<TooltipProvider delayDuration={300}>
-			<div className="flex flex-col gap-3 pb-3 bg-background sticky top-0 z-10 w-full pt-1">
+			<div className="flex flex-col gap-3 pb-3 bg-card/95 sticky top-0 z-10 w-full pt-1 supports-[backdrop-filter]:backdrop-blur-md">
 				{/* Query Row */}
 				<div className="flex items-center gap-2 px-1">
 					<Popover>
@@ -180,7 +180,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 									placeholder="Search by prefix, e.g. /config/"
 									value={prefixInput}
 									onChange={(e) => setPrefixInput(e.target.value)}
-									className="pl-9 h-9 font-mono text-xs border border-border/80 rounded-md bg-secondary/30 focus-visible:ring-1 focus-visible:ring-primary/50"
+									className="pl-9 h-9 font-mono text-xs border border-border/80 rounded-md bg-background/80 focus-visible:ring-1 focus-visible:ring-primary/50"
 								/>
 								{prefixInput && (
 									<Badge
@@ -255,7 +255,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 						<Button
 							variant="default"
 							size="sm"
-							className="h-9 px-4 text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white"
+							className="h-9 px-4 text-xs font-semibold"
 							onClick={handleApplyFilters}
 						>
 							Apply

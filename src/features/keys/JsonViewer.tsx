@@ -55,13 +55,13 @@ function getValueType(value: unknown): string {
 function getValueColor(type: string): string {
 	switch (type) {
 		case "string":
-			return "text-green-500 dark:text-green-400";
+			return "text-primary";
 		case "number":
-			return "text-orange-500 dark:text-orange-400";
+			return "text-[hsl(var(--chart-latency))]";
 		case "boolean":
-			return "text-blue-500 dark:text-blue-400";
+			return "text-[hsl(var(--chart-keys))]";
 		case "null":
-			return "text-blue-500 dark:text-blue-400";
+			return "text-muted-foreground";
 		default:
 			return "text-muted-foreground";
 	}
@@ -84,7 +84,7 @@ function highlightText(text: string, query: string): React.ReactNode {
 		part.toLowerCase() === query.toLowerCase() ? (
 			<mark
 				key={i}
-				className="bg-yellow-200 dark:bg-yellow-700 text-inherit px-0.5 rounded"
+				className="bg-primary/15 text-inherit px-0.5 rounded"
 			>
 				{part}
 			</mark>
@@ -193,7 +193,7 @@ function JSONNode({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<span
-										className="text-purple-500 dark:text-purple-400 cursor-pointer hover:underline hover:bg-purple-500/10 rounded px-0.5 transition-colors"
+									className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
 										onClick={(e) => {
 											e.stopPropagation();
 											onCopyPath(path);
@@ -253,7 +253,7 @@ function JSONNode({
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<span
-										className="text-purple-500 dark:text-purple-400 cursor-pointer hover:underline hover:bg-purple-500/10 rounded px-0.5 transition-colors"
+									className="text-primary cursor-pointer hover:underline hover:bg-primary/10 rounded px-0.5 transition-colors"
 										onClick={(e) => {
 											e.stopPropagation();
 											onCopyPath(path);
