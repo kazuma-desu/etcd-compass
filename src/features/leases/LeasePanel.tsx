@@ -76,14 +76,12 @@ export function LeasePanel({ connectionId }: LeasePanelProps) {
 			let changed = false;
 			const currentIds = new Set(leases.map((l) => l.id));
 			leases.forEach((lease) => {
-				if (prev[lease.id] === undefined) {
-					next[lease.id] = lease.remaining;
-					changed = true;
-				} else if (lease.remaining !== prev[lease.id]) {
-					next[lease.id] = lease.remaining;
-					changed = true;
+				const existing = prev[lease.id];
+				if (existing !== undefined && lease.remaining === existing) {
+					next[lease.id] = existing;
 				} else {
-					next[lease.id] = prev[lease.id];
+					next[lease.id] = lease.remaining;
+					changed = true;
 				}
 			});
 			for (const id of Object.keys(prev)) {
