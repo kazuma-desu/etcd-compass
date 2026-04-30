@@ -168,7 +168,10 @@ export function LeasePanel({ connectionId }: LeasePanelProps) {
 				) : (
 					<div className="space-y-2">
 						{leases.map((lease) => {
-							const remaining = countdowns[lease.id] ?? lease.remaining;
+							const remaining = Math.max(
+								lease.remaining,
+								countdowns[lease.id] ?? Number.NEGATIVE_INFINITY,
+							);
 							const isExpiring = remaining < 10;
 
 							return (

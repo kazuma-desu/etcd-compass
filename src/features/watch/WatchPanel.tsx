@@ -34,10 +34,12 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 	});
 	const [history, setHistory] = useState<WatchHistoryItem[]>([]);
 	const [unlisten, setUnlisten] = useState<UnlistenFn | null>(null);
+	const [isWatchPending, setIsWatchPending] = useState(false);
 
 	const startWatching = useCallback(async () => {
-		if (!connectionId || !watchState.key.trim()) return;
+		if (!connectionId || !watchState.key.trim() || isWatchPending) return;
 
+		setIsWatchPending(true);
 		try {
 			const response = await watchKey(
 				connectionId,
@@ -52,12 +54,15 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 			}));
 		} catch (error) {
 			console.error("Failed to start watch:", error);
+		} finally {
+			setIsWatchPending(false);
 		}
-	}, [connectionId, watchState.key, watchState.isPrefix]);
+	}, [connectionId, isWatchPending, watchState.key, watchState.isPrefix]);
 
 	const stopWatching = useCallback(async () => {
-		if (!watchState.watchId) return;
+		if (!watchState.watchId || isWatchPending) return;
 
+		setIsWatchPending(true);
 		try {
 			await unwatchKey(watchState.watchId);
 			setWatchState((prev) => ({
@@ -67,8 +72,10 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 			}));
 		} catch (error) {
 			console.error("Failed to stop watch:", error);
+		} finally {
+			setIsWatchPending(false);
 		}
-	}, [watchState.watchId]);
+	}, [isWatchPending, watchState.watchId]);
 
 	useEffect(() => {
 		if (!connectionId) {
@@ -203,6 +210,7 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 								variant="destructive"
 								size="sm"
 								onClick={stopWatching}
+								disabled={isWatchPending}
 								className="w-full"
 							>
 								<EyeOff className="w-4 h-4" />
@@ -213,7 +221,7 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 								variant="default"
 								size="sm"
 								onClick={startWatching}
-								disabled={!watchState.key.trim()}
+								disabled={!watchState.key.trim() || isWatchPending}
 								className="w-full"
 							>
 								<Eye className="w-4 h-4" />
