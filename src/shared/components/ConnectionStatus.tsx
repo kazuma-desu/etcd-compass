@@ -39,10 +39,7 @@ export function ConnectionStatus({
 	const renderBadge = () => {
 		if (status === "connected") {
 			return (
-				<Badge
-					variant="secondary"
-					className="text-green-600 dark:text-green-400 transition-colors"
-				>
+				<Badge variant="secondary" className="text-primary transition-colors">
 					<Wifi className="size-3" />
 					Connected
 				</Badge>
@@ -53,7 +50,7 @@ export function ConnectionStatus({
 			return (
 				<Badge
 					variant="outline"
-					className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20 transition-colors"
+					className="border-amber-600/25 bg-amber-600/10 text-amber-800 transition-colors dark:border-amber-400/25 dark:text-amber-300"
 				>
 					<Loader2 className="size-3 animate-spin" />
 					Connecting
