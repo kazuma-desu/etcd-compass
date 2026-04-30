@@ -176,6 +176,9 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 		set({ config: hist, showHistory: false });
 	},
 	setActiveConnectionId: (id) => {
-		set({ connectionId: id });
+		set({
+			connectionId: id,
+			phase: id ? "connected" : "disconnected",
+		});
 	},
 }));

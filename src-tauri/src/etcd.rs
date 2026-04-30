@@ -227,7 +227,7 @@ impl EtcdClient {
         })
     }
 
-    async fn reconnect(&mut self) -> anyhow::Result<()> {
+    pub(crate) async fn reconnect(&mut self) -> anyhow::Result<()> {
         let config = self
             .config
             .as_ref()
@@ -290,10 +290,11 @@ impl EtcdClient {
             let result = self.client.get(key.clone(), Some(opts)).await;
             let resp = match self.execute_op(result, "get_all_keys").await {
                 Ok(r) => r,
-                Err(_) => {
+                Err(e) if classify_error(&e) == ErrorKind::Transient => {
                     let result = self.client.get(key, Some(options)).await;
                     self.execute_op(result, "get_all_keys").await?
                 }
+                Err(e) => return Err(e),
             };
 
             let keys: Vec<EtcdKey> = resp
@@ -319,10 +320,11 @@ impl EtcdClient {
             let result = self.client.get("", Some(opts)).await;
             let resp = match self.execute_op(result, "get_all_keys").await {
                 Ok(r) => r,
-                Err(_) => {
+                Err(e) if classify_error(&e) == ErrorKind::Transient => {
                     let result = self.client.get("", Some(options)).await;
                     self.execute_op(result, "get_all_keys").await?
                 }
+                Err(e) => return Err(e),
             };
 
             let keys: Vec<EtcdKey> = resp
@@ -349,10 +351,11 @@ impl EtcdClient {
         let result = self.client.get(key.clone(), None).await;
         let resp = match self.execute_op(result, "get_key").await {
             Ok(r) => r,
-            Err(_) => {
+            Err(e) if classify_error(&e) == ErrorKind::Transient => {
                 let result = self.client.get(key, None).await;
                 self.execute_op(result, "get_key").await?
             }
+            Err(e) => return Err(e),
         };
 
         Ok(resp.kvs().first().map(|kv| EtcdKey {
@@ -384,10 +387,11 @@ impl EtcdClient {
         let result = self.client.get(k.clone(), None).await;
         let resp = match self.execute_op(result, "put_key (verify)").await {
             Ok(r) => r,
-            Err(_) => {
+            Err(e) if classify_error(&e) == ErrorKind::Transient => {
                 let result = self.client.get(k, None).await;
                 self.execute_op(result, "put_key (verify)").await?
             }
+            Err(e) => return Err(e),
         };
 
         resp.kvs()
@@ -428,7 +432,13 @@ impl EtcdClient {
                         cb(deleted_count, total);
                     }
                 }
-                Err(e) => eprintln!("Failed to delete key <redacted-key>: {}", e),
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Failed to delete key after {} successes: {}",
+                        deleted_count,
+                        e
+                    ));
+                }
             }
         }
         Ok(deleted_count)
@@ -458,10 +468,11 @@ impl EtcdClient {
             let result = self.client.get(key.clone(), Some(opts)).await;
             let resp = match self.execute_op(result, "get_keys_with_prefix").await {
                 Ok(r) => r,
-                Err(_) => {
+                Err(e) if classify_error(&e) == ErrorKind::Transient => {
                     let result = self.client.get(key, Some(options)).await;
                     self.execute_op(result, "get_keys_with_prefix").await?
                 }
+                Err(e) => return Err(e),
             };
 
             let keys: Vec<EtcdKey> = resp
@@ -491,10 +502,11 @@ impl EtcdClient {
             let result = self.client.get(prefix.clone(), Some(opts)).await;
             let resp = match self.execute_op(result, "get_keys_with_prefix").await {
                 Ok(r) => r,
-                Err(_) => {
+                Err(e) if classify_error(&e) == ErrorKind::Transient => {
                     let result = self.client.get(prefix, Some(options)).await;
                     self.execute_op(result, "get_keys_with_prefix").await?
                 }
+                Err(e) => return Err(e),
             };
 
             let keys: Vec<EtcdKey> = resp
@@ -1001,5 +1013,78 @@ mod tests {
 
         assert_eq!(deserialized.key, key.key);
         assert_eq!(deserialized.mod_revision, key.mod_revision);
+    }
+
+    #[test]
+    fn test_classify_error_auth() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("authentication failed")),
+            ErrorKind::Auth
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("invalid auth token")),
+            ErrorKind::Auth
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("permission denied")),
+            ErrorKind::Auth
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("unauthenticated request")),
+            ErrorKind::Auth
+        );
+    }
+
+    #[test]
+    fn test_classify_error_transient() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("transport error")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("connection refused")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("timeout")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("io error")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("stream closed")),
+            ErrorKind::Transient
+        );
+    }
+
+    #[test]
+    fn test_classify_error_permanent() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("tls handshake failed")),
+            ErrorKind::Permanent
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("certificate validation error")),
+            ErrorKind::Permanent
+        );
+    }
+
+    #[test]
+    fn test_classify_error_default_permanent() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("some random error")),
+            ErrorKind::Permanent
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a running etcd instance — will be enabled with testcontainers"]
+    async fn test_cloned_client_reconnect_fails() {
+        let mut client =
+            EtcdClient::from_client(Client::connect(["localhost:2379"], None).await.unwrap());
+        let result = client.reconnect().await;
+        assert!(result.is_err());
     }
 }

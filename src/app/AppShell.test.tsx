@@ -81,11 +81,6 @@ import { useConnectionStore } from "@/features/connections/connection-store";
 import { AppShell } from "./AppShell";
 
 describe("AppShell", () => {
-	const defaultProps = {
-		connectionId: null,
-		onConnect: vi.fn(),
-	};
-
 	beforeEach(() => {
 		vi.clearAllMocks();
 		useConnectionStore.setState({
@@ -93,23 +88,33 @@ describe("AppShell", () => {
 			isConnecting: false,
 			phase: "disconnected",
 			connectionError: "",
+			config: {
+				endpoint: "localhost:2379",
+				username: "",
+				password: "",
+				tls_enabled: false,
+				ca_cert_path: "",
+				client_cert_path: "",
+				client_key_path: "",
+				skip_verify: false,
+			},
 		});
 	});
 
 	it("should render the welcome screen when not connected", () => {
-		render(<AppShell {...defaultProps} />);
+		render(<AppShell />);
 
 		expect(screen.getByText("Welcome to ETCD Compass")).toBeInTheDocument();
 	});
 
 	it("should render the Learn More button", () => {
-		render(<AppShell {...defaultProps} />);
+		render(<AppShell />);
 
 		expect(screen.getByText("LEARN MORE")).toBeInTheDocument();
 	});
 
 	it("should call open() with etcd quickstart URL when Learn More is clicked", () => {
-		render(<AppShell {...defaultProps} />);
+		render(<AppShell />);
 
 		const learnMoreButton = screen.getByText("LEARN MORE").closest("button");
 		expect(learnMoreButton).toBeTruthy();
@@ -121,13 +126,13 @@ describe("AppShell", () => {
 	});
 
 	it("should render Add new connection button", () => {
-		render(<AppShell {...defaultProps} />);
+		render(<AppShell />);
 
 		expect(screen.getByText("Add new connection")).toBeInTheDocument();
 	});
 
 	it("should render tab navigation", () => {
-		render(<AppShell {...defaultProps} />);
+		render(<AppShell />);
 
 		expect(screen.getByRole("tab", { name: /keys/i })).toBeInTheDocument();
 		expect(screen.getByRole("tab", { name: /cluster/i })).toBeInTheDocument();
@@ -135,7 +140,7 @@ describe("AppShell", () => {
 	});
 	it("should render key browser when connected", () => {
 		useConnectionStore.setState({ connectionId: "test-uuid-123" });
-		render(<AppShell {...defaultProps} />);
+		render(<AppShell />);
 
 		expect(screen.getByTestId("key-browser")).toBeInTheDocument();
 		expect(screen.getByTestId("query-bar")).toBeInTheDocument();

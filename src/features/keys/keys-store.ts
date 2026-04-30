@@ -312,7 +312,12 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	addTab: (key: string, snapshot?: EtcdKey) => {
 		const { openTabs } = get();
 		if (openTabs.some((t) => t.key === key)) {
-			set({ activeTab: key });
+			set({
+				activeTab: key,
+				openTabs: openTabs.map((t) =>
+					t.key === key ? { ...t, snapshot: snapshot ?? t.snapshot } : t,
+				),
+			});
 		} else {
 			set({
 				openTabs: [...openTabs, { key, scrollPosition: 0, snapshot }],
@@ -595,6 +600,7 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			);
 
 			const updatedKey = result.keys.find((k) => k.key === selectedKey.key);
+			const { openTabs } = get();
 			set({
 				keys: result.keys,
 				treeData: buildTree(result.keys, expandedNodes),
@@ -602,6 +608,11 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 				editValue: "",
 				editKeyLeaseId: null,
 				showEditDialog: false,
+				openTabs: updatedKey
+					? openTabs.map((t) =>
+							t.key === updatedKey.key ? { ...t, snapshot: updatedKey } : t,
+						)
+					: openTabs,
 				pagination: {
 					...pagination,
 					hasMore: result.has_more,
@@ -636,11 +647,15 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 				rangeEnd || null,
 			);
 
+			const { openTabs } = get();
 			set({
 				keys: result.keys,
 				treeData: buildTree(result.keys, expandedNodes),
 				selectedKey: null,
 				showDeleteDialog: false,
+				openTabs: openTabs.map((t) =>
+					t.key === selectedKey.key ? { ...t, snapshot: undefined } : t,
+				),
 				pagination: {
 					...pagination,
 					hasMore: result.has_more,

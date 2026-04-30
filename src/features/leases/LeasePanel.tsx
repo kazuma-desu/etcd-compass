@@ -73,16 +73,26 @@ export function LeasePanel({ connectionId }: LeasePanelProps) {
 	useEffect(() => {
 		setCountdowns((prev) => {
 			const next: Record<number, number> = {};
+			let changed = false;
+			const currentIds = new Set(leases.map((l) => l.id));
 			leases.forEach((lease) => {
 				if (prev[lease.id] === undefined) {
 					next[lease.id] = lease.remaining;
-				} else if (lease.remaining > prev[lease.id]) {
+					changed = true;
+				} else if (lease.remaining !== prev[lease.id]) {
 					next[lease.id] = lease.remaining;
+					changed = true;
 				} else {
 					next[lease.id] = prev[lease.id];
 				}
 			});
-			return next;
+			for (const id of Object.keys(prev)) {
+				const numId = Number(id);
+				if (!currentIds.has(numId)) {
+					changed = true;
+				}
+			}
+			return changed ? next : prev;
 		});
 	}, [leases]);
 

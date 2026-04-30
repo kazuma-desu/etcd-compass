@@ -45,11 +45,6 @@ import { ShortcutHelp } from "@/shared/components/ShortcutHelp";
 import { TabBar } from "@/shared/components/TabBar";
 import { useKeyboardShortcuts } from "@/shared/hooks/use-keyboard-shortcuts";
 
-interface AppShellProps {
-	connectionId: string | null;
-	onConnect: (connectionId: string) => void;
-}
-
 function buildPhaseOrder(hasCredentials: boolean): ConnectionPhase[] {
 	const order: ConnectionPhase[] = ["connecting"];
 	if (hasCredentials) {
@@ -99,17 +94,17 @@ function ConnectionPhaseProgress({
 	}
 
 	const currentIndex = phaseOrder.indexOf(phase);
-	const progress = ((currentIndex + 1) / phaseOrder.length) * 100;
+	const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+	const progress = ((safeIndex + 1) / phaseOrder.length) * 100;
+	const phaseLabel = phaseLabels[phase] || "Unknown";
 
 	return (
 		<div className="w-full max-w-md mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
 			<div className="space-y-2">
 				<div className="flex items-center justify-between text-sm">
-					<span className="font-medium text-foreground">
-						{phaseLabels[phase]}
-					</span>
+					<span className="font-medium text-foreground">{phaseLabel}</span>
 					<span className="text-muted-foreground text-xs">
-						Step {currentIndex + 1} of {phaseOrder.length}
+						Step {safeIndex + 1} of {phaseOrder.length}
 					</span>
 				</div>
 				<Progress value={progress} className="h-2" />
@@ -118,8 +113,8 @@ function ConnectionPhaseProgress({
 			<div className="flex items-center justify-between gap-2">
 				{phaseOrder.map((p, index) => {
 					const isActive = p === phase;
-					const isCompleted = index < currentIndex;
-					const isPending = index > currentIndex;
+					const isCompleted = index < safeIndex;
+					const isPending = index > safeIndex;
 
 					return (
 						<div
@@ -161,11 +156,7 @@ function ConnectionPhaseProgress({
 	);
 }
 
-function AppShellContent({
-	onConnect,
-}: {
-	readonly onConnect: (connectionId: string) => void;
-}) {
+function AppShellContent() {
 	const { setSelectedKey, setSearchQuery } = useKeysStore();
 	const { connectionId, isConnecting, phase, config } = useConnectionStore();
 	const phaseOrder = buildPhaseOrder(
@@ -187,10 +178,9 @@ function AppShellContent({
 		searchInputRef,
 	);
 
-	const handleConnect = (newConnectionId: string) => {
+	const handleConnect = () => {
 		setSelectedKey(null);
 		setSearchQuery("");
-		onConnect(newConnectionId);
 		setShowConnectionDialog(false);
 	};
 
@@ -437,13 +427,13 @@ function AppShellContent({
 	);
 }
 
-export function AppShell({ onConnect }: AppShellProps) {
+export function AppShell() {
 	return (
 		<SidebarProvider
 			defaultOpen={true}
 			className="min-h-[100dvh] h-[100dvh] overflow-hidden bg-background"
 		>
-			<AppShellContent onConnect={onConnect} />
+			<AppShellContent />
 		</SidebarProvider>
 	);
 }

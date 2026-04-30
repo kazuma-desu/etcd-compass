@@ -120,6 +120,9 @@ export function TreeView({
 	};
 
 	const handleNodeClick = (e: React.MouseEvent, node: TreeNode) => {
+		if ((e.target as HTMLElement).closest("[data-checkbox-row]")) {
+			return;
+		}
 		if (node.isLeaf) {
 			const key = keyByFullPath.get(node.fullPath);
 			if (key) {
@@ -130,13 +133,6 @@ export function TreeView({
 			}
 		} else {
 			toggleNode(node.fullPath);
-		}
-	};
-
-	const handleCheckboxClick = (e: React.MouseEvent, node: TreeNode) => {
-		e.stopPropagation();
-		if (node.isLeaf) {
-			toggleKeySelectionForBulk(node.fullPath);
 		}
 	};
 
@@ -193,18 +189,15 @@ export function TreeView({
 											</span>
 										)}
 										{node.isLeaf && (
-											<button
-												type="button"
-												onClick={(e) => handleCheckboxClick(e, node)}
-												className="cursor-pointer bg-transparent border-none p-0"
-												aria-label={`Select ${node.fullPath}`}
-											>
+											<span data-checkbox-row className="inline-flex">
 												<Checkbox
 													checked={isKeySelected(node.fullPath)}
-													onCheckedChange={() => {}}
-													tabIndex={-1}
+													onCheckedChange={() =>
+														toggleKeySelectionForBulk(node.fullPath)
+													}
+													aria-label={`Select ${node.fullPath}`}
 												/>
-											</button>
+											</span>
 										)}
 										{node.isLeaf ? (
 											<FileKey className="w-4 h-4 text-primary" />
