@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, State,
+    AppHandle, Emitter, Manager, State,
 };
 use tauri_plugin_dialog::DialogExt;
 use tokio::sync::{mpsc, Mutex};
@@ -187,13 +187,15 @@ async fn get_all_keys(
     limit: i64,
     cursor: Option<String>,
     sort_ascending: bool,
+    range_start: Option<String>,
+    range_end: Option<String>,
 ) -> Result<PaginatedKeysResult, String> {
     let mut connections = state.connections.lock().await;
 
     match connections.get_mut(&connection_id) {
         Some(client) => {
             let (keys, has_more) = client
-                .get_all_keys(limit, cursor, sort_ascending)
+                .get_all_keys(limit, cursor, sort_ascending, range_start, range_end)
                 .await
                 .map_err(|e| e.to_string())?;
             Ok(PaginatedKeysResult { keys, has_more })
@@ -249,18 +251,55 @@ async fn delete_key(
     }
 }
 
+#[derive(Clone, serde::Serialize)]
+struct DeleteProgressPayload {
+    operation_id: String,
+    connection_id: String,
+    current: usize,
+    total: usize,
+}
+
 #[tauri::command]
 async fn delete_keys(
+    app: AppHandle,
     state: State<'_, AppState>,
     connection_id: String,
     keys: Vec<String>,
 ) -> Result<usize, String> {
-    let mut connections = state.connections.lock().await;
+    let client = {
+        let mut connections = state.connections.lock().await;
+        connections
+            .get_mut(&connection_id)
+            .map(|c| c.clone_client())
+            .ok_or_else(|| format!("Connection '{}' not found", connection_id))?
+    };
 
-    match connections.get_mut(&connection_id) {
-        Some(client) => client.delete_keys(&keys).await.map_err(|e| e.to_string()),
-        None => Err(format!("Connection '{}' not found", connection_id)),
-    }
+    let config = {
+        let configs = state.connection_configs.lock().await;
+        configs
+            .get(&connection_id)
+            .cloned()
+            .ok_or_else(|| format!("Connection config '{}' not found", connection_id))?
+    };
+
+    let mut client = EtcdClient::from_client_with_config(client, config);
+    let operation_id = Uuid::new_v4().to_string();
+    let progress_connection_id = connection_id.clone();
+    let progress_callback = move |current: usize, total: usize| {
+        let _ = app.emit(
+            "delete-progress",
+            DeleteProgressPayload {
+                operation_id: operation_id.clone(),
+                connection_id: progress_connection_id.clone(),
+                current,
+                total,
+            },
+        );
+    };
+    client
+        .delete_keys(&keys, Some(progress_callback))
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

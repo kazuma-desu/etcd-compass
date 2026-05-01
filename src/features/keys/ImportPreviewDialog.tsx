@@ -105,7 +105,7 @@ export function ImportPreviewDialog({
 								>
 									<TableCell>
 										{item.action === "create" ? (
-											<Badge className="bg-green-500 hover:bg-green-600">
+											<Badge className="bg-primary hover:bg-primary/90">
 												<Check className="w-3 h-3 mr-1" />
 												Create
 											</Badge>
@@ -143,9 +143,9 @@ export function ImportPreviewDialog({
 				</ScrollArea>
 
 				{importPreviewData.length > 0 && !isImporting && (
-					<div className="flex items-center gap-2 mt-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
-						<AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-						<p className="text-sm text-yellow-600 dark:text-yellow-400">
+					<div className="flex items-center gap-2 mt-4 p-3 bg-amber-600/10 border border-amber-600/20 rounded-md">
+						<AlertTriangle className="w-5 h-5 text-amber-700 dark:text-amber-300 flex-shrink-0" />
+						<p className="text-sm text-amber-800 dark:text-amber-300">
 							This operation will{" "}
 							{createCount > 0 &&
 								`create ${createCount} new key${createCount !== 1 ? "s" : ""}`}

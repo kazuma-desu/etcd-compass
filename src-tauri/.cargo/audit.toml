@@ -1,0 +1,37 @@
+[advisories]
+ignore = [
+    # GTK3 bindings unmaintained — Tauri v2 Linux webview uses GTK3.
+    # These are transitive deps we cannot upgrade without waiting for Tauri.
+    "RUSTSEC-2024-0411", # gdkwayland-sys
+    "RUSTSEC-2024-0412", # gdk
+    "RUSTSEC-2024-0413", # atk
+    "RUSTSEC-2024-0414", # gdkx11-sys
+    "RUSTSEC-2024-0415", # gtk
+    "RUSTSEC-2024-0416", # atk-sys
+    "RUSTSEC-2024-0417", # gdkx11
+    "RUSTSEC-2024-0418", # gdk-sys
+    "RUSTSEC-2024-0419", # gtk3-macros
+    "RUSTSEC-2024-0420", # gtk-sys
+
+    # proc-macro-error unmaintained — transitive via gtk3-macros/glib-macros.
+    "RUSTSEC-2024-0370",
+
+    # fxhash unmaintained — transitive via selectors -> kuchikiki -> tauri-utils.
+    "RUSTSEC-2025-0057",
+
+    # unic-* crates unmaintained — transitive via urlpattern -> tauri-utils.
+    "RUSTSEC-2025-0075", # unic-char-range
+    "RUSTSEC-2025-0080", # unic-common
+    "RUSTSEC-2025-0081", # unic-char-property
+    "RUSTSEC-2025-0098", # unic-ucd-version
+    "RUSTSEC-2025-0100", # unic-ucd-ident
+
+    # glib unsound in VariantStrIter — transitive via webkit2gtk/wry.
+    # We do not use glib::VariantStrIter directly.
+    "RUSTSEC-2024-0429",
+
+    # rand unsound with custom logger — only affects rand::rng() API.
+    # rand 0.7.3 is pulled in via phf_generator -> selectors -> kuchikiki -> tauri-utils.
+    # We do not use rand::rng() or custom loggers in this path.
+    "RUSTSEC-2026-0097",
+]

@@ -43,6 +43,22 @@ function formatError(error: unknown): string {
 	return errorStr || "An unexpected error occurred";
 }
 
+export type ConnectionPhase =
+	| "disconnected"
+	| "connecting"
+	| "authenticating"
+	| "connected";
+
+export function buildConnectionPhaseOrder(
+	hasCredentials: boolean,
+): ConnectionPhase[] {
+	const order: ConnectionPhase[] = ["connecting"];
+	if (hasCredentials) {
+		order.push("authenticating");
+	}
+	return order;
+}
+
 interface ConnectionState {
 	connectionId: string | null;
 	config: EtcdConfig;
@@ -51,6 +67,8 @@ interface ConnectionState {
 	connectionHistory: EtcdConfig[];
 	showPassword: boolean;
 	showHistory: boolean;
+	phase: ConnectionPhase;
+	phaseOrder: ConnectionPhase[];
 
 	setConfig: (config: EtcdConfig) => void;
 	setShowPassword: (show: boolean) => void;
@@ -80,6 +98,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 	connectionHistory: [],
 	showPassword: false,
 	showHistory: false,
+	phase: "disconnected",
+	phaseOrder: buildConnectionPhaseOrder(false),
 
 	setConfig: (config) => set({ config }),
 	setShowPassword: (show) => set({ showPassword: show }),
@@ -111,21 +131,74 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 	},
 
 	connect: async () => {
-		const { config } = get();
-		set({ isConnecting: true, connectionError: "" });
+		const { config, connectionId: existingConnectionId } = get();
+		const hasUsername = Boolean(config.username);
+		const hasPassword = Boolean(config.password);
+		if (hasUsername !== hasPassword) {
+			const message = "Username and password must be provided together.";
+			set({
+				connectionError: message,
+				isConnecting: false,
+				phase: "disconnected",
+			});
+			toast.error(message);
+			return false;
+		}
+
+		const hasCredentials = hasUsername && hasPassword;
+		const previousPhase = get().phase;
+		if (previousPhase === "connecting" || previousPhase === "authenticating") {
+			const message = "A connection attempt is already in progress.";
+			set({ connectionError: message, isConnecting: false });
+			toast.error(message);
+			return false;
+		}
+
+		set({
+			isConnecting: true,
+			connectionError: "",
+			phase: "connecting",
+			phaseOrder: buildConnectionPhaseOrder(hasCredentials),
+		});
+
+		if (existingConnectionId) {
+			try {
+				await disconnectEtcd(existingConnectionId);
+			} catch (error: unknown) {
+				const message = `Failed to disconnect existing session: ${formatError(error)}`;
+				set({
+					connectionError: message,
+					isConnecting: false,
+					phase: previousPhase,
+				});
+				toast.error(message);
+				return false;
+			}
+			set({ connectionId: null });
+		}
+
+		if (get().phase !== "connecting") {
+			return false;
+		}
 
 		try {
+			if (hasCredentials) {
+				set({ phase: "authenticating" });
+			}
+
 			const connectionId = await connectEtcd(config);
 
-			set({ connectionId, isConnecting: false });
+			set({ connectionId, isConnecting: false, phase: "connected" });
 			toast.success("Connected to ETCD successfully");
 			return true;
 		} catch (error: unknown) {
+			const message = formatError(error);
 			set({
-				connectionError: error instanceof Error ? error.message : String(error),
+				connectionError: message,
 				isConnecting: false,
+				phase: "disconnected",
 			});
-			toast.error(`Failed to connect: ${formatError(error)}`);
+			toast.error(message);
 			return false;
 		}
 	},
@@ -138,6 +211,8 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 			await disconnectEtcd(connectionId);
 			set({
 				connectionId: null,
+				phase: "disconnected",
+				phaseOrder: buildConnectionPhaseOrder(false),
 				config: {
 					endpoint: "localhost:2379",
 					username: "",
@@ -159,6 +234,10 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 		set({ config: hist, showHistory: false });
 	},
 	setActiveConnectionId: (id) => {
-		set({ connectionId: id });
+		set({
+			connectionId: id,
+			phase: id ? "connected" : "disconnected",
+			phaseOrder: buildConnectionPhaseOrder(false),
+		});
 	},
 }));

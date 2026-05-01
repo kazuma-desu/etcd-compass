@@ -96,7 +96,7 @@ mod tests {
         if test_dir.exists() {
             let _ = fs::remove_dir_all(&test_dir);
         }
-        fs::create_dir_all(&test_dir).unwrap();
+        fs::create_dir_all(&test_dir).expect("create test config directory");
         test_dir
     }
 
@@ -128,11 +128,12 @@ mod tests {
     #[test]
     fn test_app_config_serialization() {
         let config = AppConfig::default();
-        let json = serde_json::to_string(&config).unwrap();
+        let json = serde_json::to_string(&config).expect("serialize default app config");
         assert!(json.contains("last_connection"));
         assert!(json.contains("connection_history"));
 
-        let deserialized: AppConfig = serde_json::from_str(&json).unwrap();
+        let deserialized: AppConfig =
+            serde_json::from_str(&json).expect("deserialize default app config");
         assert!(deserialized.last_connection.is_none());
     }
 
@@ -164,11 +165,12 @@ mod tests {
             }],
         };
 
-        let content = serde_json::to_string_pretty(&config).unwrap();
-        fs::write(&config_path, content).unwrap();
+        let content = serde_json::to_string_pretty(&config).expect("serialize test app config");
+        fs::write(&config_path, content).expect("write test app config");
 
-        let loaded_content = fs::read_to_string(&config_path).unwrap();
-        let loaded: AppConfig = serde_json::from_str(&loaded_content).unwrap();
+        let loaded_content = fs::read_to_string(&config_path).expect("read test app config");
+        let loaded: AppConfig =
+            serde_json::from_str(&loaded_content).expect("deserialize test app config");
 
         assert!(loaded.last_connection.is_some());
         assert_eq!(loaded.connection_history.len(), 1);

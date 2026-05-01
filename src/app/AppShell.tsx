@@ -1,15 +1,20 @@
 import { open } from "@tauri-apps/plugin-shell";
 import {
 	BarChart3,
+	Check,
 	Clock,
+	Compass,
 	ExternalLink,
 	Eye,
 	KeyRound,
+	Loader2,
 	Plus,
 	Server,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import {
 	ResizableHandle,
 	ResizablePanel,
@@ -25,31 +30,138 @@ import { ClusterSidebar } from "@/features/cluster/ClusterSidebar";
 import { ClusterStatus } from "@/features/cluster/ClusterStatus";
 import { MetricsDashboard } from "@/features/cluster/MetricsDashboard";
 import { ConnectionForm } from "@/features/connections/ConnectionForm";
+import {
+	type ConnectionPhase,
+	useConnectionStore,
+} from "@/features/connections/connection-store";
 import { KeyBrowser } from "@/features/keys/KeyBrowser";
 import { KeyDetail } from "@/features/keys/KeyDetail";
 import { useKeysStore } from "@/features/keys/keys-store";
 import { QueryBar } from "@/features/keys/QueryBar";
 import { LeasePanel } from "@/features/leases/LeasePanel";
 import { WatchPanel } from "@/features/watch/WatchPanel";
+import { cn } from "@/lib/utils";
 import { BreadcrumbNav } from "@/shared/components/BreadcrumbNav";
 import { ShortcutHelp } from "@/shared/components/ShortcutHelp";
 import { TabBar } from "@/shared/components/TabBar";
 import { useKeyboardShortcuts } from "@/shared/hooks/use-keyboard-shortcuts";
 
-interface AppShellProps {
-	connectionId: string | null;
-	onConnect: (connectionId: string) => void;
+const phaseLabels: Record<ConnectionPhase, string> = {
+	disconnected: "Disconnected",
+	connecting: "Establishing connection",
+	authenticating: "Authenticating",
+	connected: "Connected",
+};
+
+function StepIcon({
+	isCompleted,
+	isActive,
+	index,
+}: {
+	readonly isCompleted: boolean;
+	readonly isActive: boolean;
+	readonly index: number;
+}) {
+	if (isCompleted) {
+		return <Check className="w-4 h-4" />;
+	}
+	if (isActive) {
+		return <Loader2 className="w-4 h-4 animate-spin" />;
+	}
+	return <span>{index + 1}</span>;
 }
 
-function AppShellContent({ connectionId, onConnect }: AppShellProps) {
+function ConnectionPhaseProgress({
+	phase,
+	isConnecting,
+	phaseOrder,
+}: {
+	readonly phase: ConnectionPhase;
+	readonly isConnecting: boolean;
+	readonly phaseOrder: ConnectionPhase[];
+}) {
+	if (!isConnecting || phase === "disconnected" || phase === "connected") {
+		return null;
+	}
+
+	const currentIndex = phaseOrder.indexOf(phase);
+	const safeIndex = currentIndex === -1 ? 0 : currentIndex;
+	const progress = ((safeIndex + 1) / phaseOrder.length) * 100;
+	const phaseLabel = phaseLabels[phase] || "Unknown";
+
+	return (
+		<div className="w-full max-w-md mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+			<div className="space-y-2">
+				<div className="flex items-center justify-between text-sm">
+					<span className="font-medium text-foreground">{phaseLabel}</span>
+					<span className="text-muted-foreground text-xs">
+						Step {safeIndex + 1} of {phaseOrder.length}
+					</span>
+				</div>
+				<Progress value={progress} className="h-2" />
+			</div>
+
+			<div className="flex items-center justify-between gap-2">
+				{phaseOrder.map((p, index) => {
+					const isActive = p === phase;
+					const isCompleted = index < safeIndex;
+					const isPending = index > safeIndex;
+
+					return (
+						<div
+							key={p}
+							className={cn(
+								"flex flex-col items-center gap-1 flex-1 transition-all duration-300",
+								isPending && "opacity-40",
+							)}
+						>
+							<div
+								className={cn(
+									"w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300",
+									isCompleted && "bg-primary text-primary-foreground",
+									isActive &&
+										"bg-primary text-primary-foreground ring-2 ring-primary/30 ring-offset-2",
+									isPending &&
+										"bg-muted text-muted-foreground border border-border",
+								)}
+							>
+								<StepIcon
+									isCompleted={isCompleted}
+									isActive={isActive}
+									index={index}
+								/>
+							</div>
+							<span
+								className={cn(
+									"text-[10px] font-medium transition-colors duration-300",
+									isActive ? "text-primary" : "text-muted-foreground",
+								)}
+							>
+								{phaseLabels[p]}
+							</span>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
+function AppShellContent() {
 	const { setSelectedKey, setSearchQuery } = useKeysStore();
+	const { connectionId, isConnecting, phase, phaseOrder } =
+		useConnectionStore();
 	const { toggleSidebar } = useSidebar();
 	const [showConnectionDialog, setShowConnectionDialog] = useState(false);
 	const [showHelpDialog, setShowHelpDialog] = useState(false);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 
-	const handleLearnMoreClick = () => {
-		open("https://etcd.io/docs/v3.5/quickstart/");
+	const handleLearnMoreClick = async () => {
+		try {
+			await open("https://etcd.io/docs/v3.5/quickstart/");
+		} catch {
+			toast.error("Unable to open the ETCD quickstart guide.");
+		}
 	};
 
 	useKeyboardShortcuts(
@@ -59,18 +171,50 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 		searchInputRef,
 	);
 
-	const handleConnect = (newConnectionId: string) => {
+	useEffect(() => {
+		const handleNewConnection = () => setShowConnectionDialog(true);
+		const handleRefreshKeys = () => {
+			const currentConnectionId = useConnectionStore.getState().connectionId;
+			if (currentConnectionId) {
+				useKeysStore.getState().refreshKeys(currentConnectionId);
+			}
+		};
+		const handleAddKey = () => useKeysStore.getState().setShowAddDialog(true);
+		const handleToggleSidebar = () => toggleSidebar();
+		const handleShowHelp = () => setShowHelpDialog(true);
+
+		globalThis.addEventListener("etcd:new-connection", handleNewConnection);
+		globalThis.addEventListener("etcd:refresh-keys", handleRefreshKeys);
+		globalThis.addEventListener("etcd:add-key", handleAddKey);
+		globalThis.addEventListener("etcd:toggle-sidebar", handleToggleSidebar);
+		globalThis.addEventListener("etcd:show-help", handleShowHelp);
+
+		return () => {
+			globalThis.removeEventListener(
+				"etcd:new-connection",
+				handleNewConnection,
+			);
+			globalThis.removeEventListener("etcd:refresh-keys", handleRefreshKeys);
+			globalThis.removeEventListener("etcd:add-key", handleAddKey);
+			globalThis.removeEventListener(
+				"etcd:toggle-sidebar",
+				handleToggleSidebar,
+			);
+			globalThis.removeEventListener("etcd:show-help", handleShowHelp);
+		};
+	}, [toggleSidebar]);
+
+	const handleConnect = () => {
 		setSelectedKey(null);
 		setSearchQuery("");
-		onConnect(newConnectionId);
 		setShowConnectionDialog(false);
 	};
 
 	return (
 		<>
 			<ClusterSidebar onAddCluster={() => setShowConnectionDialog(true)} />
-			<SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-muted/30 p-2">
-				<div className="flex flex-col flex-1 min-h-0 min-w-0 bg-background rounded-lg shadow-sm border overflow-hidden">
+			<SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_28rem),hsl(var(--background))] p-2">
+				<div className="flex flex-col flex-1 min-h-0 min-w-0 bg-card/95 rounded-xl shadow-workspace border border-border/70 ring-1 ring-white/60 dark:ring-white/5 overflow-hidden">
 					<TabBar />
 					<div className="flex flex-col flex-1 min-h-0 min-w-0 px-4 py-2">
 						<Tabs
@@ -79,25 +223,25 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 						>
 							<div className="flex flex-col px-4 pt-2">
 								<BreadcrumbNav />
-								<div className="flex items-center gap-4 border-b mt-3">
+								<div className="flex items-center gap-4 border-b border-border/70 mt-3">
 									<TabsList className="h-9 w-auto bg-transparent justify-start space-x-2 p-0 rounded-none mb-[-1px]">
 										<TabsTrigger
 											value="keys"
-											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-none"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
 										>
 											<KeyRound className="w-3.5 h-3.5" />
 											Keys
 										</TabsTrigger>
 										<TabsTrigger
 											value="cluster"
-											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-none"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
 										>
 											<Server className="w-3.5 h-3.5" />
 											Cluster
 										</TabsTrigger>
 										<TabsTrigger
 											value="metrics"
-											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-none"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
 										>
 											<BarChart3 className="w-3.5 h-3.5" />
 											Metrics
@@ -107,7 +251,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 							</div>
 							<TabsContent
 								value="keys"
-								className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4"
+								className="flex-1 min-h-0 min-w-0 mt-0 flex flex-col px-4 pb-4"
 							>
 								<QueryBar
 									connectionId={connectionId ?? undefined}
@@ -116,7 +260,7 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 								{connectionId ? (
 									<ResizablePanelGroup
 										orientation="horizontal"
-										className="h-full rounded-lg border"
+										className="h-full rounded-xl border border-border/70 bg-background/60 shadow-panel overflow-hidden"
 									>
 										<ResizablePanel defaultSize={45} minSize={25}>
 											<KeyBrowser connectionId={connectionId} />
@@ -126,24 +270,24 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 											<KeyDetail />
 										</ResizablePanel>
 										<ResizableHandle withHandle />
-										<ResizablePanel defaultSize={25} minSize={20}>
+										<ResizablePanel defaultSize={26} minSize={22}>
 											<Tabs
 												defaultValue="watch"
-												className="h-full flex flex-col"
+												className="h-full flex flex-col gap-0 bg-card/40"
 											>
-												<TabsList className="grid w-full grid-cols-2">
+												<TabsList className="grid w-full grid-cols-2 h-9 rounded-none border-b border-border/70 bg-muted/35 p-1">
 													<TabsTrigger
 														value="watch"
-														className="flex items-center gap-2"
+														className="h-7 rounded-md text-xs flex items-center gap-1.5 data-[state=active]:shadow-none"
 													>
-														<Eye className="w-4 h-4" />
+														<Eye className="w-3.5 h-3.5" />
 														Watch
 													</TabsTrigger>
 													<TabsTrigger
 														value="leases"
-														className="flex items-center gap-2"
+														className="h-7 rounded-md text-xs flex items-center gap-1.5 data-[state=active]:shadow-none"
 													>
-														<Clock className="w-4 h-4" />
+														<Clock className="w-3.5 h-3.5" />
 														Leases
 													</TabsTrigger>
 												</TabsList>
@@ -164,62 +308,97 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 									</ResizablePanelGroup>
 								) : (
 									<div className="flex-1 flex items-center justify-center h-full bg-background">
-										<div className="text-center space-y-6 max-w-md mx-auto animate-in fade-in zoom-in duration-500">
-											<div className="relative w-48 h-48 mx-auto flex items-center justify-center">
-												{/* Illustration placeholder mimicking the Compass telescope */}
-												<div className="absolute inset-0 bg-primary/5 rounded-full" />
-												<Server className="w-16 h-16 text-primary z-10" />
-												<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 border-4 border-primary/20 rounded-full z-0" />
-											</div>
-											<div className="space-y-3">
-												<h3 className="text-xl font-bold tracking-tight text-foreground">
-													Welcome to ETCD Compass
-												</h3>
-												<p className="text-sm text-muted-foreground pb-2">
-													To get started, connect to an existing server or
-													cluster.
-												</p>
-												<Button
-													onClick={() => setShowConnectionDialog(true)}
-													className="gap-2 px-4 h-9 w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-md"
-												>
-													<Plus className="w-4 h-4" />
-													Add new connection
-												</Button>
-
-												<div className="mt-8 p-4 bg-primary/5 rounded-lg border border-primary/10 text-left space-y-2 relative overflow-hidden">
-													<div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
-													<h4 className="font-semibold text-sm text-foreground">
-														New to Compass and don't have a cluster?
-													</h4>
-													<p className="text-xs text-muted-foreground">
-														If you don't already have a cluster, you can run a
-														local ETCD instance using Docker.
-													</p>
-													<Button
-														variant="outline"
-														className="h-7 px-3 text-xs font-medium border-primary/20 text-primary hover:bg-primary/10 mt-2"
-														onClick={handleLearnMoreClick}
-													>
-														LEARN MORE
-														<ExternalLink className="w-3 h-3 ml-2" />
-													</Button>
+										<div className="text-center space-y-8 max-w-md mx-auto">
+											{isConnecting ? (
+												<div className="space-y-8 animate-in fade-in zoom-in duration-500">
+													<div className="relative w-40 h-40 mx-auto flex items-center justify-center">
+														<div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse" />
+														<div className="absolute inset-4 bg-primary/20 rounded-full animate-pulse delay-150" />
+														<Compass className="w-16 h-16 text-primary z-10" />
+													</div>
+													<div className="space-y-2">
+														<h3 className="text-xl font-semibold text-foreground">
+															Connecting to ETCD
+														</h3>
+														<p className="text-sm text-muted-foreground">
+															Please wait while we establish the connection
+														</p>
+													</div>
+													<ConnectionPhaseProgress
+														phase={phase}
+														isConnecting={isConnecting}
+														phaseOrder={phaseOrder}
+													/>
 												</div>
-											</div>
+											) : (
+												<>
+													<div className="relative w-40 h-40 mx-auto flex items-center justify-center animate-in fade-in zoom-in duration-500">
+														<div className="absolute inset-0 bg-primary/5 rounded-[2rem] rotate-6" />
+														<div className="absolute inset-4 bg-primary/10 rounded-[1.5rem] border border-primary/10 shadow-[inset_0_1px_0_hsl(0_0%_100%_/_0.20)]" />
+														<Compass className="w-16 h-16 text-primary z-10" />
+														<div className="absolute top-0 right-4 w-8 h-8 bg-background rounded-lg flex items-center justify-center shadow-sm border border-border/70">
+															<Server className="w-4 h-4 text-muted-foreground" />
+														</div>
+													</div>
+
+													<div className="space-y-4">
+														<div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-75 fill-mode-both">
+															<h3 className="text-2xl font-semibold tracking-tight text-foreground">
+																Welcome to ETCD Compass
+															</h3>
+															<p className="text-base text-muted-foreground">
+																To get started, connect to an existing server or
+																cluster.
+															</p>
+														</div>
+
+														<div className="pt-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-150 fill-mode-both">
+															<Button
+																onClick={() => setShowConnectionDialog(true)}
+																size="lg"
+																className="gap-2 w-full sm:w-auto font-medium rounded-lg"
+															>
+																<Plus className="w-5 h-5" />
+																Add new connection
+															</Button>
+														</div>
+
+														<div className="mt-8 p-5 bg-muted/45 rounded-xl border border-border/60 text-left space-y-3 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 fill-mode-both group hover:border-primary/25 transition-colors">
+															<div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-primary/10" />
+															<h4 className="font-semibold text-sm text-foreground flex items-center gap-2">
+																<Server className="w-4 h-4 text-primary" />
+																New to Compass?
+															</h4>
+															<p className="text-sm text-muted-foreground">
+																If you don't already have a cluster, you can run
+																a local ETCD instance using Docker.
+															</p>
+															<Button
+																variant="link"
+																className="h-auto p-0 text-sm font-medium text-primary hover:text-primary/80 mt-1"
+																onClick={handleLearnMoreClick}
+															>
+																LEARN MORE
+																<ExternalLink className="w-3 h-3 ml-1" />
+															</Button>
+														</div>
+													</div>
+												</>
+											)}
 										</div>
 									</div>
 								)}
 							</TabsContent>
 							<TabsContent
 								value="cluster"
-								className="flex-1 min-h-0 mt-0 overflow-auto"
+								className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
 							>
 								{connectionId ? (
 									<ClusterStatus connectionId={connectionId} />
 								) : (
 									<div className="flex-1 flex items-center justify-center h-full">
 										<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-75">
-											<div className="w-20 h-20 bg-background shadow-lg shadow-black/5 dark:shadow-white/5 border border-border/50 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+											<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
 												<Server className="w-10 h-10 text-primary/80" />
 											</div>
 											<div className="space-y-1">
@@ -236,14 +415,14 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 							</TabsContent>
 							<TabsContent
 								value="metrics"
-								className="flex-1 min-h-0 mt-0 overflow-auto"
+								className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
 							>
 								{connectionId ? (
 									<MetricsDashboard connectionId={connectionId} />
 								) : (
 									<div className="flex-1 flex items-center justify-center h-full">
 										<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-150">
-											<div className="w-20 h-20 bg-background shadow-lg shadow-black/5 dark:shadow-white/5 border border-border/50 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:scale-105 hover:shadow-xl">
+											<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
 												<BarChart3 className="w-10 h-10 text-primary/80" />
 											</div>
 											<div className="space-y-1">
@@ -274,13 +453,13 @@ function AppShellContent({ connectionId, onConnect }: AppShellProps) {
 	);
 }
 
-export function AppShell({ connectionId, onConnect }: AppShellProps) {
+export function AppShell() {
 	return (
 		<SidebarProvider
 			defaultOpen={true}
-			className="h-screen overflow-hidden bg-background"
+			className="min-h-[100dvh] h-[100dvh] overflow-hidden bg-background"
 		>
-			<AppShellContent connectionId={connectionId} onConnect={onConnect} />
+			<AppShellContent />
 		</SidebarProvider>
 	);
 }

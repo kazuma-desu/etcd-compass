@@ -29,6 +29,7 @@ import {
 	updateConnectionFavorite,
 } from "@/commands/config";
 import { disconnectEtcd, listConnections } from "@/commands/connection";
+import { getKey } from "@/commands/keys";
 import {
 	openFileDialog,
 	readFile,
@@ -68,6 +69,8 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { useConnectionStore } from "@/features/connections/connection-store";
+import { useBookmarksStore } from "@/features/keys/bookmarks-store";
+import { useKeysStore } from "@/features/keys/keys-store";
 import { ThemeToggle } from "@/shared/components/ThemeToggle";
 
 interface ClusterSidebarProps {
@@ -95,6 +98,31 @@ export function ClusterSidebar({
 	const [filter, setFilter] = useState("");
 	const [expandedClusters, setExpandedClusters] = useState<Set<string>>(
 		new Set(),
+	);
+
+	const { getBookmarks, removeBookmark } = useBookmarksStore();
+	const { addTab } = useKeysStore();
+	const connectionBookmarks = connectionId ? getBookmarks(connectionId) : [];
+
+	const openBookmarkedKey = useCallback(
+		async (keyPath: string) => {
+			if (!connectionId) return;
+
+			try {
+				const key = await getKey(connectionId, keyPath);
+				if (!key) {
+					toast.error("Bookmarked key was not found");
+					return;
+				}
+
+				addTab(key.key, key);
+			} catch (error: unknown) {
+				toast.error(
+					`Failed to open bookmarked key: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			}
+		},
+		[addTab, connectionId],
 	);
 
 	const loadConnections = useCallback(async () => {
@@ -310,12 +338,18 @@ export function ClusterSidebar({
 	);
 
 	return (
-		<Sidebar collapsible="icon" variant="sidebar">
+		<Sidebar
+			collapsible="icon"
+			variant="sidebar"
+			className="border-r border-sidebar-border/80 bg-sidebar"
+		>
 			<SidebarRail />
 
-			<SidebarHeader className="pb-3 group-data-[collapsible=icon]:pb-1 group-data-[collapsible=icon]:px-0">
+			<SidebarHeader className="pb-3 border-b border-sidebar-border/70 group-data-[collapsible=icon]:pb-1 group-data-[collapsible=icon]:px-0">
 				<div className="flex items-center gap-2 px-3 py-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-1">
-					<Database className="h-5 w-5 text-primary shrink-0" />
+					<div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/15 flex items-center justify-center shrink-0">
+						<Database className="h-4 w-4 text-primary" />
+					</div>
 					<span className="font-semibold text-sm group-data-[collapsible=icon]:hidden">
 						Compass
 					</span>
@@ -397,7 +431,7 @@ export function ClusterSidebar({
 								placeholder="Search connections"
 								value={filter}
 								onChange={(e) => setFilter(e.target.value)}
-								className="h-8 pl-8 text-xs bg-background border-border/60"
+								className="h-8 pl-8 text-xs bg-background/75 border-border/60"
 							/>
 						</div>
 					</div>
@@ -474,7 +508,7 @@ export function ClusterSidebar({
 																				/>
 																			) : (
 																				<span
-																					className={`h-2 w-2 rounded-full ${conn.id === connectionId ? "bg-emerald-500" : "bg-muted-foreground"}`}
+																					className={`h-2 w-2 rounded-full ${conn.id === connectionId ? "bg-primary" : "bg-muted-foreground"}`}
 																				/>
 																			)}
 																			<span className="truncate">
@@ -576,6 +610,52 @@ export function ClusterSidebar({
 						</ScrollArea>
 					</SidebarGroupContent>
 				</SidebarGroup>
+
+				{connectionId && connectionBookmarks.length > 0 && (
+					<SidebarGroup className="border-t pt-2">
+						<SidebarGroupLabel className="px-3 text-[11px] font-bold tracking-wider text-muted-foreground uppercase h-8">
+							<span>Bookmarks ({connectionBookmarks.length})</span>
+						</SidebarGroupLabel>
+						<SidebarGroupContent>
+							<ScrollArea className="max-h-[200px]">
+								<SidebarMenu>
+									{connectionBookmarks.map((keyPath) => (
+										<SidebarMenuItem key={keyPath}>
+											<div className="flex items-center gap-1 w-full group">
+												<SidebarMenuButton asChild className="flex-1 min-w-0">
+													<button
+														type="button"
+														onClick={() => openBookmarkedKey(keyPath)}
+														className="flex items-center gap-2"
+													>
+														<Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
+														<span className="truncate text-xs">
+															{keyPath.split("/").pop() || keyPath}
+														</span>
+													</button>
+												</SidebarMenuButton>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-5 w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shrink-0"
+													onClick={(e) => {
+														e.stopPropagation();
+														if (connectionId) {
+															removeBookmark(connectionId, keyPath);
+														}
+													}}
+													aria-label={`Remove bookmark ${keyPath}`}
+												>
+													<StarOff className="h-3 w-3" />
+												</Button>
+											</div>
+										</SidebarMenuItem>
+									))}
+								</SidebarMenu>
+							</ScrollArea>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				)}
 			</SidebarContent>
 
 			<SidebarFooter className="border-t group-data-[collapsible=icon]:px-0">

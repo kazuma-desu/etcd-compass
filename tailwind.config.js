@@ -4,8 +4,11 @@ module.exports = {
 	content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
 	theme: {
 		extend: {
+			transitionTimingFunction: {
+				dbm: "cubic-bezier(0.16, 1, 0.3, 1)",
+			},
 			fontFamily: {
-				sans: ["Inter", "sans-serif"],
+				sans: ["Geist", "ui-sans-serif", "system-ui", "sans-serif"],
 				mono: ["'JetBrains Mono'", "monospace"],
 			},
 			colors: {
@@ -62,6 +65,8 @@ module.exports = {
 			},
 			boxShadow: {
 				xs: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+				workspace: "0 18px 60px -48px hsl(28 30% 18% / 0.45)",
+				panel: "0 10px 32px -28px hsl(28 18% 12% / 0.45)",
 			},
 			keyframes: {
 				"accordion-down": {

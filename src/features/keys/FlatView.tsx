@@ -1,6 +1,7 @@
 import { Key } from "lucide-react";
 import type { EtcdKey } from "@/commands/types";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 import { useKeysStore } from "./keys-store";
 
 interface FlatViewProps {
@@ -24,7 +25,7 @@ export function FlatView({ keys }: FlatViewProps) {
 	}
 
 	return (
-		<div className="p-4 space-y-3 bg-secondary/10 min-h-full">
+		<div className="p-3 space-y-2 bg-secondary/10 min-h-full">
 			{keys.map((key) => (
 				<div
 					key={key.key}
@@ -32,11 +33,12 @@ export function FlatView({ keys }: FlatViewProps) {
 					tabIndex={0}
 					aria-pressed={selectedKey?.key === key.key}
 					data-testid={`flatview-card-${key.key}`}
-					className={`border rounded-lg p-3 bg-card hover:border-primary/40 transition-shadow shadow-sm cursor-pointer ${
+					className={cn(
+						"border rounded-lg p-3 bg-card/90 hover:border-primary/45 transition-[border-color,box-shadow,transform,background-color] duration-200 cursor-pointer active:translate-y-px",
 						selectedKey?.key === key.key
-							? "ring-1 ring-primary border-primary shadow-md"
-							: "border-border/60"
-					}`}
+							? "ring-1 ring-primary/70 border-primary shadow-panel bg-primary/5"
+							: "border-border/60 shadow-xs hover:shadow-panel",
+					)}
 					onClick={() => setSelectedKey(key)}
 					onKeyDown={(e) => {
 						if (e.key === "Enter" || e.key === " ") {
@@ -56,14 +58,14 @@ export function FlatView({ keys }: FlatViewProps) {
 								/>
 							</div>
 							<Key className="w-4 h-4 text-primary shrink-0" />
-							<span className="text-sm font-mono font-semibold text-emerald-700 dark:text-emerald-500 break-all">
+							<span className="text-sm font-mono font-semibold text-primary break-all">
 								{key.key}
 							</span>
 						</div>
 					</div>
 					<div className="pl-8 pr-2">
 						<div className="relative">
-							<pre className="text-xs font-mono text-muted-foreground bg-secondary/30 p-2.5 rounded-md max-h-40 overflow-hidden whitespace-pre-wrap break-words break-all border border-border/50">
+							<pre className="text-xs font-mono text-muted-foreground bg-background/75 p-2.5 rounded-md max-h-40 overflow-hidden whitespace-pre-wrap break-words break-all border border-border/50">
 								{key.value}
 							</pre>
 							<div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-secondary/30 to-transparent pointer-events-none rounded-b-md" />

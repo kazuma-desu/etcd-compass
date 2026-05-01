@@ -19,15 +19,13 @@ interface ShortcutHelpProps {
 }
 
 export function ShortcutHelp({ open, onOpenChange }: ShortcutHelpProps) {
-	const navigationShortcuts = shortcuts.filter((s) =>
-		["n", "t", "w", "]", "["].includes(s.key),
+	const navigationShortcuts = shortcuts.filter(
+		(s) => s.category === "navigation",
 	);
 
-	const actionShortcuts = shortcuts.filter((s) =>
-		["r", "f", "Delete"].includes(s.key),
-	);
+	const actionShortcuts = shortcuts.filter((s) => s.category === "actions");
 
-	const uiShortcuts = shortcuts.filter((s) => [",", "d", "?"].includes(s.key));
+	const uiShortcuts = shortcuts.filter((s) => s.category === "interface");
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>

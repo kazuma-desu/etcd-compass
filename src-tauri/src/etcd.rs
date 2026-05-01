@@ -1,6 +1,6 @@
 use etcd_client::{
-    Certificate, Client, ConnectOptions, EventType, GetOptions, Identity, PutOptions, SortOrder,
-    SortTarget, WatchOptions,
+    Certificate, Client, ConnectOptions, EventType, GetOptions, GetResponse, Identity, PutOptions,
+    SortOrder, SortTarget, WatchOptions,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -110,6 +110,88 @@ pub struct WatchHandle {
 
 pub struct EtcdClient {
     client: Client,
+    config: Option<EtcdConfig>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ErrorKind {
+    Transient,
+    Permanent,
+    Auth,
+    Authz,
+}
+
+fn get_prefix_end(key: &[u8]) -> Option<Vec<u8>> {
+    for (i, v) in key.iter().enumerate().rev() {
+        if *v < 0xFF {
+            let mut end = Vec::from(&key[..=i]);
+            end[i] = *v + 1;
+            return Some(end);
+        }
+    }
+
+    None
+}
+
+fn range_for_descending_prefix(prefix: &[u8], cursor: &[u8]) -> Vec<u8> {
+    if cursor.starts_with(prefix) {
+        cursor.to_vec()
+    } else {
+        get_prefix_end(prefix).unwrap_or_else(|| cursor.to_vec())
+    }
+}
+
+fn validate_pagination_limit(limit: i64) -> anyhow::Result<(i64, usize)> {
+    if limit <= 0 {
+        anyhow::bail!("Pagination limit must be greater than zero");
+    }
+
+    let page_limit = limit
+        .checked_add(1)
+        .ok_or_else(|| anyhow::anyhow!("Pagination limit is too large"))?;
+    let result_limit =
+        usize::try_from(limit).map_err(|_| anyhow::anyhow!("Pagination limit is too large"))?;
+
+    Ok((page_limit, result_limit))
+}
+
+pub fn classify_error(error: &anyhow::Error) -> ErrorKind {
+    let error_str = error.to_string().to_lowercase();
+
+    if error_str.contains("authentication failed")
+        || error_str.contains("invalid auth")
+        || error_str.contains("unauthenticated")
+    {
+        return ErrorKind::Auth;
+    }
+
+    if error_str.contains("permission denied") {
+        return ErrorKind::Authz;
+    }
+
+    if error_str.contains("transport error")
+        || error_str.contains("connection refused")
+        || error_str.contains("connection reset")
+        || error_str.contains("broken pipe")
+        || error_str.contains("connection closed")
+        || error_str.contains("timeout")
+        || error_str.contains("temporarily unavailable")
+        || error_str.contains("dns error")
+        || error_str.contains("name resolution")
+        || error_str.contains("io error")
+        || error_str.contains("stream closed")
+    {
+        return ErrorKind::Transient;
+    }
+
+    if error_str.contains("tls")
+        || error_str.contains("certificate")
+        || error_str.contains("handshake")
+    {
+        return ErrorKind::Permanent;
+    }
+
+    ErrorKind::Permanent
 }
 
 impl EtcdClient {
@@ -118,7 +200,18 @@ impl EtcdClient {
     }
 
     pub fn from_client(client: Client) -> Self {
-        EtcdClient { client }
+        // Cloned clients have no config — reconnect is unavailable.
+        EtcdClient {
+            client,
+            config: None,
+        }
+    }
+
+    pub fn from_client_with_config(client: Client, config: EtcdConfig) -> Self {
+        EtcdClient {
+            client,
+            config: Some(config),
+        }
     }
 
     pub async fn connect(config: &EtcdConfig) -> anyhow::Result<Self> {
@@ -173,7 +266,183 @@ impl EtcdClient {
 
         let client = Client::connect([&config.endpoint], Some(options)).await?;
 
-        Ok(EtcdClient { client })
+        Ok(EtcdClient {
+            client,
+            config: Some(config.clone()),
+        })
+    }
+
+    pub(crate) async fn reconnect(&mut self) -> anyhow::Result<()> {
+        let config = self
+            .config
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Reconnect unavailable: client was cloned"))?;
+        let new_client = Self::connect(config).await?;
+        self.client = new_client.client;
+        Ok(())
+    }
+
+    async fn execute_op<T>(
+        &mut self,
+        result: Result<T, etcd_client::Error>,
+        operation_name: &str,
+    ) -> anyhow::Result<T> {
+        match result {
+            Ok(value) => Ok(value),
+            Err(e) => {
+                let error = anyhow::Error::from(e);
+                match classify_error(&error) {
+                    ErrorKind::Transient => {
+                        eprintln!(
+                            "[etcd] Transient error in {}, attempting reconnect...",
+                            operation_name
+                        );
+                        self.reconnect().await.map_err(|e| {
+                            anyhow::anyhow!("Failed to reconnect: {}. Original error: {}", e, error)
+                        })?;
+                        Err(error)
+                    }
+                    ErrorKind::Auth => Err(anyhow::anyhow!(
+                        "Authentication failed: {}. Please check your credentials.",
+                        error
+                    )),
+                    ErrorKind::Authz => Err(anyhow::anyhow!(
+                        "Authorization failed: {}. You may not have permission for this operation.",
+                        error
+                    )),
+                    ErrorKind::Permanent => Err(error),
+                }
+            }
+        }
+    }
+
+    fn build_all_keys_pagination_options(
+        limit: i64,
+        cursor: Option<String>,
+        sort_ascending: bool,
+        range_start: Option<String>,
+        range_end: Option<String>,
+    ) -> anyhow::Result<(String, GetOptions)> {
+        let sort_order = if sort_ascending {
+            SortOrder::Ascend
+        } else {
+            SortOrder::Descend
+        };
+        let (page_limit, _) = validate_pagination_limit(limit)?;
+
+        let options = if let Some(cursor_key) = cursor {
+            if sort_ascending {
+                let key = cursor_key + "\0";
+                let mut opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order);
+                if let Some(end) = range_end {
+                    opts = opts.with_range(end);
+                } else {
+                    opts = opts.with_from_key();
+                }
+                (key, opts)
+            } else {
+                let key = range_start.unwrap_or_else(|| "\0".to_string());
+                let opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order)
+                    .with_range(cursor_key);
+                (key, opts)
+            }
+        } else if let Some(start) = range_start {
+            let mut opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order);
+            if let Some(end) = range_end {
+                opts = opts.with_range(end);
+            } else {
+                opts = opts.with_from_key();
+            }
+            (start, opts)
+        } else if let Some(end) = range_end {
+            let key = "\0".to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_range(end);
+            (key, opts)
+        } else {
+            let key = "\0".to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_all_keys();
+            (key, opts)
+        };
+
+        Ok(options)
+    }
+
+    fn build_prefix_pagination_options(
+        prefix: &str,
+        limit: i64,
+        cursor: Option<String>,
+        sort_ascending: bool,
+    ) -> anyhow::Result<(String, GetOptions)> {
+        let sort_order = if sort_ascending {
+            SortOrder::Ascend
+        } else {
+            SortOrder::Descend
+        };
+        let (page_limit, _) = validate_pagination_limit(limit)?;
+
+        let options = if let Some(cursor_key) = cursor {
+            if sort_ascending {
+                let key = cursor_key + "\0";
+                let mut opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order);
+                if let Some(end) = get_prefix_end(prefix.as_bytes()) {
+                    opts = opts.with_range(end);
+                } else {
+                    opts = opts.with_from_key();
+                }
+                (key, opts)
+            } else {
+                let key = prefix.to_string();
+                let opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order)
+                    .with_range(range_for_descending_prefix(
+                        prefix.as_bytes(),
+                        cursor_key.as_bytes(),
+                    ));
+                (key, opts)
+            }
+        } else {
+            let key = prefix.to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_prefix();
+            (key, opts)
+        };
+
+        Ok(options)
+    }
+
+    async fn get_with_transient_retry(
+        &mut self,
+        key: String,
+        options: GetOptions,
+        operation_name: &str,
+    ) -> anyhow::Result<GetResponse> {
+        let opts = options.clone();
+        let result = self.client.get(key.clone(), Some(opts)).await;
+        match self.execute_op(result, operation_name).await {
+            Ok(r) => Ok(r),
+            Err(e) if classify_error(&e) == ErrorKind::Transient => {
+                let result = self.client.get(key, Some(options)).await;
+                self.execute_op(result, operation_name).await
+            }
+            Err(e) => Err(e),
+        }
     }
 
     pub async fn get_all_keys(
@@ -181,63 +450,44 @@ impl EtcdClient {
         limit: i64,
         cursor: Option<String>,
         sort_ascending: bool,
+        range_start: Option<String>,
+        range_end: Option<String>,
     ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
-        let sort_order = if sort_ascending {
-            SortOrder::Ascend
-        } else {
-            SortOrder::Descend
-        };
+        let (_, result_limit) = validate_pagination_limit(limit)?;
+        let (key, options) = Self::build_all_keys_pagination_options(
+            limit,
+            cursor,
+            sort_ascending,
+            range_start,
+            range_end,
+        )?;
+        let resp = self
+            .get_with_transient_retry(key, options, "get_all_keys")
+            .await?;
 
-        let mut options = GetOptions::new()
-            .with_limit(limit)
-            .with_sort(SortTarget::Key, sort_order);
+        let keys: Vec<EtcdKey> = resp
+            .kvs()
+            .iter()
+            .take(result_limit)
+            .map(|kv| EtcdKey {
+                key: kv.key_str().unwrap_or_default().to_string(),
+                value: kv.value_str().unwrap_or_default().to_string(),
+                version: kv.version(),
+                create_revision: kv.create_revision(),
+                mod_revision: kv.mod_revision(),
+                lease: kv.lease(),
+            })
+            .collect();
 
-        if let Some(cursor_key) = cursor {
-            options = options.with_from_key();
-            let resp = self.client.get(cursor_key.as_str(), Some(options)).await?;
-
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .skip(1)
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
-
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
-        } else {
-            options = options.with_all_keys();
-            let resp = self.client.get("", Some(options)).await?;
-
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
-
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
-        }
+        let has_more = resp.kvs().len() > result_limit;
+        Ok((keys, has_more))
     }
 
     pub async fn get_key(&mut self, key: &str) -> anyhow::Result<Option<EtcdKey>> {
-        let resp = self.client.get(key, None).await?;
+        let key = key.to_string();
+        let resp = self
+            .get_with_transient_retry(key, GetOptions::new(), "get_key")
+            .await?;
 
         Ok(resp.kvs().first().map(|kv| EtcdKey {
             key: kv.key_str().unwrap_or_default().to_string(),
@@ -259,9 +509,15 @@ impl EtcdClient {
         if let Some(lease) = lease_id {
             options = options.with_lease(lease);
         }
-        self.client.put(key, value, Some(options)).await?;
+        let k = key.to_string();
+        let v = value.to_string();
+        let opts = options.clone();
+        let result = self.client.put(k.clone(), v.clone(), Some(opts)).await;
+        self.execute_op(result, "put_key").await?;
 
-        let resp = self.client.get(key, None).await?;
+        let resp = self
+            .get_with_transient_retry(k, GetOptions::new(), "put_key (verify)")
+            .await?;
 
         resp.kvs()
             .first()
@@ -277,16 +533,37 @@ impl EtcdClient {
     }
 
     pub async fn delete_key(&mut self, key: &str) -> anyhow::Result<()> {
-        self.client.delete(key, None).await?;
+        let result = self.client.delete(key, None).await;
+        self.execute_op(result, "delete_key").await?;
         Ok(())
     }
 
-    pub async fn delete_keys(&mut self, keys: &[String]) -> anyhow::Result<usize> {
+    pub async fn delete_keys<F>(
+        &mut self,
+        keys: &[String],
+        mut progress_callback: Option<F>,
+    ) -> anyhow::Result<usize>
+    where
+        F: FnMut(usize, usize),
+    {
+        let total = keys.len();
         let mut deleted_count = 0;
         for key in keys {
-            match self.client.delete(key.as_str(), None).await {
-                Ok(_) => deleted_count += 1,
-                Err(e) => eprintln!("Failed to delete key {}: {}", key, e),
+            let result = self.client.delete(key.as_str(), None).await;
+            match self.execute_op(result, "delete_keys").await {
+                Ok(_) => {
+                    deleted_count += 1;
+                    if let Some(ref mut cb) = progress_callback {
+                        cb(deleted_count, total);
+                    }
+                }
+                Err(e) => {
+                    return Err(anyhow::anyhow!(
+                        "Failed to delete key after {} successes: {}",
+                        deleted_count,
+                        e
+                    ));
+                }
             }
         }
         Ok(deleted_count)
@@ -299,63 +576,29 @@ impl EtcdClient {
         cursor: Option<String>,
         sort_ascending: bool,
     ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
-        let sort_order = if sort_ascending {
-            SortOrder::Ascend
-        } else {
-            SortOrder::Descend
-        };
+        let (_, result_limit) = validate_pagination_limit(limit)?;
+        let (key, options) =
+            Self::build_prefix_pagination_options(prefix, limit, cursor, sort_ascending)?;
+        let resp = self
+            .get_with_transient_retry(key, options, "get_keys_with_prefix")
+            .await?;
 
-        if let Some(cursor_key) = cursor {
-            let options = GetOptions::new()
-                .with_prefix()
-                .with_limit(limit)
-                .with_sort(SortTarget::Key, sort_order)
-                .with_from_key();
+        let keys: Vec<EtcdKey> = resp
+            .kvs()
+            .iter()
+            .take(result_limit)
+            .map(|kv| EtcdKey {
+                key: kv.key_str().unwrap_or_default().to_string(),
+                value: kv.value_str().unwrap_or_default().to_string(),
+                version: kv.version(),
+                create_revision: kv.create_revision(),
+                mod_revision: kv.mod_revision(),
+                lease: kv.lease(),
+            })
+            .collect();
 
-            let resp = self.client.get(cursor_key.as_str(), Some(options)).await?;
-
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .skip(1)
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
-
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
-        } else {
-            let options = GetOptions::new()
-                .with_prefix()
-                .with_limit(limit)
-                .with_sort(SortTarget::Key, sort_order);
-
-            let resp = self.client.get(prefix, Some(options)).await?;
-
-            let keys: Vec<EtcdKey> = resp
-                .kvs()
-                .iter()
-                .take(limit as usize)
-                .map(|kv| EtcdKey {
-                    key: kv.key_str().unwrap_or_default().to_string(),
-                    value: kv.value_str().unwrap_or_default().to_string(),
-                    version: kv.version(),
-                    create_revision: kv.create_revision(),
-                    mod_revision: kv.mod_revision(),
-                    lease: kv.lease(),
-                })
-                .collect();
-
-            let has_more = resp.count() > limit;
-            Ok((keys, has_more))
-        }
+        let has_more = resp.kvs().len() > result_limit;
+        Ok((keys, has_more))
     }
 
     pub async fn status(&mut self) -> anyhow::Result<etcd_client::StatusResponse> {
@@ -654,6 +897,263 @@ impl EtcdClient {
 mod tests {
     use super::*;
 
+    fn assert_get_options_debug(
+        options: GetOptions,
+        expected_limit: i64,
+        expected_range_end: &[u8],
+        expected_from_key: bool,
+        expected_prefix: bool,
+        expected_all_keys: bool,
+    ) {
+        let debug = format!("{options:?}");
+
+        assert!(
+            debug.contains(&format!("limit: {expected_limit}")),
+            "expected limit {expected_limit} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("range_end: {expected_range_end:?}")),
+            "expected range_end {expected_range_end:?} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("with_from_key: {expected_from_key}")),
+            "expected with_from_key {expected_from_key} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("with_prefix: {expected_prefix}")),
+            "expected with_prefix {expected_prefix} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("with_all_keys: {expected_all_keys}")),
+            "expected with_all_keys {expected_all_keys} in {debug}",
+        );
+    }
+
+    #[test]
+    fn test_validate_pagination_limit_rejects_non_positive_values() {
+        assert!(validate_pagination_limit(0).is_err());
+        assert!(validate_pagination_limit(-1).is_err());
+    }
+
+    #[test]
+    fn test_validate_pagination_limit_rejects_overflowing_page_limit() {
+        assert!(validate_pagination_limit(i64::MAX).is_err());
+    }
+
+    #[test]
+    fn test_validate_pagination_limit_returns_safe_page_and_result_limits() {
+        let (page_limit, result_limit) =
+            validate_pagination_limit(50).expect("validate positive pagination limit");
+
+        assert_eq!(page_limit, 51);
+        assert_eq!(result_limit, 50);
+    }
+
+    #[test]
+    fn test_all_keys_pagination_options_cover_cursor_and_range_branches() {
+        let cases = vec![
+            (
+                "ascending cursor without range end uses from_key after cursor",
+                10,
+                Some("/b".to_string()),
+                true,
+                None,
+                None,
+                "/b\0".to_string(),
+                Vec::new(),
+                true,
+                false,
+                false,
+            ),
+            (
+                "ascending cursor with range end keeps bounded range",
+                10,
+                Some("/b".to_string()),
+                true,
+                None,
+                Some("/z".to_string()),
+                "/b\0".to_string(),
+                b"/z".to_vec(),
+                false,
+                false,
+                false,
+            ),
+            (
+                "descending cursor uses range_start and cursor range",
+                10,
+                Some("/m".to_string()),
+                false,
+                Some("/a".to_string()),
+                None,
+                "/a".to_string(),
+                b"/m".to_vec(),
+                false,
+                false,
+                false,
+            ),
+            (
+                "start-only range without cursor uses from_key",
+                10,
+                None,
+                true,
+                Some("/a".to_string()),
+                None,
+                "/a".to_string(),
+                Vec::new(),
+                true,
+                false,
+                false,
+            ),
+            (
+                "end-only range starts from null key",
+                10,
+                None,
+                true,
+                None,
+                Some("/z".to_string()),
+                "\0".to_string(),
+                b"/z".to_vec(),
+                false,
+                false,
+                false,
+            ),
+            (
+                "unbounded range requests all keys",
+                10,
+                None,
+                true,
+                None,
+                None,
+                "\0".to_string(),
+                Vec::new(),
+                false,
+                false,
+                true,
+            ),
+        ];
+
+        for (
+            name,
+            limit,
+            cursor,
+            sort_ascending,
+            range_start,
+            range_end,
+            expected_key,
+            expected_range_end,
+            expected_from_key,
+            expected_prefix,
+            expected_all_keys,
+        ) in cases
+        {
+            let (key, options) = EtcdClient::build_all_keys_pagination_options(
+                limit,
+                cursor,
+                sort_ascending,
+                range_start,
+                range_end,
+            )
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+
+            assert_eq!(key, expected_key, "{name}");
+            assert_get_options_debug(
+                options,
+                limit + 1,
+                &expected_range_end,
+                expected_from_key,
+                expected_prefix,
+                expected_all_keys,
+            );
+        }
+    }
+
+    #[test]
+    fn test_prefix_pagination_options_cover_prefix_end_branches() {
+        let cases = vec![
+            (
+                "ascending cursor with finite prefix uses prefix end range",
+                "/app/",
+                25,
+                Some("/app/key".to_string()),
+                true,
+                "/app/key\0".to_string(),
+                b"/app0".to_vec(),
+                false,
+                false,
+            ),
+            (
+                "descending cursor inside prefix ranges to cursor",
+                "/app/",
+                25,
+                Some("/app/key".to_string()),
+                false,
+                "/app/".to_string(),
+                b"/app/key".to_vec(),
+                false,
+                false,
+            ),
+            (
+                "descending cursor outside prefix ranges to prefix end",
+                "/app/",
+                25,
+                Some("/other/key".to_string()),
+                false,
+                "/app/".to_string(),
+                b"/app0".to_vec(),
+                false,
+                false,
+            ),
+            (
+                "prefix without cursor uses with_prefix",
+                "/app/",
+                25,
+                None,
+                true,
+                "/app/".to_string(),
+                Vec::new(),
+                false,
+                true,
+            ),
+        ];
+
+        for (
+            name,
+            prefix,
+            limit,
+            cursor,
+            sort_ascending,
+            expected_key,
+            expected_range_end,
+            expected_from_key,
+            expected_prefix,
+        ) in cases
+        {
+            let (key, options) =
+                EtcdClient::build_prefix_pagination_options(prefix, limit, cursor, sort_ascending)
+                    .unwrap_or_else(|error| panic!("{name}: {error}"));
+
+            assert_eq!(key, expected_key, "{name}");
+            assert_get_options_debug(
+                options,
+                limit + 1,
+                &expected_range_end,
+                expected_from_key,
+                expected_prefix,
+                false,
+            );
+        }
+    }
+
+    #[test]
+    fn test_prefix_end_and_descending_prefix_range_helpers_cover_max_byte_prefixes() {
+        assert_eq!(get_prefix_end(b"/app/"), Some(b"/app0".to_vec()));
+        assert_eq!(get_prefix_end(&[0xFF]), None);
+        assert_eq!(
+            range_for_descending_prefix(&[0xFF], b"cursor"),
+            b"cursor".to_vec()
+        );
+    }
+
     #[test]
     fn test_etcd_config_default() {
         let config = EtcdConfig {
@@ -818,11 +1318,12 @@ mod tests {
             skip_verify: true,
         };
 
-        let json = serde_json::to_string(&config).unwrap();
+        let json = serde_json::to_string(&config).expect("serialize etcd config");
         assert!(json.contains("localhost:2379"));
         assert!(json.contains("tls_enabled"));
 
-        let deserialized: EtcdConfig = serde_json::from_str(&json).unwrap();
+        let deserialized: EtcdConfig =
+            serde_json::from_str(&json).expect("deserialize etcd config");
         assert_eq!(deserialized.endpoint, config.endpoint);
         assert_eq!(deserialized.tls_enabled, config.tls_enabled);
     }
@@ -838,10 +1339,89 @@ mod tests {
             lease: 0,
         };
 
-        let json = serde_json::to_string(&key).unwrap();
-        let deserialized: EtcdKey = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&key).expect("serialize etcd key");
+        let deserialized: EtcdKey = serde_json::from_str(&json).expect("deserialize etcd key");
 
         assert_eq!(deserialized.key, key.key);
         assert_eq!(deserialized.mod_revision, key.mod_revision);
+    }
+
+    #[test]
+    fn test_classify_error_auth() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("authentication failed")),
+            ErrorKind::Auth
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("invalid auth token")),
+            ErrorKind::Auth
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("unauthenticated request")),
+            ErrorKind::Auth
+        );
+    }
+
+    #[test]
+    fn test_classify_error_authz() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("permission denied")),
+            ErrorKind::Authz
+        );
+    }
+
+    #[test]
+    fn test_classify_error_transient() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("transport error")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("connection refused")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("timeout")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("io error")),
+            ErrorKind::Transient
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("stream closed")),
+            ErrorKind::Transient
+        );
+    }
+
+    #[test]
+    fn test_classify_error_permanent() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("tls handshake failed")),
+            ErrorKind::Permanent
+        );
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("certificate validation error")),
+            ErrorKind::Permanent
+        );
+    }
+
+    #[test]
+    fn test_classify_error_default_permanent() {
+        assert_eq!(
+            classify_error(&anyhow::anyhow!("some random error")),
+            ErrorKind::Permanent
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires a running etcd instance — will be enabled with testcontainers"]
+    async fn test_cloned_client_reconnect_fails() {
+        let inner_client = Client::connect(["localhost:2379"], None)
+            .await
+            .expect("connect to local etcd for reconnect test");
+        let mut client = EtcdClient::from_client(inner_client);
+        let result = client.reconnect().await;
+        assert!(result.is_err());
     }
 }

@@ -65,6 +65,12 @@ export interface ExportImportKey {
 	lease_id: string | null;
 }
 
+export interface Tab {
+	key: string;
+	scrollPosition: number;
+	snapshot?: EtcdKey;
+}
+
 export interface ExportData {
 	keys: ExportImportKey[];
 }
@@ -99,6 +105,8 @@ interface RecentQuery {
 interface KeysState {
 	keys: EtcdKey[];
 	selectedKey: EtcdKey | null;
+	openTabs: Tab[];
+	activeTab: string | null;
 	searchQuery: string;
 	viewMode: "flat" | "tree";
 	isLoading: boolean;
@@ -134,6 +142,11 @@ interface KeysState {
 	setSearchQuery: (query: string) => void;
 	setViewMode: (mode: "flat" | "tree") => void;
 	setSelectedKey: (key: EtcdKey | null) => void;
+	upsertKey: (key: EtcdKey) => void;
+	addTab: (key: string, snapshot?: EtcdKey) => void;
+	closeTab: (key: string) => void;
+	setActiveTab: (key: string) => void;
+	updateTabScroll: (key: string, scrollPosition: number) => void;
 	setRangeStart: (start: string) => void;
 	setRangeEnd: (end: string) => void;
 	setSortAscending: (ascending: boolean) => void;
@@ -241,6 +254,8 @@ const buildTree = (
 export const useKeysStore = create<KeysState>((set, get) => ({
 	keys: [],
 	selectedKey: null,
+	openTabs: [],
+	activeTab: null,
 	searchQuery: "",
 	viewMode: "flat",
 	isLoading: false,
@@ -283,6 +298,61 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 	setSearchQuery: (query) => set({ searchQuery: query }),
 	setViewMode: (mode) => set({ viewMode: mode }),
 	setSelectedKey: (key) => set({ selectedKey: key }),
+	upsertKey: (key) => {
+		const { keys, expandedNodes, openTabs } = get();
+		const existingKeyOnPage = keys.some((item) => item.key === key.key);
+		const nextTabs = openTabs.map((t) =>
+			t.key === key.key ? { ...t, snapshot: key } : t,
+		);
+
+		if (!existingKeyOnPage) {
+			set({ openTabs: nextTabs });
+			return;
+		}
+
+		const nextKeys = keys.map((item) => (item.key === key.key ? key : item));
+
+		set({
+			keys: nextKeys,
+			treeData: buildTree(nextKeys, expandedNodes),
+			openTabs: nextTabs,
+		});
+	},
+	addTab: (key: string, snapshot?: EtcdKey) => {
+		const { openTabs } = get();
+		if (openTabs.some((t) => t.key === key)) {
+			set({
+				activeTab: key,
+				openTabs: openTabs.map((t) =>
+					t.key === key ? { ...t, snapshot: snapshot ?? t.snapshot } : t,
+				),
+			});
+		} else {
+			set({
+				openTabs: [...openTabs, { key, scrollPosition: 0, snapshot }],
+				activeTab: key,
+			});
+		}
+	},
+	closeTab: (key: string) => {
+		const { openTabs, activeTab } = get();
+		const newTabs = openTabs.filter((t) => t.key !== key);
+		let newActiveTab = activeTab;
+		if (activeTab === key) {
+			newActiveTab =
+				newTabs.length > 0 ? newTabs[newTabs.length - 1].key : null;
+		}
+		set({ openTabs: newTabs, activeTab: newActiveTab });
+	},
+	setActiveTab: (key: string) => set({ activeTab: key }),
+	updateTabScroll: (key: string, scrollPosition: number) => {
+		const { openTabs } = get();
+		set({
+			openTabs: openTabs.map((t) =>
+				t.key === key ? { ...t, scrollPosition } : t,
+			),
+		});
+	},
 	setRangeStart: (start: string) => set({ rangeStart: start }),
 	setRangeEnd: (end: string) => set({ rangeEnd: end }),
 	setSortAscending: (ascending: boolean) => set({ sortAscending: ascending }),
@@ -539,6 +609,7 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			);
 
 			const updatedKey = result.keys.find((k) => k.key === selectedKey.key);
+			const { openTabs } = get();
 			set({
 				keys: result.keys,
 				treeData: buildTree(result.keys, expandedNodes),
@@ -546,6 +617,11 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 				editValue: "",
 				editKeyLeaseId: null,
 				showEditDialog: false,
+				openTabs: updatedKey
+					? openTabs.map((t) =>
+							t.key === updatedKey.key ? { ...t, snapshot: updatedKey } : t,
+						)
+					: openTabs,
 				pagination: {
 					...pagination,
 					hasMore: result.has_more,
@@ -580,11 +656,15 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 				rangeEnd || null,
 			);
 
+			const { openTabs } = get();
 			set({
 				keys: result.keys,
 				treeData: buildTree(result.keys, expandedNodes),
 				selectedKey: null,
 				showDeleteDialog: false,
+				openTabs: openTabs.map((t) =>
+					t.key === selectedKey.key ? { ...t, snapshot: undefined } : t,
+				),
 				pagination: {
 					...pagination,
 					hasMore: result.has_more,
@@ -680,13 +760,20 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 				rangeEnd || null,
 			);
 
+			const deletedKeys = new Set(keysArray);
+			const { openTabs } = get();
 			set({
 				keys: result.keys,
 				treeData: buildTree(result.keys, expandedNodes),
+				selectedKey: null,
 				selectedKeys: new Set(),
+				showDeleteDialog: false,
 				showBulkDeleteDialog: false,
 				isBulkOperationInProgress: false,
 				bulkOperationProgress: 0,
+				openTabs: openTabs.map((t) =>
+					deletedKeys.has(t.key) ? { ...t, snapshot: undefined } : t,
+				),
 				pagination: {
 					...pagination,
 					hasMore: result.has_more,

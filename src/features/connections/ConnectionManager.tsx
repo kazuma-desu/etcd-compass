@@ -72,12 +72,12 @@ export function ConnectionManager({ onConnect }: ConnectionManagerProps) {
 
 	if (!showForm) {
 		return (
-			<div className="flex-1 flex items-center justify-center p-8">
+			<div className="flex-1 flex items-center justify-center p-8 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.08),transparent_26rem)]">
 				<div className="text-center max-w-md">
-					<div className="mx-auto w-24 h-24 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center mb-6">
+					<div className="mx-auto w-24 h-24 bg-primary/10 border border-primary/15 rounded-2xl flex items-center justify-center mb-6 shadow-panel rotate-3">
 						<Database className="w-12 h-12 text-primary" />
 					</div>
-					<h1 className="text-3xl font-semibold mb-3">
+					<h1 className="text-3xl font-semibold tracking-tight mb-3">
 						Welcome to ETCD Desktop
 					</h1>
 					<p className="text-muted-foreground mb-8">
