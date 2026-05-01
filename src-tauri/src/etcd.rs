@@ -1,6 +1,6 @@
 use etcd_client::{
-    Certificate, Client, ConnectOptions, EventType, GetOptions, Identity, PutOptions, SortOrder,
-    SortTarget, WatchOptions,
+    Certificate, Client, ConnectOptions, EventType, GetOptions, GetResponse, Identity, PutOptions,
+    SortOrder, SortTarget, WatchOptions,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -193,6 +193,13 @@ impl EtcdClient {
         }
     }
 
+    pub fn from_client_with_config(client: Client, config: EtcdConfig) -> Self {
+        EtcdClient {
+            client,
+            config: Some(config),
+        }
+    }
+
     pub async fn connect(config: &EtcdConfig) -> anyhow::Result<Self> {
         let mut options = ConnectOptions::new();
 
@@ -295,14 +302,13 @@ impl EtcdClient {
         }
     }
 
-    pub async fn get_all_keys(
-        &mut self,
+    fn build_all_keys_pagination_options(
         limit: i64,
         cursor: Option<String>,
         sort_ascending: bool,
         range_start: Option<String>,
         range_end: Option<String>,
-    ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
+    ) -> (String, GetOptions) {
         let sort_order = if sort_ascending {
             SortOrder::Ascend
         } else {
@@ -310,7 +316,7 @@ impl EtcdClient {
         };
         let page_limit = limit + 1;
 
-        let (key, options) = if let Some(cursor_key) = cursor {
+        if let Some(cursor_key) = cursor {
             if sort_ascending {
                 let key = cursor_key + "\0";
                 let mut opts = GetOptions::new()
@@ -354,18 +360,91 @@ impl EtcdClient {
                 .with_sort(SortTarget::Key, sort_order)
                 .with_all_keys();
             (key, opts)
-        };
+        }
+    }
 
+    fn build_prefix_pagination_options(
+        prefix: &str,
+        limit: i64,
+        cursor: Option<String>,
+        sort_ascending: bool,
+    ) -> (String, GetOptions) {
+        let sort_order = if sort_ascending {
+            SortOrder::Ascend
+        } else {
+            SortOrder::Descend
+        };
+        let page_limit = limit + 1;
+
+        if let Some(cursor_key) = cursor {
+            if sort_ascending {
+                let key = cursor_key + "\0";
+                let mut opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order);
+                if let Some(end) = get_prefix_end(prefix.as_bytes()) {
+                    opts = opts.with_range(end);
+                } else {
+                    opts = opts.with_from_key();
+                }
+                (key, opts)
+            } else {
+                let key = prefix.to_string();
+                let opts = GetOptions::new()
+                    .with_limit(page_limit)
+                    .with_sort(SortTarget::Key, sort_order)
+                    .with_range(range_for_descending_prefix(
+                        prefix.as_bytes(),
+                        cursor_key.as_bytes(),
+                    ));
+                (key, opts)
+            }
+        } else {
+            let key = prefix.to_string();
+            let opts = GetOptions::new()
+                .with_limit(page_limit)
+                .with_sort(SortTarget::Key, sort_order)
+                .with_prefix();
+            (key, opts)
+        }
+    }
+
+    async fn get_with_transient_retry(
+        &mut self,
+        key: String,
+        options: GetOptions,
+        operation_name: &str,
+    ) -> anyhow::Result<GetResponse> {
         let opts = options.clone();
         let result = self.client.get(key.clone(), Some(opts)).await;
-        let resp = match self.execute_op(result, "get_all_keys").await {
-            Ok(r) => r,
+        match self.execute_op(result, operation_name).await {
+            Ok(r) => Ok(r),
             Err(e) if classify_error(&e) == ErrorKind::Transient => {
                 let result = self.client.get(key, Some(options)).await;
-                self.execute_op(result, "get_all_keys").await?
+                self.execute_op(result, operation_name).await
             }
-            Err(e) => return Err(e),
-        };
+            Err(e) => Err(e),
+        }
+    }
+
+    pub async fn get_all_keys(
+        &mut self,
+        limit: i64,
+        cursor: Option<String>,
+        sort_ascending: bool,
+        range_start: Option<String>,
+        range_end: Option<String>,
+    ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
+        let (key, options) = Self::build_all_keys_pagination_options(
+            limit,
+            cursor,
+            sort_ascending,
+            range_start,
+            range_end,
+        );
+        let resp = self
+            .get_with_transient_retry(key, options, "get_all_keys")
+            .await?;
 
         let keys: Vec<EtcdKey> = resp
             .kvs()
@@ -490,55 +569,11 @@ impl EtcdClient {
         cursor: Option<String>,
         sort_ascending: bool,
     ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
-        let sort_order = if sort_ascending {
-            SortOrder::Ascend
-        } else {
-            SortOrder::Descend
-        };
-        let page_limit = limit + 1;
-
-        let (key, options) = if let Some(cursor_key) = cursor {
-            if sort_ascending {
-                let key = cursor_key + "\0";
-                let mut opts = GetOptions::new()
-                    .with_limit(page_limit)
-                    .with_sort(SortTarget::Key, sort_order);
-                if let Some(end) = get_prefix_end(prefix.as_bytes()) {
-                    opts = opts.with_range(end);
-                } else {
-                    opts = opts.with_from_key();
-                }
-                (key, opts)
-            } else {
-                let key = prefix.to_string();
-                let opts = GetOptions::new()
-                    .with_limit(page_limit)
-                    .with_sort(SortTarget::Key, sort_order)
-                    .with_range(range_for_descending_prefix(
-                        prefix.as_bytes(),
-                        cursor_key.as_bytes(),
-                    ));
-                (key, opts)
-            }
-        } else {
-            let key = prefix.to_string();
-            let opts = GetOptions::new()
-                .with_limit(page_limit)
-                .with_sort(SortTarget::Key, sort_order)
-                .with_prefix();
-            (key, opts)
-        };
-
-        let opts = options.clone();
-        let result = self.client.get(key.clone(), Some(opts)).await;
-        let resp = match self.execute_op(result, "get_keys_with_prefix").await {
-            Ok(r) => r,
-            Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                let result = self.client.get(key, Some(options)).await;
-                self.execute_op(result, "get_keys_with_prefix").await?
-            }
-            Err(e) => return Err(e),
-        };
+        let (key, options) =
+            Self::build_prefix_pagination_options(prefix, limit, cursor, sort_ascending);
+        let resp = self
+            .get_with_transient_retry(key, options, "get_keys_with_prefix")
+            .await?;
 
         let keys: Vec<EtcdKey> = resp
             .kvs()
@@ -1018,11 +1053,12 @@ mod tests {
             skip_verify: true,
         };
 
-        let json = serde_json::to_string(&config).unwrap();
+        let json = serde_json::to_string(&config).expect("serialize etcd config");
         assert!(json.contains("localhost:2379"));
         assert!(json.contains("tls_enabled"));
 
-        let deserialized: EtcdConfig = serde_json::from_str(&json).unwrap();
+        let deserialized: EtcdConfig =
+            serde_json::from_str(&json).expect("deserialize etcd config");
         assert_eq!(deserialized.endpoint, config.endpoint);
         assert_eq!(deserialized.tls_enabled, config.tls_enabled);
     }
@@ -1038,8 +1074,8 @@ mod tests {
             lease: 0,
         };
 
-        let json = serde_json::to_string(&key).unwrap();
-        let deserialized: EtcdKey = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&key).expect("serialize etcd key");
+        let deserialized: EtcdKey = serde_json::from_str(&json).expect("deserialize etcd key");
 
         assert_eq!(deserialized.key, key.key);
         assert_eq!(deserialized.mod_revision, key.mod_revision);
@@ -1116,8 +1152,10 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires a running etcd instance — will be enabled with testcontainers"]
     async fn test_cloned_client_reconnect_fails() {
-        let mut client =
-            EtcdClient::from_client(Client::connect(["localhost:2379"], None).await.unwrap());
+        let inner_client = Client::connect(["localhost:2379"], None)
+            .await
+            .expect("connect to local etcd for reconnect test");
+        let mut client = EtcdClient::from_client(inner_client);
         let result = client.reconnect().await;
         assert!(result.is_err());
     }

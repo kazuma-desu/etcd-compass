@@ -274,7 +274,15 @@ async fn delete_keys(
             .ok_or_else(|| format!("Connection '{}' not found", connection_id))?
     };
 
-    let mut client = EtcdClient::from_client(client);
+    let config = {
+        let configs = state.connection_configs.lock().await;
+        configs
+            .get(&connection_id)
+            .cloned()
+            .ok_or_else(|| format!("Connection config '{}' not found", connection_id))?
+    };
+
+    let mut client = EtcdClient::from_client_with_config(client, config);
     let operation_id = Uuid::new_v4().to_string();
     let progress_connection_id = connection_id.clone();
     let progress_callback = move |current: usize, total: usize| {
