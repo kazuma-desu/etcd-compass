@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type React from "react";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock @tauri-apps/plugin-shell
@@ -86,6 +87,7 @@ import { AppShell } from "./AppShell";
 describe("AppShell", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockOpen.mockResolvedValue(undefined);
 		useConnectionStore.setState({
 			connectionId: null,
 			isConnecting: false,
@@ -127,6 +129,21 @@ describe("AppShell", () => {
 		expect(mockOpen).toHaveBeenCalledWith(
 			"https://etcd.io/docs/v3.5/quickstart/",
 		);
+	});
+
+	it("should show an error when Learn More cannot be opened", async () => {
+		mockOpen.mockRejectedValueOnce(new Error("permission denied"));
+		render(<AppShell />);
+
+		const learnMoreButton = screen.getByText("LEARN MORE").closest("button");
+		expect(learnMoreButton).toBeTruthy();
+		if (learnMoreButton) fireEvent.click(learnMoreButton);
+
+		await waitFor(() => {
+			expect(toast.error).toHaveBeenCalledWith(
+				"Unable to open the ETCD quickstart guide.",
+			);
+		});
 	});
 
 	it("should render Add new connection button", () => {

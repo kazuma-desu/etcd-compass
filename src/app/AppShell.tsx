@@ -12,6 +12,7 @@ import {
 	Server,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -155,8 +156,12 @@ function AppShellContent() {
 	const [showHelpDialog, setShowHelpDialog] = useState(false);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 
-	const handleLearnMoreClick = () => {
-		open("https://etcd.io/docs/v3.5/quickstart/");
+	const handleLearnMoreClick = async () => {
+		try {
+			await open("https://etcd.io/docs/v3.5/quickstart/");
+		} catch {
+			toast.error("Unable to open the ETCD quickstart guide.");
+		}
 	};
 
 	useKeyboardShortcuts(
