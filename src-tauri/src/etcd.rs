@@ -141,6 +141,20 @@ fn range_for_descending_prefix(prefix: &[u8], cursor: &[u8]) -> Vec<u8> {
     }
 }
 
+fn validate_pagination_limit(limit: i64) -> anyhow::Result<(i64, usize)> {
+    if limit <= 0 {
+        anyhow::bail!("Pagination limit must be greater than zero");
+    }
+
+    let page_limit = limit
+        .checked_add(1)
+        .ok_or_else(|| anyhow::anyhow!("Pagination limit is too large"))?;
+    let result_limit =
+        usize::try_from(limit).map_err(|_| anyhow::anyhow!("Pagination limit is too large"))?;
+
+    Ok((page_limit, result_limit))
+}
+
 pub fn classify_error(error: &anyhow::Error) -> ErrorKind {
     let error_str = error.to_string().to_lowercase();
 
@@ -308,15 +322,15 @@ impl EtcdClient {
         sort_ascending: bool,
         range_start: Option<String>,
         range_end: Option<String>,
-    ) -> (String, GetOptions) {
+    ) -> anyhow::Result<(String, GetOptions)> {
         let sort_order = if sort_ascending {
             SortOrder::Ascend
         } else {
             SortOrder::Descend
         };
-        let page_limit = limit + 1;
+        let (page_limit, _) = validate_pagination_limit(limit)?;
 
-        if let Some(cursor_key) = cursor {
+        let options = if let Some(cursor_key) = cursor {
             if sort_ascending {
                 let key = cursor_key + "\0";
                 let mut opts = GetOptions::new()
@@ -360,7 +374,9 @@ impl EtcdClient {
                 .with_sort(SortTarget::Key, sort_order)
                 .with_all_keys();
             (key, opts)
-        }
+        };
+
+        Ok(options)
     }
 
     fn build_prefix_pagination_options(
@@ -368,15 +384,15 @@ impl EtcdClient {
         limit: i64,
         cursor: Option<String>,
         sort_ascending: bool,
-    ) -> (String, GetOptions) {
+    ) -> anyhow::Result<(String, GetOptions)> {
         let sort_order = if sort_ascending {
             SortOrder::Ascend
         } else {
             SortOrder::Descend
         };
-        let page_limit = limit + 1;
+        let (page_limit, _) = validate_pagination_limit(limit)?;
 
-        if let Some(cursor_key) = cursor {
+        let options = if let Some(cursor_key) = cursor {
             if sort_ascending {
                 let key = cursor_key + "\0";
                 let mut opts = GetOptions::new()
@@ -406,7 +422,9 @@ impl EtcdClient {
                 .with_sort(SortTarget::Key, sort_order)
                 .with_prefix();
             (key, opts)
-        }
+        };
+
+        Ok(options)
     }
 
     async fn get_with_transient_retry(
@@ -435,13 +453,14 @@ impl EtcdClient {
         range_start: Option<String>,
         range_end: Option<String>,
     ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
+        let (_, result_limit) = validate_pagination_limit(limit)?;
         let (key, options) = Self::build_all_keys_pagination_options(
             limit,
             cursor,
             sort_ascending,
             range_start,
             range_end,
-        );
+        )?;
         let resp = self
             .get_with_transient_retry(key, options, "get_all_keys")
             .await?;
@@ -449,7 +468,7 @@ impl EtcdClient {
         let keys: Vec<EtcdKey> = resp
             .kvs()
             .iter()
-            .take(limit as usize)
+            .take(result_limit)
             .map(|kv| EtcdKey {
                 key: kv.key_str().unwrap_or_default().to_string(),
                 value: kv.value_str().unwrap_or_default().to_string(),
@@ -460,7 +479,7 @@ impl EtcdClient {
             })
             .collect();
 
-        let has_more = resp.kvs().len() > limit as usize;
+        let has_more = resp.kvs().len() > result_limit;
         Ok((keys, has_more))
     }
 
@@ -569,8 +588,9 @@ impl EtcdClient {
         cursor: Option<String>,
         sort_ascending: bool,
     ) -> anyhow::Result<(Vec<EtcdKey>, bool)> {
+        let (_, result_limit) = validate_pagination_limit(limit)?;
         let (key, options) =
-            Self::build_prefix_pagination_options(prefix, limit, cursor, sort_ascending);
+            Self::build_prefix_pagination_options(prefix, limit, cursor, sort_ascending)?;
         let resp = self
             .get_with_transient_retry(key, options, "get_keys_with_prefix")
             .await?;
@@ -578,7 +598,7 @@ impl EtcdClient {
         let keys: Vec<EtcdKey> = resp
             .kvs()
             .iter()
-            .take(limit as usize)
+            .take(result_limit)
             .map(|kv| EtcdKey {
                 key: kv.key_str().unwrap_or_default().to_string(),
                 value: kv.value_str().unwrap_or_default().to_string(),
@@ -589,7 +609,7 @@ impl EtcdClient {
             })
             .collect();
 
-        let has_more = resp.kvs().len() > limit as usize;
+        let has_more = resp.kvs().len() > result_limit;
         Ok((keys, has_more))
     }
 
@@ -888,6 +908,26 @@ impl EtcdClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_validate_pagination_limit_rejects_non_positive_values() {
+        assert!(validate_pagination_limit(0).is_err());
+        assert!(validate_pagination_limit(-1).is_err());
+    }
+
+    #[test]
+    fn test_validate_pagination_limit_rejects_overflowing_page_limit() {
+        assert!(validate_pagination_limit(i64::MAX).is_err());
+    }
+
+    #[test]
+    fn test_validate_pagination_limit_returns_safe_page_and_result_limits() {
+        let (page_limit, result_limit) =
+            validate_pagination_limit(50).expect("validate positive pagination limit");
+
+        assert_eq!(page_limit, 51);
+        assert_eq!(result_limit, 50);
+    }
 
     #[test]
     fn test_etcd_config_default() {
