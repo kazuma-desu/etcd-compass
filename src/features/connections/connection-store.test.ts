@@ -181,8 +181,8 @@ describe("Connection Store", () => {
 			expect(result).toBe(false);
 			expect(useConnectionStore.getState().connectionId).toBeNull();
 			expect(useConnectionStore.getState().isConnecting).toBe(false);
-			expect(useConnectionStore.getState().connectionError).toContain(
-				"Connection refused",
+			expect(useConnectionStore.getState().connectionError).toBe(
+				"Cannot connect to ETCD cluster. Please check if ETCD is running and the endpoint is correct.",
 			);
 		});
 

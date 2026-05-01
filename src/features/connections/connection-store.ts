@@ -164,12 +164,13 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 			toast.success("Connected to ETCD successfully");
 			return true;
 		} catch (error: unknown) {
+			const message = formatError(error);
 			set({
-				connectionError: error instanceof Error ? error.message : String(error),
+				connectionError: message,
 				isConnecting: false,
 				phase: "disconnected",
 			});
-			toast.error(`Failed to connect: ${formatError(error)}`);
+			toast.error(message);
 			return false;
 		}
 	},
