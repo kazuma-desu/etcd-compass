@@ -32,9 +32,10 @@ export function KeyDetail() {
 	const { connectionId } = useConnectionStore();
 	const { addBookmark, removeBookmark, isBookmarked } = useBookmarksStore();
 
-	const activeTabObj = openTabs.find((t) => t.key === activeTab);
+	const resolvedActiveKey = activeTab ?? openTabs[0]?.key;
+	const activeTabObj = openTabs.find((t) => t.key === resolvedActiveKey);
 	const activeKeyData =
-		keys.find((k) => k.key === activeTab) ?? activeTabObj?.snapshot;
+		keys.find((k) => k.key === resolvedActiveKey) ?? activeTabObj?.snapshot;
 
 	useEffect(() => {
 		setSelectedKey(activeKeyData ?? null);
@@ -55,7 +56,6 @@ export function KeyDetail() {
 		activeKeyData && connectionId
 			? isBookmarked(connectionId, activeKeyData.key)
 			: false;
-	const activeContentValue = activeTab ?? openTabs[0]?.key;
 	const bookmarkActionLabel = bookmarked ? "Remove bookmark" : "Add bookmark";
 
 	const toggleBookmark = () => {
@@ -70,7 +70,7 @@ export function KeyDetail() {
 	return (
 		<TooltipProvider delayDuration={300}>
 			<Tabs
-				value={activeTab || undefined}
+				value={resolvedActiveKey || undefined}
 				onValueChange={setActiveTab}
 				className="h-full"
 			>
@@ -100,8 +100,8 @@ export function KeyDetail() {
 					</TabsList>
 				</div>
 
-				{activeContentValue && (
-					<TabsContent value={activeContentValue} className="p-6 space-y-6">
+				{resolvedActiveKey && (
+					<TabsContent value={resolvedActiveKey} className="p-6 space-y-6">
 						{activeKeyData ? (
 							<>
 								<div className="flex items-center justify-between">
