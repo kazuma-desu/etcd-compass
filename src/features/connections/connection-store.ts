@@ -131,7 +131,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 	},
 
 	connect: async () => {
-		const { config } = get();
+		const { config, connectionId: existingConnectionId, phase } = get();
 		const hasUsername = Boolean(config.username);
 		const hasPassword = Boolean(config.password);
 		if (hasUsername !== hasPassword) {
@@ -146,6 +146,30 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 		}
 
 		const hasCredentials = hasUsername && hasPassword;
+		if (existingConnectionId) {
+			try {
+				await disconnectEtcd(existingConnectionId);
+				set({
+					connectionId: null,
+					phase: "disconnected",
+					phaseOrder: buildConnectionPhaseOrder(false),
+				});
+			} catch (error: unknown) {
+				const message = `Failed to disconnect existing session: ${formatError(error)}`;
+				set({
+					connectionError: message,
+					isConnecting: false,
+				});
+				toast.error(message);
+				return false;
+			}
+		} else if (phase !== "disconnected") {
+			const message = "A connection attempt is already in progress.";
+			set({ connectionError: message, isConnecting: false });
+			toast.error(message);
+			return false;
+		}
+
 		set({
 			isConnecting: true,
 			connectionError: "",

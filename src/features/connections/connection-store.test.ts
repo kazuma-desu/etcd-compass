@@ -172,6 +172,73 @@ describe("Connection Store", () => {
 			expect(useConnectionStore.getState().connectionError).toBe("");
 		});
 
+		it("should disconnect an existing session before reconnecting", async () => {
+			useConnectionStore.setState({
+				connectionId: "old-connection",
+				phase: "connected",
+			});
+			mockInvoke.mockResolvedValueOnce(undefined);
+			mockInvoke.mockResolvedValueOnce("new-connection");
+
+			const { connect } = useConnectionStore.getState();
+			const result = await connect();
+
+			expect(result).toBe(true);
+			expect(mockInvoke).toHaveBeenNthCalledWith(1, "disconnect_etcd", {
+				connectionId: "old-connection",
+			});
+			expect(mockInvoke).toHaveBeenNthCalledWith(2, "connect_etcd", {
+				endpoint: "localhost:2379",
+				username: null,
+				password: null,
+				tlsEnabled: false,
+				caCertPath: null,
+				clientCertPath: null,
+				clientKeyPath: null,
+				skipVerify: false,
+			});
+			expect(useConnectionStore.getState().connectionId).toBe("new-connection");
+			expect(useConnectionStore.getState().phase).toBe("connected");
+		});
+
+		it("should preserve an existing session when teardown fails before reconnecting", async () => {
+			useConnectionStore.setState({
+				connectionId: "old-connection",
+				phase: "connected",
+			});
+			mockInvoke.mockRejectedValueOnce(new Error("disconnect failed"));
+
+			const { connect } = useConnectionStore.getState();
+			const result = await connect();
+
+			expect(result).toBe(false);
+			expect(mockInvoke).toHaveBeenCalledTimes(1);
+			expect(mockInvoke).toHaveBeenCalledWith("disconnect_etcd", {
+				connectionId: "old-connection",
+			});
+			expect(useConnectionStore.getState().connectionId).toBe("old-connection");
+			expect(useConnectionStore.getState().phase).toBe("connected");
+			expect(useConnectionStore.getState().connectionError).toBe(
+				"Failed to disconnect existing session: disconnect failed",
+			);
+		});
+
+		it("should reject a new connection while another connection attempt is in progress", async () => {
+			useConnectionStore.setState({
+				connectionId: null,
+				phase: "connecting",
+			});
+
+			const { connect } = useConnectionStore.getState();
+			const result = await connect();
+
+			expect(result).toBe(false);
+			expect(mockInvoke).not.toHaveBeenCalled();
+			expect(useConnectionStore.getState().connectionError).toBe(
+				"A connection attempt is already in progress.",
+			);
+		});
+
 		it("should handle connection failure", async () => {
 			mockInvoke.mockRejectedValueOnce(new Error("Connection refused"));
 
