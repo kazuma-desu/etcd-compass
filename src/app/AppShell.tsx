@@ -49,7 +49,6 @@ const phaseLabels: Record<ConnectionPhase, string> = {
 	disconnected: "Disconnected",
 	connecting: "Establishing connection",
 	authenticating: "Authenticating",
-	"fetching-keys": "Fetching keys",
 	connected: "Connected",
 };
 

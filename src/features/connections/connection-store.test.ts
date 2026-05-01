@@ -41,7 +41,7 @@ describe("Connection Store", () => {
 			expect(state.connectionHistory).toEqual([]);
 			expect(state.showPassword).toBe(false);
 			expect(state.showHistory).toBe(false);
-			expect(state.phaseOrder).toEqual(["connecting", "fetching-keys"]);
+			expect(state.phaseOrder).toEqual(["connecting"]);
 		});
 
 		it("should update config with setConfig", () => {
@@ -256,6 +256,33 @@ describe("Connection Store", () => {
 				clientKeyPath: null,
 				skipVerify: false,
 			});
+		});
+
+		it("should reject partial credentials before connecting", async () => {
+			useConnectionStore.setState({
+				config: {
+					endpoint: "test-server:2379",
+					username: "test-user",
+					password: "",
+					tls_enabled: false,
+					ca_cert_path: "",
+					client_cert_path: "",
+					client_key_path: "",
+					skip_verify: false,
+				},
+			});
+
+			const { connect } = useConnectionStore.getState();
+			const result = await connect();
+
+			expect(result).toBe(false);
+			expect(useConnectionStore.getState().connectionError).toBe(
+				"Username and password must be provided together.",
+			);
+			expect(mockInvoke).not.toHaveBeenCalledWith(
+				"connect_etcd",
+				expect.any(Object),
+			);
 		});
 
 		it("should pass null for empty credentials", async () => {

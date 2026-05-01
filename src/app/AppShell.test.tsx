@@ -165,7 +165,7 @@ describe("AppShell", () => {
 
 		expect(screen.getByText("Connecting to ETCD")).toBeInTheDocument();
 		expect(screen.getAllByText("Establishing connection")).toHaveLength(2);
-		expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+		expect(screen.getByText("Step 1 of 1")).toBeInTheDocument();
 		expect(screen.queryByText("Authenticating")).not.toBeInTheDocument();
 	});
 
@@ -191,7 +191,7 @@ describe("AppShell", () => {
 
 		expect(screen.getByText("Connecting to ETCD")).toBeInTheDocument();
 		expect(screen.getAllByText("Authenticating")).toHaveLength(2);
-		expect(screen.getByText("Step 2 of 3")).toBeInTheDocument();
+		expect(screen.getByText("Step 2 of 2")).toBeInTheDocument();
 	});
 
 	it("should render key browser when connected", () => {

@@ -47,7 +47,6 @@ export type ConnectionPhase =
 	| "disconnected"
 	| "connecting"
 	| "authenticating"
-	| "fetching-keys"
 	| "connected";
 
 export function buildConnectionPhaseOrder(
@@ -57,7 +56,6 @@ export function buildConnectionPhaseOrder(
 	if (hasCredentials) {
 		order.push("authenticating");
 	}
-	order.push("fetching-keys");
 	return order;
 }
 
@@ -134,7 +132,20 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 
 	connect: async () => {
 		const { config } = get();
-		const hasCredentials = Boolean(config.username || config.password);
+		const hasUsername = Boolean(config.username);
+		const hasPassword = Boolean(config.password);
+		if (hasUsername !== hasPassword) {
+			const message = "Username and password must be provided together.";
+			set({
+				connectionError: message,
+				isConnecting: false,
+				phase: "disconnected",
+			});
+			toast.error(message);
+			return false;
+		}
+
+		const hasCredentials = hasUsername && hasPassword;
 		set({
 			isConnecting: true,
 			connectionError: "",
@@ -148,8 +159,6 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 			}
 
 			const connectionId = await connectEtcd(config);
-
-			set({ phase: "fetching-keys" });
 
 			set({ connectionId, isConnecting: false, phase: "connected" });
 			toast.success("Connected to ETCD successfully");
