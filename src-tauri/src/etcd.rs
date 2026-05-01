@@ -485,15 +485,9 @@ impl EtcdClient {
 
     pub async fn get_key(&mut self, key: &str) -> anyhow::Result<Option<EtcdKey>> {
         let key = key.to_string();
-        let result = self.client.get(key.clone(), None).await;
-        let resp = match self.execute_op(result, "get_key").await {
-            Ok(r) => r,
-            Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                let result = self.client.get(key, None).await;
-                self.execute_op(result, "get_key").await?
-            }
-            Err(e) => return Err(e),
-        };
+        let resp = self
+            .get_with_transient_retry(key, GetOptions::new(), "get_key")
+            .await?;
 
         Ok(resp.kvs().first().map(|kv| EtcdKey {
             key: kv.key_str().unwrap_or_default().to_string(),
@@ -521,15 +515,9 @@ impl EtcdClient {
         let result = self.client.put(k.clone(), v.clone(), Some(opts)).await;
         self.execute_op(result, "put_key").await?;
 
-        let result = self.client.get(k.clone(), None).await;
-        let resp = match self.execute_op(result, "put_key (verify)").await {
-            Ok(r) => r,
-            Err(e) if classify_error(&e) == ErrorKind::Transient => {
-                let result = self.client.get(k, None).await;
-                self.execute_op(result, "put_key (verify)").await?
-            }
-            Err(e) => return Err(e),
-        };
+        let resp = self
+            .get_with_transient_retry(k, GetOptions::new(), "put_key (verify)")
+            .await?;
 
         resp.kvs()
             .first()
@@ -909,6 +897,38 @@ impl EtcdClient {
 mod tests {
     use super::*;
 
+    fn assert_get_options_debug(
+        options: GetOptions,
+        expected_limit: i64,
+        expected_range_end: &[u8],
+        expected_from_key: bool,
+        expected_prefix: bool,
+        expected_all_keys: bool,
+    ) {
+        let debug = format!("{options:?}");
+
+        assert!(
+            debug.contains(&format!("limit: {expected_limit}")),
+            "expected limit {expected_limit} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("range_end: {expected_range_end:?}")),
+            "expected range_end {expected_range_end:?} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("with_from_key: {expected_from_key}")),
+            "expected with_from_key {expected_from_key} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("with_prefix: {expected_prefix}")),
+            "expected with_prefix {expected_prefix} in {debug}",
+        );
+        assert!(
+            debug.contains(&format!("with_all_keys: {expected_all_keys}")),
+            "expected with_all_keys {expected_all_keys} in {debug}",
+        );
+    }
+
     #[test]
     fn test_validate_pagination_limit_rejects_non_positive_values() {
         assert!(validate_pagination_limit(0).is_err());
@@ -927,6 +947,211 @@ mod tests {
 
         assert_eq!(page_limit, 51);
         assert_eq!(result_limit, 50);
+    }
+
+    #[test]
+    fn test_all_keys_pagination_options_cover_cursor_and_range_branches() {
+        let cases = vec![
+            (
+                "ascending cursor without range end uses from_key after cursor",
+                10,
+                Some("/b".to_string()),
+                true,
+                None,
+                None,
+                "/b\0".to_string(),
+                Vec::new(),
+                true,
+                false,
+                false,
+            ),
+            (
+                "ascending cursor with range end keeps bounded range",
+                10,
+                Some("/b".to_string()),
+                true,
+                None,
+                Some("/z".to_string()),
+                "/b\0".to_string(),
+                b"/z".to_vec(),
+                false,
+                false,
+                false,
+            ),
+            (
+                "descending cursor uses range_start and cursor range",
+                10,
+                Some("/m".to_string()),
+                false,
+                Some("/a".to_string()),
+                None,
+                "/a".to_string(),
+                b"/m".to_vec(),
+                false,
+                false,
+                false,
+            ),
+            (
+                "start-only range without cursor uses from_key",
+                10,
+                None,
+                true,
+                Some("/a".to_string()),
+                None,
+                "/a".to_string(),
+                Vec::new(),
+                true,
+                false,
+                false,
+            ),
+            (
+                "end-only range starts from null key",
+                10,
+                None,
+                true,
+                None,
+                Some("/z".to_string()),
+                "\0".to_string(),
+                b"/z".to_vec(),
+                false,
+                false,
+                false,
+            ),
+            (
+                "unbounded range requests all keys",
+                10,
+                None,
+                true,
+                None,
+                None,
+                "\0".to_string(),
+                Vec::new(),
+                false,
+                false,
+                true,
+            ),
+        ];
+
+        for (
+            name,
+            limit,
+            cursor,
+            sort_ascending,
+            range_start,
+            range_end,
+            expected_key,
+            expected_range_end,
+            expected_from_key,
+            expected_prefix,
+            expected_all_keys,
+        ) in cases
+        {
+            let (key, options) = EtcdClient::build_all_keys_pagination_options(
+                limit,
+                cursor,
+                sort_ascending,
+                range_start,
+                range_end,
+            )
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+
+            assert_eq!(key, expected_key, "{name}");
+            assert_get_options_debug(
+                options,
+                limit + 1,
+                &expected_range_end,
+                expected_from_key,
+                expected_prefix,
+                expected_all_keys,
+            );
+        }
+    }
+
+    #[test]
+    fn test_prefix_pagination_options_cover_prefix_end_branches() {
+        let cases = vec![
+            (
+                "ascending cursor with finite prefix uses prefix end range",
+                "/app/",
+                25,
+                Some("/app/key".to_string()),
+                true,
+                "/app/key\0".to_string(),
+                b"/app0".to_vec(),
+                false,
+                false,
+            ),
+            (
+                "descending cursor inside prefix ranges to cursor",
+                "/app/",
+                25,
+                Some("/app/key".to_string()),
+                false,
+                "/app/".to_string(),
+                b"/app/key".to_vec(),
+                false,
+                false,
+            ),
+            (
+                "descending cursor outside prefix ranges to prefix end",
+                "/app/",
+                25,
+                Some("/other/key".to_string()),
+                false,
+                "/app/".to_string(),
+                b"/app0".to_vec(),
+                false,
+                false,
+            ),
+            (
+                "prefix without cursor uses with_prefix",
+                "/app/",
+                25,
+                None,
+                true,
+                "/app/".to_string(),
+                Vec::new(),
+                false,
+                true,
+            ),
+        ];
+
+        for (
+            name,
+            prefix,
+            limit,
+            cursor,
+            sort_ascending,
+            expected_key,
+            expected_range_end,
+            expected_from_key,
+            expected_prefix,
+        ) in cases
+        {
+            let (key, options) =
+                EtcdClient::build_prefix_pagination_options(prefix, limit, cursor, sort_ascending)
+                    .unwrap_or_else(|error| panic!("{name}: {error}"));
+
+            assert_eq!(key, expected_key, "{name}");
+            assert_get_options_debug(
+                options,
+                limit + 1,
+                &expected_range_end,
+                expected_from_key,
+                expected_prefix,
+                false,
+            );
+        }
+    }
+
+    #[test]
+    fn test_prefix_end_and_descending_prefix_range_helpers_cover_max_byte_prefixes() {
+        assert_eq!(get_prefix_end(b"/app/"), Some(b"/app0".to_vec()));
+        assert_eq!(get_prefix_end(&[0xFF]), None);
+        assert_eq!(
+            range_for_descending_prefix(&[0xFF], b"cursor"),
+            b"cursor".to_vec()
+        );
     }
 
     #[test]
