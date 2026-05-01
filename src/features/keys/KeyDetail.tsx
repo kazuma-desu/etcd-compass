@@ -32,7 +32,8 @@ export function KeyDetail() {
 	const { connectionId } = useConnectionStore();
 	const { addBookmark, removeBookmark, isBookmarked } = useBookmarksStore();
 
-	const resolvedActiveKey = activeTab ?? openTabs[0]?.key;
+	const hasActiveTab = openTabs.some((tab) => tab.key === activeTab);
+	const resolvedActiveKey = hasActiveTab ? activeTab : openTabs[0]?.key;
 	const activeTabObj = openTabs.find((t) => t.key === resolvedActiveKey);
 	const activeKeyData =
 		keys.find((k) => k.key === resolvedActiveKey) ?? activeTabObj?.snapshot;
