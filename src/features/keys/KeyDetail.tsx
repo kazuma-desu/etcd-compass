@@ -55,6 +55,8 @@ export function KeyDetail() {
 		activeKeyData && connectionId
 			? isBookmarked(connectionId, activeKeyData.key)
 			: false;
+	const activeContentValue = activeTab ?? openTabs[0]?.key;
+	const bookmarkActionLabel = bookmarked ? "Remove bookmark" : "Add bookmark";
 
 	const toggleBookmark = () => {
 		if (!connectionId || !activeKeyData) return;
@@ -98,8 +100,8 @@ export function KeyDetail() {
 					</TabsList>
 				</div>
 
-				{openTabs.map((tab) => (
-					<TabsContent key={tab.key} value={tab.key} className="p-6 space-y-6">
+				{activeContentValue && (
+					<TabsContent value={activeContentValue} className="p-6 space-y-6">
 						{activeKeyData ? (
 							<>
 								<div className="flex items-center justify-between">
@@ -116,6 +118,9 @@ export function KeyDetail() {
 														size="icon"
 														onClick={toggleBookmark}
 														className="shrink-0"
+														aria-label={bookmarkActionLabel}
+														aria-pressed={bookmarked}
+														title={bookmarkActionLabel}
 													>
 														<Star
 															className={`w-4 h-4 ${
@@ -127,9 +132,7 @@ export function KeyDetail() {
 													</Button>
 												</TooltipTrigger>
 												<TooltipContent side="bottom">
-													<span>
-														{bookmarked ? "Remove bookmark" : "Add bookmark"}
-													</span>
+													<span>{bookmarkActionLabel}</span>
 												</TooltipContent>
 											</Tooltip>
 										)}
@@ -239,7 +242,7 @@ export function KeyDetail() {
 							</div>
 						)}
 					</TabsContent>
-				))}
+				)}
 			</Tabs>
 		</TooltipProvider>
 	);
