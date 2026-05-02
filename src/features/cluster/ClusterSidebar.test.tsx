@@ -8,6 +8,12 @@ const mockImportConnections = vi.fn().mockResolvedValue(undefined);
 const mockListConnections = vi.fn().mockResolvedValue([]);
 const mockOpenFileDialog = vi.fn();
 const mockReadFile = vi.fn();
+const mockDisconnectEtcd = vi.fn();
+const mockUseConnectionStore = vi.fn().mockReturnValue({
+	connectionId: null,
+	disconnect: vi.fn(),
+	setActiveConnectionId: vi.fn(),
+});
 
 vi.mock("@/commands/config", () => ({
 	getConnectionHistory: (...args: unknown[]) =>
@@ -19,7 +25,7 @@ vi.mock("@/commands/config", () => ({
 }));
 
 vi.mock("@/commands/connection", () => ({
-	disconnectEtcd: vi.fn(),
+	disconnectEtcd: (...args: unknown[]) => mockDisconnectEtcd(...args),
 	listConnections: (...args: unknown[]) => mockListConnections(...args),
 }));
 
@@ -31,11 +37,7 @@ vi.mock("@/commands/native", () => ({
 }));
 
 vi.mock("@/features/connections/connection-store", () => ({
-	useConnectionStore: () => ({
-		connectionId: null,
-		disconnect: vi.fn(),
-		setActiveConnectionId: vi.fn(),
-	}),
+	useConnectionStore: (...args: unknown[]) => mockUseConnectionStore(...args),
 }));
 
 // Minimal sidebar context mock
@@ -96,6 +98,11 @@ describe("ClusterSidebar", () => {
 		vi.clearAllMocks();
 		mockGetConnectionHistory.mockResolvedValue([]);
 		mockListConnections.mockResolvedValue([]);
+		mockUseConnectionStore.mockReturnValue({
+			connectionId: null,
+			disconnect: vi.fn(),
+			setActiveConnectionId: vi.fn(),
+		});
 	});
 
 	it("should render the sidebar with Compass header", () => {
@@ -287,6 +294,36 @@ describe("ClusterSidebar", () => {
 			expect(toast.error).toHaveBeenCalledWith(
 				"Failed to refresh cluster list",
 			);
+		});
+	});
+
+	it("should call disconnectEtcd exactly once when disconnecting active connection", async () => {
+		const mockDisconnectStore = vi.fn();
+		mockDisconnectEtcd.mockResolvedValue(undefined);
+		mockUseConnectionStore.mockReturnValue({
+			connectionId: "conn-123",
+			disconnect: mockDisconnectStore,
+			setActiveConnectionId: vi.fn(),
+		});
+		mockListConnections.mockResolvedValue([["conn-123", "localhost:2379"]]);
+		mockGetConnectionHistory.mockResolvedValue([
+			{ endpoint: "localhost:2379", name: "Test Cluster" },
+		]);
+
+		render(<ClusterSidebar {...defaultProps} />);
+
+		await waitFor(() => {
+			expect(screen.getByText("Test Cluster")).toBeInTheDocument();
+		});
+
+		const disconnectButton = screen.getByText("Disconnect");
+		fireEvent.click(disconnectButton);
+
+		await waitFor(() => {
+			expect(mockDisconnectEtcd).toHaveBeenCalledTimes(1);
+			expect(mockDisconnectEtcd).toHaveBeenCalledWith("conn-123");
+			expect(mockDisconnectStore).not.toHaveBeenCalled();
+			expect(toast.success).toHaveBeenCalledWith("Disconnected from cluster");
 		});
 	});
 });

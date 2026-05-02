@@ -1,6 +1,7 @@
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { Activity, Clock, Eye, EyeOff, FileText, Key } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { WatchEvent } from "@/commands/types";
 import { onWatchEvent, unwatchKey, watchKey } from "@/commands/watch";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,7 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 				isWatching: true,
 			}));
 		} catch (error) {
-			console.error("Failed to start watch:", error);
+			toast.error("Failed to start watch");
 		} finally {
 			setIsWatchPending(false);
 		}
@@ -71,7 +72,7 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 				isWatching: false,
 			}));
 		} catch (error) {
-			console.error("Failed to stop watch:", error);
+			toast.error("Failed to stop watch");
 		} finally {
 			setIsWatchPending(false);
 		}
@@ -98,7 +99,9 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 			setUnlisten(() => unlistenFn);
 		};
 
-		setupListener();
+		setupListener().catch(() => {
+			toast.error("Failed to set up watch listener");
+		});
 
 		return () => {
 			if (unlistenFn) {
@@ -110,7 +113,9 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 	useEffect(() => {
 		return () => {
 			if (watchState.isWatching && watchState.watchId) {
-				unwatchKey(watchState.watchId).catch(console.error);
+				unwatchKey(watchState.watchId).catch(() => {
+					toast.error("Failed to clean up watch on unmount");
+				});
 			}
 			if (unlisten) {
 				unlisten();

@@ -46,6 +46,7 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DEFAULT_ENDPOINT } from "@/shared/constants";
 import { cn } from "@/shared/utils";
 import {
 	type ConnectionFormValues,
@@ -317,7 +318,7 @@ export function ConnectionForm({
 											<FormItem>
 												<FormLabel>Endpoint *</FormLabel>
 												<FormControl>
-													<Input placeholder="localhost:2379" {...field} />
+													<Input placeholder={DEFAULT_ENDPOINT} {...field} />
 												</FormControl>
 												<FormDescription>
 													ETCD server endpoint (host:port)

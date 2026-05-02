@@ -17,6 +17,7 @@ interface ClusterState {
 	autoRefresh: boolean;
 	refreshInterval: number | null;
 	refreshIntervalMs: number;
+	refreshConnectionId: string | null;
 	metricsHistory: MetricsDataPoint[];
 	fetchStatus: (connectionId: string) => Promise<void>;
 	setAutoRefresh: (enabled: boolean, connectionId?: string) => void;
@@ -34,6 +35,7 @@ export const useClusterStore = create<ClusterState>((set, get) => ({
 	autoRefresh: false,
 	refreshInterval: null,
 	refreshIntervalMs: DEFAULT_REFRESH_INTERVAL_MS,
+	refreshConnectionId: null,
 	metricsHistory: [],
 
 	fetchStatus: async (connectionId: string) => {
@@ -82,9 +84,9 @@ export const useClusterStore = create<ClusterState>((set, get) => ({
 			const interval = window.setInterval(() => {
 				get().fetchStatus(connectionId);
 			}, refreshIntervalMs);
-			set({ autoRefresh: true, refreshInterval: interval });
+			set({ autoRefresh: true, refreshInterval: interval, refreshConnectionId: connectionId });
 		} else {
-			set({ autoRefresh: false, refreshInterval: null });
+			set({ autoRefresh: false, refreshInterval: null, refreshConnectionId: null });
 		}
 	},
 
@@ -104,7 +106,7 @@ export const useClusterStore = create<ClusterState>((set, get) => ({
 			const interval = window.setInterval(() => {
 				get().fetchStatus(connectionId);
 			}, intervalMs);
-			set({ refreshInterval: interval });
+			set({ refreshInterval: interval, refreshConnectionId: connectionId });
 		}
 	},
 

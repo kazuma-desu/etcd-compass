@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DEFAULT_ENDPOINT } from "@/shared/constants";
 import { useKeysStore } from "@/features/keys/keys-store";
 import { useConnectionStore } from "./connection-store";
 
@@ -138,7 +139,7 @@ export function ConnectionManager({ onConnect }: ConnectionManagerProps) {
 						</Label>
 						<Input
 							id="endpoint"
-							placeholder="localhost:2379"
+							placeholder={DEFAULT_ENDPOINT}
 							value={config.endpoint}
 							onChange={(e) =>
 								setConfig({ ...config, endpoint: e.target.value })

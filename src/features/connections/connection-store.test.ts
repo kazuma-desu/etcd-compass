@@ -152,7 +152,7 @@ describe("Connection Store", () => {
 			await loadSavedConnection();
 
 			expect(useConnectionStore.getState().config).toEqual({
-				endpoint: "localhost:2379",
+				endpoint: "",
 				username: "",
 				password: "",
 			});
@@ -275,7 +275,7 @@ describe("Connection Store", () => {
 
 			expect(useConnectionStore.getState().connectionId).toBeNull();
 			expect(useConnectionStore.getState().config).toEqual({
-				endpoint: "localhost:2379",
+				endpoint: "",
 				username: "",
 				password: "",
 				tls_enabled: false,

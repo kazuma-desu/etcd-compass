@@ -137,7 +137,9 @@ export function ClusterSidebar({
 
 			setConnections(
 				history.map((config) => ({
-					id: endpointToId.get(config.endpoint) || config.endpoint,
+					id:
+						endpointToId.get(config.endpoint) ||
+						crypto.randomUUID(),
 					endpoint: config.endpoint,
 					name: config.name,
 					color: config.color,
@@ -161,9 +163,6 @@ export function ClusterSidebar({
 	const handleDisconnect = async (id: string) => {
 		try {
 			await disconnectEtcd(id);
-			if (id === connectionId) {
-				await disconnect();
-			}
 			await loadConnections();
 			toast.success("Disconnected from cluster");
 		} catch (_e) {

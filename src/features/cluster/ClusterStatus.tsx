@@ -216,15 +216,15 @@ export function ClusterStatus({ connectionId }: ClusterStatusProps) {
 
 	useEffect(() => {
 		fetchStatus(connectionId);
-		return () => {
-			setAutoRefresh(false);
-		};
-	}, [connectionId, fetchStatus, setAutoRefresh]);
+	}, [connectionId, fetchStatus]);
 
 	useEffect(() => {
 		if (autoRefresh) {
 			setAutoRefresh(true, connectionId);
 		}
+		return () => {
+			setAutoRefresh(false);
+		};
 	}, [connectionId, autoRefresh, setAutoRefresh]);
 
 	if (loading && !status) {

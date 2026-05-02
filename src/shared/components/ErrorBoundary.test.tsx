@@ -4,8 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 class ThrowError extends Component<{ readonly message: string }> {
+	private hasThrown = false;
 	render(): ReactNode {
-		throw new Error(this.props.message);
+		if (!this.hasThrown) {
+			this.hasThrown = true;
+			throw new Error(this.props.message);
+		}
+		return null;
 	}
 }
 
