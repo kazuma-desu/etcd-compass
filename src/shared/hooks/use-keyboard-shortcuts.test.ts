@@ -172,4 +172,35 @@ describe("Keyboard Shortcuts", () => {
 			expect(onSelectTab).not.toHaveBeenCalled();
 		});
 	});
+
+	describe("Regression: safe navigator.platform access", () => {
+		it("should not crash when navigator.platform is undefined", async () => {
+			const originalNavigator = globalThis.navigator;
+
+			globalThis.navigator = {} as Navigator;
+
+			vi.resetModules();
+
+			const mod = await import("./use-keyboard-shortcuts");
+			expect(mod.getIsMac()).toBe(false);
+			expect(mod.modifierKey).toBe("Ctrl");
+
+			globalThis.navigator = originalNavigator;
+		});
+
+		it("should not crash when navigator is undefined", async () => {
+			const originalNavigator = globalThis.navigator;
+
+			// @ts-expect-error - intentionally removing navigator for test
+			globalThis.navigator = undefined;
+
+			vi.resetModules();
+
+			const mod = await import("./use-keyboard-shortcuts");
+			expect(mod.getIsMac()).toBe(false);
+			expect(mod.modifierKey).toBe("Ctrl");
+
+			globalThis.navigator = originalNavigator;
+		});
+	});
 });
