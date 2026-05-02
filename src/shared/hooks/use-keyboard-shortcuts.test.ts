@@ -239,7 +239,7 @@ describe("Keyboard Shortcuts", () => {
 
 		it("should NOT fire shortcuts when a dialog is open", () => {
 			useKeysStore.setState({
-				selectedKey: { key: "test", value: "val", version: "1" },
+				selectedKey: { key: "test", value: "val", version: 1, create_revision: 1, mod_revision: 1, lease: 0 },
 				refreshKeys: mockRefreshKeys,
 				setShowDeleteDialog: mockSetShowDeleteDialog,
 			});

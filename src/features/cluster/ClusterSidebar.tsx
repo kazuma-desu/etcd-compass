@@ -156,6 +156,7 @@ export function ClusterSidebar({
 		}
 	}, []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentional - sidebar must refresh when connection history changes
 	useEffect(() => {
 		loadConnections();
 	}, [loadConnections, connectionHistory?.length]);

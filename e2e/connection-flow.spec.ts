@@ -1,90 +1,11 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { clearEtcd, setupEtcdMock } from "./fixtures";
 
-/**
- * Mocks Tauri `invoke` APIs so E2E tests can exercise connection flows
- * without a real etcd backend or Tauri runtime.
- */
-async function setupTauriMock(page: Page) {
-	await page.addInitScript(() => {
-		const mockConnections = new Map<string, string>();
-		const mockHistory: Array<Record<string, unknown>> = [];
-
-		(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {
-			invoke: async (cmd: string, args: Record<string, unknown>) => {
-				switch (cmd) {
-					case "connect_etcd": {
-						const id = `conn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-						mockConnections.set(id, args.endpoint as string);
-						mockHistory.push({
-							endpoint: args.endpoint,
-							name: args.name || args.endpoint,
-							username: args.username,
-							password: args.password,
-							tls_enabled: args.tlsEnabled,
-							ca_cert_path: args.caCertPath,
-							client_cert_path: args.clientCertPath,
-							client_key_path: args.clientKeyPath,
-							skip_verify: args.skipVerify,
-							isFavorite: false,
-						});
-						return id;
-					}
-					case "disconnect_etcd": {
-						for (const [id] of mockConnections) {
-							if (id === args.connectionId) {
-								mockConnections.delete(id);
-								break;
-							}
-						}
-						return "disconnected";
-					}
-					case "test_connection": {
-						if (
-							!args.endpoint ||
-							(args.endpoint as string).includes("invalid")
-						) {
-							throw new Error(
-								"Connection refused: unable to connect to endpoint",
-							);
-						}
-						return "ok";
-					}
-					case "save_connection":
-						return;
-					case "get_connection_history":
-						return mockHistory;
-					case "list_connections":
-						return Array.from(mockConnections.entries());
-					case "get_saved_connection":
-						return mockHistory[0] || null;
-					case "remove_from_history": {
-						const idx = mockHistory.findIndex(
-							(h) => h.endpoint === args.endpoint,
-						);
-						if (idx >= 0) mockHistory.splice(idx, 1);
-						return;
-					}
-					case "update_connection_favorite": {
-						const hist = mockHistory.find(
-							(h) => h.endpoint === args.endpoint,
-						);
-						if (hist) hist.isFavorite = args.isFavorite;
-						return;
-					}
-					case "duplicate_connection":
-						return;
-					case "import_connections":
-						return;
-					default:
-						throw new Error(`Unknown command: ${cmd}`);
-				}
-			},
-		};
-	});
-}
+const etcdEndpoint = process.env.ETCD_ENDPOINT ?? "http://localhost:2379";
 
 test.beforeEach(async ({ page }) => {
-	await setupTauriMock(page);
+	await clearEtcd(etcdEndpoint);
+	await setupEtcdMock(page, etcdEndpoint);
 	await page.goto("/");
 });
 

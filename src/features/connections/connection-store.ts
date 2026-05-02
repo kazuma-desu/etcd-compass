@@ -3,7 +3,6 @@ import { create } from "zustand";
 import { getConnectionHistory, getSavedConnection } from "@/commands/config";
 import { connectEtcd, disconnectEtcd } from "@/commands/connection";
 import type { EtcdConfig } from "@/commands/types";
-import { DEFAULT_ENDPOINT } from "@/shared/constants";
 
 function formatError(error: unknown): string {
 	const errorStr = error instanceof Error ? error.message : String(error);

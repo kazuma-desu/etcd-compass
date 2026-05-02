@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // =============================================================================
 // REGRESSION TEST: Cluster Auto-Refresh Interval Leak (Bug #8)

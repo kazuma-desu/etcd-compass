@@ -45,7 +45,7 @@ export function TabBar() {
 				console.error("Failed to close tab:", e);
 			}
 		},
-		[connectionId, loadTabs],
+		[loadTabs],
 	);
 
 	const handleSelectTab = useCallback(

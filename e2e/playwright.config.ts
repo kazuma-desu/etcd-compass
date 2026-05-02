@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+process.env.TESTCONTAINERS_RYUK_DISABLED = "true";
+
 export default defineConfig({
 	testDir: ".",
 	fullyParallel: true,
@@ -7,6 +9,8 @@ export default defineConfig({
 	retries: process.env.CI ? 2 : 0,
 	workers: 1,
 	reporter: "list",
+	globalSetup: "./global-setup.ts",
+	globalTeardown: "./global-teardown.ts",
 	use: {
 		baseURL: "http://localhost:1420",
 		trace: "on-first-retry",

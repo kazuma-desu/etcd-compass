@@ -123,15 +123,17 @@ export function TreeView({
 		if ((e.target as HTMLElement).closest("[data-checkbox-row]")) {
 			return;
 		}
-		if (node.isLeaf) {
-			const key = keyByFullPath.get(node.fullPath);
-			if (key) {
-				if (!e.ctrlKey && !e.metaKey) {
-					setSelectedKey(key);
-				}
-				addTab(key.key, key);
-			}
-		} else {
+									if (node.isLeaf) {
+										const key =
+											keyByFullPath.get(node.fullPath) ??
+											keyByFullPath.get(`/${node.fullPath}`);
+										if (key) {
+											if (!e.ctrlKey && !e.metaKey) {
+												setSelectedKey(key);
+											}
+											addTab(key.key, key);
+										}
+									} else {
 			toggleNode(node.fullPath);
 		}
 	};
@@ -189,17 +191,21 @@ export function TreeView({
 												)}
 											</span>
 										)}
-										{node.isLeaf && (
-											<span data-checkbox-row className="inline-flex">
-												<Checkbox
-													checked={isKeySelected(node.fullPath)}
-													onCheckedChange={() =>
-														toggleKeySelectionForBulk(node.fullPath)
-													}
-													aria-label={`Select ${node.fullPath}`}
-												/>
-											</span>
-										)}
+									{node.isLeaf && (
+										<span
+											data-checkbox-row
+											className="inline-flex"
+											onClick={(e) => e.stopPropagation()}
+										>
+											<Checkbox
+												checked={isKeySelected(node.fullPath)}
+												onCheckedChange={() =>
+													toggleKeySelectionForBulk(node.fullPath)
+												}
+												aria-label={`Select ${node.fullPath}`}
+											/>
+										</span>
+									)}
 										{node.isLeaf ? (
 											<FileKey className="w-4 h-4 text-primary" />
 										) : (

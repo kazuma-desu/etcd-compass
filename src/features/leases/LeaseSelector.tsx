@@ -67,7 +67,7 @@ export function LeaseSelector({
 			) : (
 				<Select
 					onValueChange={(value) =>
-						onSelect(value ? parseInt(value, 10) : null)
+						onSelect(value && value !== "none" ? parseInt(value, 10) : null)
 					}
 					onOpenChange={handleOpenChange}
 				>
@@ -75,7 +75,7 @@ export function LeaseSelector({
 						<SelectValue placeholder="Select a lease (optional)" />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="">No lease</SelectItem>
+						<SelectItem value="none">No lease</SelectItem>
 						{leases.length === 0 ? (
 							<SelectItem value="_loading" disabled>
 								No active leases available
