@@ -34,6 +34,52 @@ interface AuthStatusCardProps {
 	connectionId: string;
 }
 
+interface ToggleAuthDialogProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	authEnabled: boolean;
+	onToggle: () => void;
+}
+
+function ToggleAuthDialog({
+	open,
+	onOpenChange,
+	authEnabled,
+	onToggle,
+}: ToggleAuthDialogProps) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>
+						{authEnabled ? "Disable Authentication?" : "Enable Authentication?"}
+					</AlertDialogTitle>
+					<AlertDialogDescription>
+						{authEnabled
+							? "This will remove authentication requirements from the cluster. All connections will be allowed without credentials."
+							: "This will require all connections to provide valid credentials. Ensure you have created users before enabling."}
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel onClick={() => onOpenChange(false)}>
+						Cancel
+					</AlertDialogCancel>
+					<AlertDialogAction
+						onClick={onToggle}
+						className={
+							authEnabled
+								? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+								: ""
+						}
+					>
+						{authEnabled ? "Disable" : "Enable"}
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
 export function AuthStatusCard({ connectionId }: AuthStatusCardProps) {
 	const {
 		authStatus,
@@ -214,40 +260,12 @@ export function AuthStatusCard({ connectionId }: AuthStatusCardProps) {
 				</CardContent>
 			</Card>
 
-			<AlertDialog
+			<ToggleAuthDialog
 				open={showToggleAuthDialog}
 				onOpenChange={setShowToggleAuthDialog}
-			>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>
-							{authStatus.enabled
-								? "Disable Authentication?"
-								: "Enable Authentication?"}
-						</AlertDialogTitle>
-						<AlertDialogDescription>
-							{authStatus.enabled
-								? "This will remove authentication requirements from the cluster. All connections will be allowed without credentials."
-								: "This will require all connections to provide valid credentials. Ensure you have created users before enabling."}
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel onClick={() => setShowToggleAuthDialog(false)}>
-							Cancel
-						</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={() => toggleAuth(connectionId)}
-							className={
-								authStatus.enabled
-									? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-									: ""
-							}
-						>
-							{authStatus.enabled ? "Disable" : "Enable"}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+				authEnabled={authStatus.enabled}
+				onToggle={() => toggleAuth(connectionId)}
+			/>
 		</>
 	);
 }
