@@ -1,7 +1,11 @@
 use etcd_client::{
-    Certificate, Client, ConnectOptions, EventType, GetOptions, GetResponse, Identity, PutOptions,
-    SortOrder, SortTarget, WatchOptions,
+    Certificate, Client, ConnectOptions, EventType, GetOptions, GetResponse, Identity,
+    PermissionType, PutOptions, RoleRevokePermissionOptions, SortOrder, SortTarget, WatchOptions,
 };
+
+#[path = "auth_error.rs"]
+pub mod auth_error;
+use self::auth_error::AuthError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use tokio::fs::File;
@@ -793,103 +797,234 @@ impl EtcdClient {
         Ok(total_written)
     }
 
-    // Auth management stubs - not fully implemented in etcd-client
+    fn map_etcd_auth_error(
+        e: etcd_client::Error,
+        user: Option<&str>,
+        role: Option<&str>,
+    ) -> AuthError {
+        match e {
+            etcd_client::Error::GRpcStatus(status) => {
+                let code = status.code() as i32;
+                let msg = status.message().to_string();
+                match code {
+                    16 => AuthError::AuthFailed(msg),
+                    7 => AuthError::PermissionDenied(msg),
+                    5 => {
+                        if let Some(name) = user {
+                            AuthError::UserNotFound(name.to_string())
+                        } else if let Some(name) = role {
+                            AuthError::RoleNotFound(name.to_string())
+                        } else {
+                            AuthError::EtcdError(msg)
+                        }
+                    }
+                    6 => {
+                        if let Some(name) = user {
+                            AuthError::UserAlreadyExists(name.to_string())
+                        } else if let Some(name) = role {
+                            AuthError::RoleAlreadyExists(name.to_string())
+                        } else {
+                            AuthError::EtcdError(msg)
+                        }
+                    }
+                    9 => AuthError::AuthNotEnabled,
+                    _ => AuthError::EtcdError(msg),
+                }
+            }
+            _ => AuthError::EtcdError(e.to_string()),
+        }
+    }
+
     pub async fn auth_status(&mut self) -> anyhow::Result<AuthStatus> {
-        Err(anyhow::anyhow!(
-            "Auth status not implemented - requires etcd-client auth support"
-        ))
+        match self.client.user_list().await {
+            Ok(_) => Ok(AuthStatus {
+                enabled: false,
+                auth_revision: 0,
+            }),
+            Err(e) => match Self::map_etcd_auth_error(e, None, None) {
+                AuthError::AuthFailed(_) | AuthError::PermissionDenied(_) => Ok(AuthStatus {
+                    enabled: true,
+                    auth_revision: 0,
+                }),
+                AuthError::AuthNotEnabled => Ok(AuthStatus {
+                    enabled: false,
+                    auth_revision: 0,
+                }),
+                other => Err(anyhow::Error::from(other)),
+            },
+        }
     }
 
     pub async fn auth_enable(&mut self) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "Auth enable not implemented - requires etcd-client auth support"
-        ))
+        self.client
+            .auth_enable()
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, None)))
     }
 
     pub async fn auth_disable(&mut self) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "Auth disable not implemented - requires etcd-client auth support"
-        ))
+        self.client
+            .auth_disable()
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, None)))
     }
 
     pub async fn user_list(&mut self) -> anyhow::Result<Vec<EtcdUser>> {
-        Err(anyhow::anyhow!(
-            "User list not implemented - requires etcd-client auth support"
-        ))
+        let resp = self
+            .client
+            .user_list()
+            .await
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, None)))?;
+        let mut users = Vec::new();
+        for name in resp.users() {
+            let user_resp = self
+                .client
+                .user_get(name)
+                .await
+                .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, Some(name), None)))?;
+            users.push(EtcdUser {
+                name: name.clone(),
+                roles: user_resp.roles().iter().map(|r| r.to_string()).collect(),
+            });
+        }
+        Ok(users)
     }
 
-    pub async fn user_add(&mut self, _name: &str, _password: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "User add not implemented - requires etcd-client auth support"
-        ))
+    pub async fn user_add(&mut self, name: &str, password: &str) -> anyhow::Result<()> {
+        self.client
+            .user_add(name, password, None)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, Some(name), None)))
     }
 
-    pub async fn user_delete(&mut self, _name: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "User delete not implemented - requires etcd-client auth support"
-        ))
+    pub async fn user_delete(&mut self, name: &str) -> anyhow::Result<()> {
+        self.client
+            .user_delete(name)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, Some(name), None)))
     }
 
-    pub async fn user_grant_role(&mut self, _user: &str, _role: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "User grant role not implemented - requires etcd-client auth support"
-        ))
+    pub async fn user_grant_role(&mut self, user: &str, role: &str) -> anyhow::Result<()> {
+        self.client
+            .user_grant_role(user, role)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, Some(user), Some(role))))
     }
 
-    pub async fn user_revoke_role(&mut self, _user: &str, _role: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "User revoke role not implemented - requires etcd-client auth support"
-        ))
+    pub async fn user_revoke_role(&mut self, user: &str, role: &str) -> anyhow::Result<()> {
+        self.client
+            .user_revoke_role(user, role)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, Some(user), Some(role))))
     }
 
     pub async fn role_list(&mut self) -> anyhow::Result<Vec<EtcdRole>> {
-        Err(anyhow::anyhow!(
-            "Role list not implemented - requires etcd-client auth support"
-        ))
+        let resp = self
+            .client
+            .role_list()
+            .await
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, None)))?;
+        Ok(resp
+            .roles()
+            .iter()
+            .map(|r| EtcdRole { name: r.to_string() })
+            .collect())
     }
 
-    pub async fn role_add(&mut self, _name: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "Role add not implemented - requires etcd-client auth support"
-        ))
+    pub async fn role_add(&mut self, name: &str) -> anyhow::Result<()> {
+        self.client
+            .role_add(name)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, Some(name))))
     }
 
-    pub async fn role_delete(&mut self, _name: &str) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "Role delete not implemented - requires etcd-client auth support"
-        ))
+    pub async fn role_delete(&mut self, name: &str) -> anyhow::Result<()> {
+        self.client
+            .role_delete(name)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, Some(name))))
     }
 
     pub async fn role_get_permissions(
         &mut self,
-        _role: &str,
+        role: &str,
     ) -> anyhow::Result<EtcdRolePermissions> {
-        Err(anyhow::anyhow!(
-            "Role get permissions not implemented - requires etcd-client auth support"
-        ))
+        let resp = self
+            .client
+            .role_get(role)
+            .await
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, Some(role))))?;
+        let permissions = resp
+            .permissions()
+            .iter()
+            .map(|p| Permission {
+                perm_type: match p.get_type() {
+                    0 => "read".to_string(),
+                    1 => "write".to_string(),
+                    2 => "readwrite".to_string(),
+                    _ => "unknown".to_string(),
+                },
+                key: String::from_utf8_lossy(p.key()).to_string(),
+                range_end: {
+                    let re = p.range_end();
+                    if re.is_empty() {
+                        None
+                    } else {
+                        Some(String::from_utf8_lossy(re).to_string())
+                    }
+                },
+            })
+            .collect();
+        Ok(EtcdRolePermissions {
+            role: role.to_string(),
+            permissions,
+        })
     }
 
     pub async fn role_grant_permission(
         &mut self,
-        _role: &str,
-        _perm_type: &str,
-        _key: &str,
-        _range_end: Option<&str>,
+        role: &str,
+        perm_type: &str,
+        key: &str,
+        range_end: Option<&str>,
     ) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "Role grant permission not implemented - requires etcd-client auth support"
-        ))
+        let etcd_perm_type = match perm_type.to_lowercase().as_str() {
+            "read" => PermissionType::Read,
+            "write" => PermissionType::Write,
+            "readwrite" => PermissionType::Readwrite,
+            _ => return Err(AuthError::InvalidPermissionType(perm_type.to_string()).into()),
+        };
+        let mut perm = etcd_client::Permission::new(etcd_perm_type, key);
+        if let Some(range_end) = range_end {
+            perm = perm.with_range_end(range_end);
+        }
+        self.client
+            .role_grant_permission(role, perm)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, Some(role))))
     }
 
     pub async fn role_revoke_permission(
         &mut self,
-        _role: &str,
-        _key: &str,
-        _range_end: Option<&str>,
+        role: &str,
+        key: &str,
+        range_end: Option<&str>,
     ) -> anyhow::Result<()> {
-        Err(anyhow::anyhow!(
-            "Role revoke permission not implemented - requires etcd-client auth support"
-        ))
+        let options = range_end.map(|re| RoleRevokePermissionOptions::new().with_range_end(re));
+        self.client
+            .role_revoke_permission(role, key, options)
+            .await
+            .map(|_| ())
+            .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, Some(role))))
     }
 }
 
