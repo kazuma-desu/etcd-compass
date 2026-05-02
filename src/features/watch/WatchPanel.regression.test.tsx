@@ -2,6 +2,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// =============================================================================
+// REGRESSION TEST: WatchPanel Unhandled Promise Rejections (Bug #6)
+// =============================================================================
+// Bug: Async errors in startWatching, stopWatching, setupListener, and unmount
+// cleanup were silently logged to console.error instead of being shown to the
+// user. Unhandled floating promises also caused Vitest unhandled rejection
+// warnings and potential crashes.
+// Fix: Replaced console.error with toast.error() user-facing notifications;
+// all floating promises now have .catch() handlers.
+// =============================================================================
+
 const mockWatchKey = vi.fn();
 const mockUnwatchKey = vi.fn();
 const mockOnWatchEvent = vi.fn();

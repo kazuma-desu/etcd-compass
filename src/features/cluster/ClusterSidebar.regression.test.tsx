@@ -1,6 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// =============================================================================
+// REGRESSION TESTS: ClusterSidebar bugs (Bugs #4 and #5)
+// =============================================================================
+// Bug #4 (Sidebar ID mapping): When listConnections() returned empty but
+// history had items, the connection ID was set to the endpoint string instead
+// of a valid UUID. This broke downstream code expecting UUID format.
+// Fix: Changed fallback from `config.endpoint` to `crypto.randomUUID()`.
+//
+// Bug #5 (Double-disconnect): handleDisconnect called disconnectEtcd(id) then
+// redundantly called store.disconnect(), which called disconnectEtcd again.
+// Fix: Removed the redundant store.disconnect() call.
+// =============================================================================
+
 const mockSetActiveConnectionId = vi.fn();
 
 const mockGetConnectionHistory = vi.fn().mockResolvedValue([]);

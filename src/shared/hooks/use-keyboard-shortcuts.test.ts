@@ -7,6 +7,19 @@ import {
 	useTabShortcuts,
 } from "./use-keyboard-shortcuts";
 
+// =============================================================================
+// REGRESSION TEST: Module-Level navigator.platform Crash (Bug #2)
+// =============================================================================
+// Bug: `navigator.platform` was accessed at module load time without safety
+// checks. In test environments, SSR contexts, or some Tauri webviews where
+// navigator or navigator.platform is undefined, this caused an immediate crash.
+// Fix: Wrapped navigator access in a safe function with optional chaining and
+// a fallback to false.
+//
+// The regression tests below ("safe navigator.platform access") verify that
+// importing the module does not crash when navigator is missing or incomplete.
+// =============================================================================
+
 describe("Keyboard Shortcuts", () => {
 	const mockRefreshKeys = vi.fn();
 	const mockSetShowDeleteDialog = vi.fn();

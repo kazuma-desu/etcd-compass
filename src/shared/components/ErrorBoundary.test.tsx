@@ -3,6 +3,16 @@ import { Component, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
 
+// =============================================================================
+// REGRESSION TEST: Missing Error Boundary (Bug #1)
+// =============================================================================
+// Bug: Any unhandled render error would crash the entire app and show a blank
+// screen because there was no top-level error boundary.
+// Fix: Created ErrorBoundary component with fallback UI and wrapped AppShell.
+// These tests verify the boundary catches errors and renders fallback UI
+// instead of letting the app crash to a blank screen.
+// =============================================================================
+
 class ThrowError extends Component<{ readonly message: string }> {
 	private hasThrown = false;
 	render(): ReactNode {

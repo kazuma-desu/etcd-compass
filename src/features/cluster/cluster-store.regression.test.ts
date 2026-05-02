@@ -1,5 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// =============================================================================
+// REGRESSION TEST: Cluster Auto-Refresh Interval Leak (Bug #8)
+// =============================================================================
+// Bug: ClusterStatus had two competing useEffect hooks reacting to connectionId
+// changes. Effect 1 fetched status and disabled auto-refresh in cleanup.
+// Effect 2 re-enabled auto-refresh. This created a race where intervals were
+// never properly cleaned up when switching connections, causing memory leaks
+// and multiple concurrent fetch loops.
+// Fix: Separated concerns into two clean effects with explicit interval
+// tracking (refreshConnectionId) and consolidated cleanup in the store.
+// =============================================================================
+
 const mockClusterStatus = vi.fn().mockResolvedValue({
 	members: [],
 	db_size: 0,

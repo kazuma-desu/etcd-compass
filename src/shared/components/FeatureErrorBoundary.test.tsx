@@ -3,6 +3,16 @@ import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { FeatureErrorBoundary } from "./FeatureErrorBoundary";
 
+// =============================================================================
+// REGRESSION TEST: Missing Feature-Level Error Boundaries (Bug #3)
+// =============================================================================
+// Bug: Errors in major feature panels (ClusterSidebar, KeyBrowser, WatchPanel,
+// LeasePanel) would crash the entire app. There were no per-feature boundaries.
+// Fix: Created FeatureErrorBoundary and wrapped all 4 major feature panels.
+// These tests verify each boundary catches errors in its subtree and shows
+// a feature-specific fallback with retry capability.
+// =============================================================================
+
 function ThrowError({ message }: { message: string }) {
 	useEffect(() => {
 		throw new Error(message);

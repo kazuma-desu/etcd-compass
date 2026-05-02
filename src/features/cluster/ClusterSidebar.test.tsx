@@ -297,6 +297,9 @@ describe("ClusterSidebar", () => {
 		});
 	});
 
+	// Regression: Bug #5 - Double-disconnect. handleDisconnect used to call
+	// disconnectEtcd(id) and then redundantly call store.disconnect(), which
+	// internally calls disconnectEtcd again. The fix removed the redundant call.
 	it("should call disconnectEtcd exactly once when disconnecting active connection", async () => {
 		const mockDisconnectStore = vi.fn();
 		mockDisconnectEtcd.mockResolvedValue(undefined);
