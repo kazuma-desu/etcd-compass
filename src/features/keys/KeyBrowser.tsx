@@ -27,9 +27,10 @@ import { TreeView } from "./TreeView";
 
 interface KeyBrowserProps {
 	connectionId: string;
+	setDialogOpen?: (open: boolean) => void;
 }
 
-export function KeyBrowser({ connectionId }: KeyBrowserProps) {
+export function KeyBrowser({ connectionId, setDialogOpen }: KeyBrowserProps) {
 	const {
 		viewMode,
 		treeData,
@@ -145,9 +146,9 @@ export function KeyBrowser({ connectionId }: KeyBrowserProps) {
 				</Pagination>
 			</div>
 
-			<AddKeyDialog connectionId={connectionId} />
-			<EditKeyDialog connectionId={connectionId} />
-			<DeleteKeyDialog connectionId={connectionId} />
+			<AddKeyDialog connectionId={connectionId} setDialogOpen={setDialogOpen} />
+			<EditKeyDialog connectionId={connectionId} setDialogOpen={setDialogOpen} />
+			<DeleteKeyDialog connectionId={connectionId} setDialogOpen={setDialogOpen} />
 			<BulkDeleteDialog connectionId={connectionId} />
 			<ExportDialog connectionId={connectionId} />
 			<ImportPreviewDialog connectionId={connectionId} />

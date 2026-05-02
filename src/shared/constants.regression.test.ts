@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // REGRESSION TEST: Hardcoded localhost:2379 Defaults (Bug #7)
 // =============================================================================
 // Bug: The string "localhost:2379" was hardcoded in multiple files
-// (connection-store.ts, ConnectionForm.tsx, ConnectionManager.tsx) as both
+// (connection-store.ts, ConnectionForm.tsx) as both
 // default values and UI placeholders. This made it impossible to change the
 // default or require explicit user input.
 // Fix: Extracted DEFAULT_ENDPOINT constant to src/shared/constants.ts and

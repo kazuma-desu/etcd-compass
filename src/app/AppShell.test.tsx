@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type React from "react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import React from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,6 +56,25 @@ vi.mock("@/shared/components/BreadcrumbNav", () => ({
 	BreadcrumbNav: () => <div data-testid="breadcrumb-nav" />,
 }));
 
+vi.mock("@/shared/components/CommandPalette", () => ({
+	CommandPalette: () => {
+		const [open, setOpen] = React.useState(false);
+
+		React.useEffect(() => {
+			const handleToggle = () => setOpen((current: boolean) => !current);
+			globalThis.addEventListener("etcd:command-palette", handleToggle);
+			return () =>
+				globalThis.removeEventListener("etcd:command-palette", handleToggle);
+		}, []);
+
+		return open ? (
+			<div data-testid="command-palette-open">Command Palette</div>
+		) : (
+			<div data-testid="command-palette-closed" />
+		);
+	},
+}));
+
 vi.mock("@/shared/components/ShortcutHelp", () => ({
 	ShortcutHelp: () => <div data-testid="shortcut-help" />,
 }));
@@ -75,7 +94,7 @@ vi.mock("@/components/ui/resizable", () => ({
 }));
 
 vi.mock("@/shared/hooks/use-keyboard-shortcuts", () => ({
-	useKeyboardShortcuts: vi.fn(),
+	useKeyboardShortcuts: vi.fn(() => ({ setDialogOpen: vi.fn() })),
 }));
 
 import {
@@ -217,5 +236,23 @@ describe("AppShell", () => {
 
 		expect(screen.getByTestId("key-browser")).toBeInTheDocument();
 		expect(screen.getByTestId("query-bar")).toBeInTheDocument();
+	});
+
+	it("should toggle CommandPalette on etcd:command-palette event", () => {
+		render(<AppShell />);
+
+		expect(screen.getByTestId("command-palette-closed")).toBeInTheDocument();
+
+		act(() => {
+			globalThis.dispatchEvent(new CustomEvent("etcd:command-palette"));
+		});
+
+		expect(screen.getByTestId("command-palette-open")).toBeInTheDocument();
+
+		act(() => {
+			globalThis.dispatchEvent(new CustomEvent("etcd:command-palette"));
+		});
+
+		expect(screen.getByTestId("command-palette-closed")).toBeInTheDocument();
 	});
 });

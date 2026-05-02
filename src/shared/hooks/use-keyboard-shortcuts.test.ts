@@ -4,6 +4,7 @@ import { useKeysStore } from "@/features/keys/keys-store";
 import {
 	formatShortcut,
 	shortcuts,
+	useKeyboardShortcuts,
 	useTabShortcuts,
 } from "./use-keyboard-shortcuts";
 
@@ -52,9 +53,8 @@ describe("Keyboard Shortcuts", () => {
 			expect(shortcutKeys).toContain("n");
 			expect(shortcutKeys).toContain("r");
 			expect(shortcutKeys).toContain("f");
-			expect(shortcutKeys).toContain("t");
+			expect(shortcutKeys).toContain("k");
 			expect(shortcutKeys).toContain("w");
-			expect(shortcutKeys).toContain(",");
 			expect(shortcutKeys).toContain("d");
 			expect(shortcutKeys).toContain("Delete");
 			expect(shortcutKeys).toContain("]");
@@ -214,6 +214,103 @@ describe("Keyboard Shortcuts", () => {
 			expect(mod.modifierKey).toBe("Ctrl");
 
 			globalThis.navigator = originalNavigator;
+		});
+	});
+
+	describe("useKeyboardShortcuts", () => {
+		it("should fire refresh shortcut when no dialog is open", () => {
+			useKeysStore.setState({
+				selectedKey: null,
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+				);
+			});
+
+			expect(mockRefreshKeys).toHaveBeenCalledWith("conn1");
+		});
+
+		it("should NOT fire shortcuts when a dialog is open", () => {
+			useKeysStore.setState({
+				selectedKey: { key: "test", value: "val", version: "1" },
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			const { result } = renderHook(() =>
+				useKeyboardShortcuts("conn1", showHelp),
+			);
+
+			// Open a dialog
+			act(() => {
+				result.current.setDialogOpen(true);
+			});
+
+			// Try refresh shortcut - should not fire
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+				);
+			});
+			expect(mockRefreshKeys).not.toHaveBeenCalled();
+
+			// Try delete shortcut - should not fire
+			act(() => {
+				window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+			});
+			expect(mockSetShowDeleteDialog).not.toHaveBeenCalled();
+		});
+
+		it("should resume firing shortcuts after dialog closes", () => {
+			useKeysStore.setState({
+				selectedKey: null,
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			const { result } = renderHook(() =>
+				useKeyboardShortcuts("conn1", showHelp),
+			);
+
+			// Open then close dialog
+			act(() => {
+				result.current.setDialogOpen(true);
+				result.current.setDialogOpen(false);
+			});
+
+			// Refresh should work again
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+				);
+			});
+			expect(mockRefreshKeys).toHaveBeenCalledWith("conn1");
+		});
+
+		it("should dispatch command palette event on Cmd+K", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const listener = vi.fn();
+			window.addEventListener("etcd:command-palette", listener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "k", ctrlKey: true }),
+				);
+			});
+
+			expect(listener).toHaveBeenCalled();
+			window.removeEventListener("etcd:command-palette", listener);
 		});
 	});
 });

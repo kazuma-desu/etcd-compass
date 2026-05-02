@@ -15,9 +15,10 @@ import { useKeysStore } from "./keys-store";
 
 interface EditKeyDialogProps {
 	connectionId: string;
+	setDialogOpen?: (open: boolean) => void;
 }
 
-export function EditKeyDialog({ connectionId }: EditKeyDialogProps) {
+export function EditKeyDialog({ connectionId, setDialogOpen }: EditKeyDialogProps) {
 	const {
 		showEditDialog,
 		selectedKey,
@@ -29,8 +30,13 @@ export function EditKeyDialog({ connectionId }: EditKeyDialogProps) {
 		editKey,
 	} = useKeysStore();
 
+	const handleOpenChange = (open: boolean) => {
+		setShowEditDialog(open);
+		setDialogOpen?.(open);
+	};
+
 	return (
-		<Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+		<Dialog open={showEditDialog} onOpenChange={handleOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Edit Key</DialogTitle>
@@ -55,7 +61,7 @@ export function EditKeyDialog({ connectionId }: EditKeyDialogProps) {
 					/>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setShowEditDialog(false)}>
+					<Button variant="outline" onClick={() => handleOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button

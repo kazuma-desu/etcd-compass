@@ -15,9 +15,10 @@ import { useKeysStore } from "./keys-store";
 
 interface AddKeyDialogProps {
 	connectionId: string;
+	setDialogOpen?: (open: boolean) => void;
 }
 
-export function AddKeyDialog({ connectionId }: AddKeyDialogProps) {
+export function AddKeyDialog({ connectionId, setDialogOpen }: AddKeyDialogProps) {
 	const {
 		showAddDialog,
 		newKey,
@@ -30,8 +31,13 @@ export function AddKeyDialog({ connectionId }: AddKeyDialogProps) {
 		addKey,
 	} = useKeysStore();
 
+	const handleOpenChange = (open: boolean) => {
+		setShowAddDialog(open);
+		setDialogOpen?.(open);
+	};
+
 	return (
-		<Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+		<Dialog open={showAddDialog} onOpenChange={handleOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Add New Key</DialogTitle>
@@ -65,7 +71,7 @@ export function AddKeyDialog({ connectionId }: AddKeyDialogProps) {
 					/>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setShowAddDialog(false)}>
+					<Button variant="outline" onClick={() => handleOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button

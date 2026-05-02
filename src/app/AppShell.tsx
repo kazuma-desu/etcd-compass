@@ -42,6 +42,7 @@ import { LeasePanel } from "@/features/leases/LeasePanel";
 import { WatchPanel } from "@/features/watch/WatchPanel";
 import { cn } from "@/lib/utils";
 import { BreadcrumbNav } from "@/shared/components/BreadcrumbNav";
+import { CommandPalette } from "@/shared/components/CommandPalette";
 import { FeatureErrorBoundary } from "@/shared/components/FeatureErrorBoundary";
 import { ShortcutHelp } from "@/shared/components/ShortcutHelp";
 import { TabBar } from "@/shared/components/TabBar";
@@ -165,7 +166,7 @@ function AppShellContent() {
 		}
 	};
 
-	useKeyboardShortcuts(
+	const { setDialogOpen } = useKeyboardShortcuts(
 		connectionId,
 		() => setShowHelpDialog(true),
 		toggleSidebar,
@@ -267,7 +268,7 @@ function AppShellContent() {
 									>
 										<ResizablePanel defaultSize={45} minSize={25}>
 											<FeatureErrorBoundary featureName="Keys Browser">
-												<KeyBrowser connectionId={connectionId} />
+												<KeyBrowser connectionId={connectionId} setDialogOpen={setDialogOpen} />
 											</FeatureErrorBoundary>
 										</ResizablePanel>
 										<ResizableHandle withHandle />
@@ -451,14 +452,15 @@ function AppShellContent() {
 				</div>
 			</SidebarInset>
 
-			<ConnectionForm
-				open={showConnectionDialog}
-				onOpenChange={setShowConnectionDialog}
-				onConnect={handleConnect}
-			/>
+		<ConnectionForm
+			open={showConnectionDialog}
+			onOpenChange={setShowConnectionDialog}
+			onConnect={handleConnect}
+		/>
 
-			<ShortcutHelp open={showHelpDialog} onOpenChange={setShowHelpDialog} />
-		</>
+		<CommandPalette />
+		<ShortcutHelp open={showHelpDialog} onOpenChange={setShowHelpDialog} />
+	</>
 	);
 }
 

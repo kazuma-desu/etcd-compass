@@ -44,18 +44,11 @@ export const shortcuts: Shortcut[] = [
 		description: "Open command palette",
 		category: "navigation",
 	},
-	{ key: "t", modifier: true, description: "New tab", category: "navigation" },
 	{
 		key: "w",
 		modifier: true,
 		description: "Close current tab",
 		category: "navigation",
-	},
-	{
-		key: ",",
-		modifier: true,
-		description: "Open settings",
-		category: "interface",
 	},
 	{
 		key: "d",
@@ -166,22 +159,12 @@ export function useKeyboardShortcuts(
 					}
 					break;
 
-				case isCmd && e.key.toLowerCase() === "t":
-					e.preventDefault();
-					globalThis.dispatchEvent(new CustomEvent("etcd:new-tab"));
-					break;
+			case isCmd && e.key.toLowerCase() === "w":
+				e.preventDefault();
+				globalThis.dispatchEvent(new CustomEvent("etcd:close-tab"));
+				break;
 
-				case isCmd && e.key.toLowerCase() === "w":
-					e.preventDefault();
-					globalThis.dispatchEvent(new CustomEvent("etcd:close-tab"));
-					break;
-
-				case isCmd && e.key === ",":
-					e.preventDefault();
-					globalThis.dispatchEvent(new CustomEvent("etcd:open-settings"));
-					break;
-
-				case isCmd && isShift && e.key.toLowerCase() === "d":
+			case isCmd && isShift && e.key.toLowerCase() === "d":
 					e.preventDefault();
 					toggleSidebar?.();
 					break;

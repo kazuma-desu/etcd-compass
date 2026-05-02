@@ -12,14 +12,20 @@ import { useKeysStore } from "./keys-store";
 
 interface DeleteKeyDialogProps {
 	connectionId: string;
+	setDialogOpen?: (open: boolean) => void;
 }
 
-export function DeleteKeyDialog({ connectionId }: DeleteKeyDialogProps) {
+export function DeleteKeyDialog({ connectionId, setDialogOpen }: DeleteKeyDialogProps) {
 	const { showDeleteDialog, selectedKey, setShowDeleteDialog, deleteKey } =
 		useKeysStore();
 
+	const handleOpenChange = (open: boolean) => {
+		setShowDeleteDialog(open);
+		setDialogOpen?.(open);
+	};
+
 	return (
-		<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+		<Dialog open={showDeleteDialog} onOpenChange={handleOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Delete Key</DialogTitle>
@@ -30,7 +36,7 @@ export function DeleteKeyDialog({ connectionId }: DeleteKeyDialogProps) {
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+					<Button variant="outline" onClick={() => handleOpenChange(false)}>
 						Cancel
 					</Button>
 					<Button variant="destructive" onClick={() => deleteKey(connectionId)}>
