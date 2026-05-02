@@ -879,11 +879,10 @@ impl EtcdClient {
             .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, None, None)))?;
         let mut users = Vec::new();
         for name in resp.users() {
-            let user_resp = self
-                .client
-                .user_get(name)
-                .await
-                .map_err(|e| anyhow::Error::from(Self::map_etcd_auth_error(e, Some(name), None)))?;
+            let user_resp =
+                self.client.user_get(name).await.map_err(|e| {
+                    anyhow::Error::from(Self::map_etcd_auth_error(e, Some(name), None))
+                })?;
             users.push(EtcdUser {
                 name: name.clone(),
                 roles: user_resp.roles().iter().map(|r| r.to_string()).collect(),
@@ -933,7 +932,9 @@ impl EtcdClient {
         Ok(resp
             .roles()
             .iter()
-            .map(|r| EtcdRole { name: r.to_string() })
+            .map(|r| EtcdRole {
+                name: r.to_string(),
+            })
             .collect())
     }
 

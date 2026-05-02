@@ -27,6 +27,7 @@ import {
 	useSidebar,
 } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AuthPage } from "@/features/auth";
 import { ClusterSidebar } from "@/features/cluster/ClusterSidebar";
 import { ClusterStatus } from "@/features/cluster/ClusterStatus";
 import { MetricsDashboard } from "@/features/cluster/MetricsDashboard";
@@ -41,7 +42,6 @@ import { useKeysStore } from "@/features/keys/keys-store";
 import { QueryBar } from "@/features/keys/QueryBar";
 import { LeasePanel } from "@/features/leases/LeasePanel";
 import { WatchPanel } from "@/features/watch/WatchPanel";
-import { AuthPage } from "@/features/auth";
 import { cn } from "@/lib/utils";
 import { BreadcrumbNav } from "@/shared/components/BreadcrumbNav";
 import { CommandPalette } from "@/shared/components/CommandPalette";
@@ -238,27 +238,27 @@ function AppShellContent() {
 											<KeyRound className="w-3.5 h-3.5" />
 											Keys
 										</TabsTrigger>
-						<TabsTrigger
-							value="cluster"
-							className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
-						>
-							<Server className="w-3.5 h-3.5" />
-							Cluster
-						</TabsTrigger>
-						<TabsTrigger
-							value="auth"
-							className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
-						>
-							<Shield className="w-3.5 h-3.5" />
-							Auth
-						</TabsTrigger>
-						<TabsTrigger
-							value="metrics"
-							className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
-						>
-							<BarChart3 className="w-3.5 h-3.5" />
-							Metrics
-						</TabsTrigger>
+										<TabsTrigger
+											value="cluster"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
+										>
+											<Server className="w-3.5 h-3.5" />
+											Cluster
+										</TabsTrigger>
+										<TabsTrigger
+											value="auth"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
+										>
+											<Shield className="w-3.5 h-3.5" />
+											Auth
+										</TabsTrigger>
+										<TabsTrigger
+											value="metrics"
+											className="h-9 px-4 flex items-center gap-2 whitespace-nowrap rounded-t-lg rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background data-[state=active]:text-primary font-semibold text-xs transition-colors duration-200"
+										>
+											<BarChart3 className="w-3.5 h-3.5" />
+											Metrics
+										</TabsTrigger>
 									</TabsList>
 								</div>
 							</div>
@@ -435,55 +435,55 @@ function AppShellContent() {
 									</div>
 								)}
 							</TabsContent>
-						<TabsContent
-							value="auth"
-							className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
-						>
-							{connectionId ? (
-								<AuthPage connectionId={connectionId} />
-							) : (
-								<div className="flex-1 flex items-center justify-center h-full">
-									<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-75">
-										<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
-											<Shield className="w-10 h-10 text-primary/80" />
-										</div>
-										<div className="space-y-1">
-											<h3 className="text-xl font-semibold tracking-tight">
-												No cluster connected
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												Connect to a cluster to view auth
-											</p>
-										</div>
-									</div>
-								</div>
-							)}
-						</TabsContent>
-						<TabsContent
-							value="metrics"
-							className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
-						>
-							{connectionId ? (
-								<MetricsDashboard connectionId={connectionId} />
-							) : (
-								<div className="flex-1 flex items-center justify-center h-full">
-									<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-150">
-										<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
-											<BarChart3 className="w-10 h-10 text-primary/80" />
-										</div>
-										<div className="space-y-1">
-											<h3 className="text-xl font-semibold tracking-tight">
-												No cluster connected
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												Connect to a cluster to view metrics
-											</p>
+							<TabsContent
+								value="auth"
+								className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
+							>
+								{connectionId ? (
+									<AuthPage connectionId={connectionId} />
+								) : (
+									<div className="flex-1 flex items-center justify-center h-full">
+										<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-75">
+											<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
+												<Shield className="w-10 h-10 text-primary/80" />
+											</div>
+											<div className="space-y-1">
+												<h3 className="text-xl font-semibold tracking-tight">
+													No cluster connected
+												</h3>
+												<p className="text-sm text-muted-foreground">
+													Connect to a cluster to view auth
+												</p>
+											</div>
 										</div>
 									</div>
-								</div>
-							)}
-						</TabsContent>
-					</Tabs>
+								)}
+							</TabsContent>
+							<TabsContent
+								value="metrics"
+								className="flex-1 min-h-0 mt-0 overflow-auto px-4 pt-3 pb-4"
+							>
+								{connectionId ? (
+									<MetricsDashboard connectionId={connectionId} />
+								) : (
+									<div className="flex-1 flex items-center justify-center h-full">
+										<div className="text-center space-y-5 animate-in fade-in zoom-in duration-500 delay-150">
+											<div className="w-20 h-20 bg-background shadow-panel border border-border/60 rounded-2xl flex items-center justify-center mx-auto transform transition-all duration-300 hover:-translate-y-0.5 hover:shadow-workspace">
+												<BarChart3 className="w-10 h-10 text-primary/80" />
+											</div>
+											<div className="space-y-1">
+												<h3 className="text-xl font-semibold tracking-tight">
+													No cluster connected
+												</h3>
+												<p className="text-sm text-muted-foreground">
+													Connect to a cluster to view metrics
+												</p>
+											</div>
+										</div>
+									</div>
+								)}
+							</TabsContent>
+						</Tabs>
 					</div>
 				</div>
 			</SidebarInset>
