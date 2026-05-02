@@ -91,7 +91,7 @@ export function ClusterSidebar({
 	onAddCluster,
 	onEditCluster,
 }: ClusterSidebarProps) {
-	const { connectionId, disconnect, setActiveConnectionId } =
+	const { connectionId, disconnect, setActiveConnectionId, connectionHistory } =
 		useConnectionStore();
 	const { state, toggleSidebar } = useSidebar();
 	const [connections, setConnections] = useState<ConnectionInfo[]>([]);
@@ -158,11 +158,14 @@ export function ClusterSidebar({
 
 	useEffect(() => {
 		loadConnections();
-	}, [loadConnections]);
+	}, [loadConnections, connectionHistory.length]);
 
 	const handleDisconnect = async (id: string) => {
 		try {
 			await disconnectEtcd(id);
+			if (id === connectionId) {
+				await disconnect();
+			}
 			await loadConnections();
 			toast.success("Disconnected from cluster");
 		} catch (_e) {

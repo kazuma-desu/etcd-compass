@@ -26,7 +26,7 @@ export function DeleteKeyDialog({ connectionId, setDialogOpen }: DeleteKeyDialog
 
 	return (
 		<Dialog open={showDeleteDialog} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent data-testid="delete-key-dialog">
 				<DialogHeader>
 					<DialogTitle>Delete Key</DialogTitle>
 					<DialogDescription>

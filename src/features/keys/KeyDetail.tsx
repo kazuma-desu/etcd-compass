@@ -137,21 +137,23 @@ export function KeyDetail() {
 												</TooltipContent>
 											</Tooltip>
 										)}
-										<Button
-											variant="outline"
-											size="sm"
-											onClick={openEditDialog}
-										>
-											<Edit className="w-4 h-4 mr-2" />
-											Edit
-										</Button>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Button
-													variant="destructive"
-													size="sm"
-													onClick={() => setShowDeleteDialog(true)}
-												>
+									<Button
+										data-testid="edit-key-button"
+										variant="outline"
+										size="sm"
+										onClick={openEditDialog}
+									>
+										<Edit className="w-4 h-4 mr-2" />
+										Edit
+									</Button>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												data-testid="delete-key-button"
+												variant="destructive"
+												size="sm"
+												onClick={() => setShowDeleteDialog(true)}
+											>
 													<Trash2 className="w-4 h-4 mr-2" />
 													Delete
 												</Button>

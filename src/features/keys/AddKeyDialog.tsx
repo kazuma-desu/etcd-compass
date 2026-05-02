@@ -38,7 +38,7 @@ export function AddKeyDialog({ connectionId, setDialogOpen }: AddKeyDialogProps)
 
 	return (
 		<Dialog open={showAddDialog} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent data-testid="add-key-dialog">
 				<DialogHeader>
 					<DialogTitle>Add New Key</DialogTitle>
 					<DialogDescription>

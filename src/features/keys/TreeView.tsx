@@ -167,6 +167,7 @@ export function TreeView({
 							<ContextMenu>
 								<ContextMenuTrigger asChild>
 									<div
+										data-testid={`treeview-node-${node.fullPath}`}
 										className={`flex items-center gap-1 py-1 px-2 hover:bg-accent rounded cursor-pointer ${
 											selectedKey?.key === node.fullPath ? "bg-accent" : ""
 										}`}

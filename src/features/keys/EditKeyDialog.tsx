@@ -37,7 +37,7 @@ export function EditKeyDialog({ connectionId, setDialogOpen }: EditKeyDialogProp
 
 	return (
 		<Dialog open={showEditDialog} onOpenChange={handleOpenChange}>
-			<DialogContent>
+			<DialogContent data-testid="edit-key-dialog">
 				<DialogHeader>
 					<DialogTitle>Edit Key</DialogTitle>
 					<DialogDescription>
