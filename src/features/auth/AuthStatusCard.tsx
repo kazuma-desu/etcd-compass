@@ -106,7 +106,9 @@ export function AuthStatusCard({ connectionId }: AuthStatusCardProps) {
 						<p className="text-sm font-medium text-foreground">
 							Authentication status unavailable
 						</p>
-						<p className="text-xs mt-1">Connect to a cluster to view auth status</p>
+						<p className="text-xs mt-1">
+							Connect to a cluster to view auth status
+						</p>
 					</div>
 				</CardContent>
 			</Card>

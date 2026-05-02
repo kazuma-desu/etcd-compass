@@ -125,10 +125,7 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 				<CardContent>
 					<div className="space-y-2">
 						{[...Array(3)].map((_, i) => (
-							<div
-								key={i}
-								className="h-12 bg-accent animate-pulse rounded"
-							/>
+							<div key={i} className="h-12 bg-accent animate-pulse rounded" />
 						))}
 					</div>
 				</CardContent>
@@ -176,7 +173,10 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<Users className="w-5 h-5" />
 							Users
-							<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+							<Badge
+								variant="secondary"
+								className="ml-1 text-[10px] px-1.5 py-0"
+							>
 								{users.length}
 							</Badge>
 						</CardTitle>
@@ -271,10 +271,7 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 														variant="ghost"
 														size="sm"
 														onClick={() => handleGrantRoleClick(user)}
-														disabled={
-															availableRolesForGrant(user).length ===
-															0
-														}
+														disabled={availableRolesForGrant(user).length === 0}
 													>
 														<UserPlus className="w-3.5 h-3.5 mr-1" />
 														Grant
@@ -360,9 +357,7 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel
-							onClick={() => setShowDeleteUserDialog(false)}
-						>
+						<AlertDialogCancel onClick={() => setShowDeleteUserDialog(false)}>
 							Cancel
 						</AlertDialogCancel>
 						<AlertDialogAction
@@ -379,9 +374,7 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 			<Dialog open={showGrantRoleDialog} onOpenChange={setShowGrantRoleDialog}>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>
-							Grant Role to {selectedUser?.name}
-						</DialogTitle>
+						<DialogTitle>Grant Role to {selectedUser?.name}</DialogTitle>
 						<DialogDescription>
 							Select a role to assign to this user
 						</DialogDescription>
@@ -397,13 +390,13 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 									<SelectValue placeholder="Select a role" />
 								</SelectTrigger>
 								<SelectContent>
-									{availableRolesForGrant(selectedUser ?? { name: "", roles: [] }).map(
-										(role) => (
-											<SelectItem key={role.name} value={role.name}>
-												{role.name}
-											</SelectItem>
-										),
-									)}
+									{availableRolesForGrant(
+										selectedUser ?? { name: "", roles: [] },
+									).map((role) => (
+										<SelectItem key={role.name} value={role.name}>
+											{role.name}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
 						</div>
@@ -439,9 +432,7 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel
-							onClick={() => setShowRevokeRoleDialog(false)}
-						>
+						<AlertDialogCancel onClick={() => setShowRevokeRoleDialog(false)}>
 							Cancel
 						</AlertDialogCancel>
 						<AlertDialogAction
