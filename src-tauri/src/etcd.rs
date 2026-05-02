@@ -1415,13 +1415,25 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "requires a running etcd instance — will be enabled with testcontainers"]
     async fn test_cloned_client_reconnect_fails() {
-        let inner_client = Client::connect(["localhost:2379"], None)
+        let etcd = crate::test_helpers::test_helpers::start_etcd_container()
             .await
-            .expect("connect to local etcd for reconnect test");
+            .expect("start etcd container for reconnect test");
+
+        let endpoint = etcd
+            .connection_string
+            .strip_prefix("http://")
+            .expect("valid connection string");
+
+        let inner_client = Client::connect([endpoint], None)
+            .await
+            .expect("connect to etcd for reconnect test");
         let mut client = EtcdClient::from_client(inner_client);
         let result = client.reconnect().await;
         assert!(result.is_err());
+
+        crate::test_helpers::test_helpers::stop_etcd_container(etcd.container)
+            .await
+            .expect("stop etcd container");
     }
 }

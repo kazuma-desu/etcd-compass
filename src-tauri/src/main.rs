@@ -6,6 +6,9 @@ mod etcd;
 #[cfg(test)]
 mod test_helpers;
 
+#[cfg(test)]
+mod integration_tests;
+
 use etcd::{
     AuthStatus, ClusterStatus, EtcdClient, EtcdConfig, EtcdKey, EtcdRole, EtcdRolePermissions,
     EtcdUser, LeaseInfo, WatchEvent,
