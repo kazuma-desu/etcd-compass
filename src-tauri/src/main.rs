@@ -9,6 +9,9 @@ mod test_helpers;
 #[cfg(test)]
 mod integration_tests;
 
+#[cfg(test)]
+mod stress_tests;
+
 use etcd::{
     AuthStatus, ClusterStatus, EtcdClient, EtcdConfig, EtcdKey, EtcdRole, EtcdRolePermissions,
     EtcdUser, LeaseInfo, WatchEvent,
