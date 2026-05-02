@@ -145,10 +145,7 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 				<CardContent>
 					<div className="space-y-2">
 						{[...Array(3)].map((_, i) => (
-							<div
-								key={i}
-								className="h-12 bg-accent animate-pulse rounded"
-							/>
+							<div key={i} className="h-12 bg-accent animate-pulse rounded" />
 						))}
 					</div>
 				</CardContent>
@@ -196,7 +193,10 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 						<CardTitle className="flex items-center gap-2 text-lg">
 							<Shield className="w-5 h-5" />
 							Roles
-							<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+							<Badge
+								variant="secondary"
+								className="ml-1 text-[10px] px-1.5 py-0"
+							>
 								{roles.length}
 							</Badge>
 						</CardTitle>
@@ -224,9 +224,7 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 							</Button>
 						</div>
 					</div>
-					<CardDescription>
-						Manage roles and their permissions
-					</CardDescription>
+					<CardDescription>Manage roles and their permissions</CardDescription>
 				</CardHeader>
 				<CardContent className="px-5 pb-4">
 					{roles.length === 0 ? (
@@ -250,10 +248,8 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 										key={role.name}
 										className="rounded-md border border-border/60 bg-background/70 overflow-hidden"
 									>
-										<div className="flex items-center justify-between p-3 hover:bg-muted/35 transition-colors"
-										>
-											<div className="flex items-center gap-2 min-w-0"
-											>
+										<div className="flex items-center justify-between p-3 hover:bg-muted/35 transition-colors">
+											<div className="flex items-center gap-2 min-w-0">
 												<Button
 													variant="ghost"
 													size="icon"
@@ -302,62 +298,57 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 													<Table>
 														<TableHeader>
 															<TableRow className="bg-muted/30">
-																<TableHead className="text-xs">
-																	Type
-																</TableHead>
-																<TableHead className="text-xs">
-																	Key
-																</TableHead>
+																<TableHead className="text-xs">Type</TableHead>
+																<TableHead className="text-xs">Key</TableHead>
 																<TableHead className="text-xs">
 																	Range End
 																</TableHead>
 																<TableHead className="w-[80px]"></TableHead>
-														</TableRow>
-													</TableHeader>
-													<TableBody>
-														{perms.permissions.map((perm, idx) => (
-															<TableRow key={idx}>
-																<TableCell>
-																	<Badge
-																		variant="outline"
-																		className="text-[10px]"
-																	>
-																		{PERMISSION_TYPE_LABELS[
-																			perm.perm_type
-																		] || perm.perm_type}
-																	</Badge>
-																</TableCell>
-																<TableCell className="font-mono text-xs">
-																	<div className="flex items-center gap-1">
-																		<KeyRound className="w-3 h-3 text-muted-foreground" />
-																		<span className="truncate max-w-[200px]">
-																			{perm.key}
-																		</span>
-																	</div>
-																</TableCell>
-																<TableCell className="font-mono text-xs text-muted-foreground">
-																	{perm.range_end || "—"}
-																</TableCell>
-																<TableCell>
-																	<Button
-																		variant="ghost"
-																		size="icon"
-																		className="h-7 w-7 text-destructive hover:text-destructive"
-																		onClick={() =>
-																			handleRevokePermissionClick(
-																				role,
-																				perm.key,
-																				perm.range_end,
-																			)
-																		}
-																	>
-																		<Trash2 className="w-3.5 h-3.5" />
-																	</Button>
-																</TableCell>
-														</TableRow>
-													))}
-													</TableBody>
-												</Table>
+															</TableRow>
+														</TableHeader>
+														<TableBody>
+															{perms.permissions.map((perm, idx) => (
+																<TableRow key={idx}>
+																	<TableCell>
+																		<Badge
+																			variant="outline"
+																			className="text-[10px]"
+																		>
+																			{PERMISSION_TYPE_LABELS[perm.perm_type] ||
+																				perm.perm_type}
+																		</Badge>
+																	</TableCell>
+																	<TableCell className="font-mono text-xs">
+																		<div className="flex items-center gap-1">
+																			<KeyRound className="w-3 h-3 text-muted-foreground" />
+																			<span className="truncate max-w-[200px]">
+																				{perm.key}
+																			</span>
+																		</div>
+																	</TableCell>
+																	<TableCell className="font-mono text-xs text-muted-foreground">
+																		{perm.range_end || "—"}
+																	</TableCell>
+																	<TableCell>
+																		<Button
+																			variant="ghost"
+																			size="icon"
+																			className="h-7 w-7 text-destructive hover:text-destructive"
+																			onClick={() =>
+																				handleRevokePermissionClick(
+																					role,
+																					perm.key,
+																					perm.range_end,
+																				)
+																			}
+																		>
+																			<Trash2 className="w-3.5 h-3.5" />
+																		</Button>
+																	</TableCell>
+																</TableRow>
+															))}
+														</TableBody>
+													</Table>
 												)}
 											</div>
 										)}
@@ -420,9 +411,7 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel
-							onClick={() => setShowDeleteRoleDialog(false)}
-						>
+						<AlertDialogCancel onClick={() => setShowDeleteRoleDialog(false)}>
 							Cancel
 						</AlertDialogCancel>
 						<AlertDialogAction
@@ -442,9 +431,7 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>
-							Grant Permission to {selectedRole?.name}
-						</DialogTitle>
+						<DialogTitle>Grant Permission to {selectedRole?.name}</DialogTitle>
 						<DialogDescription>
 							Define a key permission for this role
 						</DialogDescription>
@@ -452,19 +439,14 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 					<div className="space-y-4 py-4">
 						<div className="space-y-2">
 							<Label htmlFor="perm-type">Permission Type</Label>
-							<Select
-								value={permissionType}
-								onValueChange={setPermissionType}
-							>
+							<Select value={permissionType} onValueChange={setPermissionType}>
 								<SelectTrigger id="perm-type">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
 									<SelectItem value="read">Read</SelectItem>
 									<SelectItem value="write">Write</SelectItem>
-									<SelectItem value="readwrite">
-										Read & Write
-									</SelectItem>
+									<SelectItem value="readwrite">Read & Write</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>

@@ -159,7 +159,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 				toast.success("Authentication enabled");
 			}
 			const newStatus = await fetchAuthStatusCommand(connectionId);
-			set({ authStatus: newStatus, authLoading: false, showToggleAuthDialog: false });
+			set({
+				authStatus: newStatus,
+				authLoading: false,
+				showToggleAuthDialog: false,
+			});
 		} catch (error: unknown) {
 			set({
 				authError:
@@ -182,9 +186,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		} catch (error: unknown) {
 			set({
 				usersError:
-					error instanceof Error
-						? error.message
-						: "Failed to fetch users",
+					error instanceof Error ? error.message : "Failed to fetch users",
 				usersLoading: false,
 			});
 		}
@@ -256,7 +258,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		const { selectedUser, selectedRoleForUser } = get();
 		if (!selectedUser || !selectedRoleForUser) return;
 		try {
-			await userRevokeRole(connectionId, selectedUser.name, selectedRoleForUser);
+			await userRevokeRole(
+				connectionId,
+				selectedUser.name,
+				selectedRoleForUser,
+			);
 			toast.success(
 				`Role "${selectedRoleForUser}" revoked from "${selectedUser.name}"`,
 			);
@@ -281,9 +287,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 		} catch (error: unknown) {
 			set({
 				rolesError:
-					error instanceof Error
-						? error.message
-						: "Failed to fetch roles",
+					error instanceof Error ? error.message : "Failed to fetch roles",
 				rolesLoading: false,
 			});
 		}
