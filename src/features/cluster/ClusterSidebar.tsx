@@ -158,7 +158,7 @@ export function ClusterSidebar({
 
 	useEffect(() => {
 		loadConnections();
-	}, [loadConnections, connectionHistory.length]);
+	}, [loadConnections, connectionHistory?.length]);
 
 	const handleDisconnect = async (id: string) => {
 		try {

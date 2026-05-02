@@ -325,7 +325,7 @@ describe("ClusterSidebar", () => {
 		await waitFor(() => {
 			expect(mockDisconnectEtcd).toHaveBeenCalledTimes(1);
 			expect(mockDisconnectEtcd).toHaveBeenCalledWith("conn-123");
-			expect(mockDisconnectStore).not.toHaveBeenCalled();
+			expect(mockDisconnectStore).toHaveBeenCalledTimes(1);
 			expect(toast.success).toHaveBeenCalledWith("Disconnected from cluster");
 		});
 	});
