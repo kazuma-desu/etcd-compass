@@ -810,6 +810,17 @@ impl EtcdClient {
                     16 => AuthError::AuthFailed(msg),
                     7 => AuthError::PermissionDenied(msg),
                     5 => {
+                        let is_role_err = msg.to_lowercase().contains("role");
+                        let is_user_err = msg.to_lowercase().contains("user");
+                        if is_role_err {
+                            if let Some(name) = role {
+                                return AuthError::RoleNotFound(name.to_string());
+                            }
+                        } else if is_user_err {
+                            if let Some(name) = user {
+                                return AuthError::UserNotFound(name.to_string());
+                            }
+                        }
                         if let Some(name) = user {
                             AuthError::UserNotFound(name.to_string())
                         } else if let Some(name) = role {
@@ -819,6 +830,17 @@ impl EtcdClient {
                         }
                     }
                     6 => {
+                        let is_role_err = msg.to_lowercase().contains("role");
+                        let is_user_err = msg.to_lowercase().contains("user");
+                        if is_role_err {
+                            if let Some(name) = role {
+                                return AuthError::RoleAlreadyExists(name.to_string());
+                            }
+                        } else if is_user_err {
+                            if let Some(name) = user {
+                                return AuthError::UserAlreadyExists(name.to_string());
+                            }
+                        }
                         if let Some(name) = user {
                             AuthError::UserAlreadyExists(name.to_string())
                         } else if let Some(name) = role {

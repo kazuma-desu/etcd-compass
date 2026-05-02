@@ -307,8 +307,10 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 															</TableRow>
 														</TableHeader>
 														<TableBody>
-															{perms.permissions.map((perm, idx) => (
-																<TableRow key={idx}>
+															{perms.permissions.map((perm) => (
+																<TableRow
+																	key={`${role}-${perm.key}-${perm.perm_type}-${perm.range_end || ""}`}
+																>
 																	<TableCell>
 																		<Badge
 																			variant="outline"
