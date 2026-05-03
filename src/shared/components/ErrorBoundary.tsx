@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
 									Error details
 								</p>
 								<code className="text-xs text-destructive font-mono break-all">
-									{this.state.error.message}
+									Something went wrong — please reload or contact support
 								</code>
 							</div>
 						)}

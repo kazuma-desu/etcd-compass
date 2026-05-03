@@ -580,6 +580,7 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			});
 		} catch (error: unknown) {
 			toast.error(`Failed to add key: ${formatError(error)}`);
+			throw error;
 		}
 	},
 
@@ -629,6 +630,7 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			});
 		} catch (error: unknown) {
 			toast.error(`Failed to update key: ${formatError(error)}`);
+			throw error;
 		}
 	},
 
@@ -672,6 +674,7 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			});
 		} catch (error: unknown) {
 			toast.error(`Failed to delete key: ${formatError(error)}`);
+			throw error;
 		}
 	},
 

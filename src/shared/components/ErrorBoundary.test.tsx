@@ -56,7 +56,11 @@ describe("ErrorBoundary", () => {
 				"An unexpected error occurred in the application. You can try reloading to recover.",
 			),
 		).toBeInTheDocument();
-		expect(screen.getByText("Test error")).toBeInTheDocument();
+		expect(
+			screen.getByText(
+				"Something went wrong — please reload or contact support",
+			),
+		).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: /Reload Application/i }),
 		).toBeInTheDocument();

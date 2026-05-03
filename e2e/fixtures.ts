@@ -182,8 +182,7 @@ export async function setupEtcdMock(
 				mod_revision: number;
 				lease: number;
 			}>;
-			hasMore: boolean;
-			nextCursor: string | null;
+			has_more: boolean;
 		} {
 			let startIndex = 0;
 			if (cursor) {
@@ -193,11 +192,8 @@ export async function setupEtcdMock(
 				if (startIndex === -1) startIndex = keys.length;
 			}
 			const pageKeys = keys.slice(startIndex, startIndex + limit);
-			const hasMore = startIndex + limit < keys.length;
-			const nextCursor = hasMore
-				? (pageKeys[pageKeys.length - 1]?.key ?? null)
-				: null;
-			return { keys: pageKeys, hasMore, nextCursor };
+			const has_more = startIndex + limit < keys.length;
+			return { keys: pageKeys, has_more };
 		}
 
 		(

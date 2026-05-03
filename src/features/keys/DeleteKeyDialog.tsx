@@ -45,8 +45,10 @@ export function DeleteKeyDialog({
 					<Button
 						variant="destructive"
 						onClick={async () => {
-							await deleteKey(connectionId);
-							handleOpenChange(false);
+							try {
+								await deleteKey(connectionId);
+								handleOpenChange(false);
+							} catch {}
 						}}
 					>
 						<Trash2 className="w-4 h-4 mr-2" />

@@ -72,10 +72,7 @@ export function EditKeyDialog({
 							try {
 								await editKey(connectionId, editKeyLeaseId || undefined);
 								handleOpenChange(false);
-							} catch {
-								// Error is already surfaced via toast in keys-store;
-								// keep the dialog open so the user can retry.
-							}
+							} catch {}
 						}}
 					>
 						<Check className="w-4 h-4 mr-2" />

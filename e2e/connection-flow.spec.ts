@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { clearEtcd, setupEtcdMock } from "./fixtures";
 
-const etcdEndpoint = process.env.ETCD_ENDPOINT ?? "http://localhost:2379";
+const etcdEndpoint = process.env.ETCD_ENDPOINT;
+if (!etcdEndpoint) {
+	throw new Error("ETCD_ENDPOINT required for e2e tests");
+}
 
 test.beforeEach(async ({ page }) => {
 	await clearEtcd(etcdEndpoint);

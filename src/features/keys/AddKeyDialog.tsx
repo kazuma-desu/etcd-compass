@@ -82,10 +82,7 @@ export function AddKeyDialog({
 							try {
 								await addKey(connectionId, newKeyLeaseId || undefined);
 								handleOpenChange(false);
-							} catch {
-								// Error is already surfaced via toast in keys-store;
-								// keep the dialog open so the user can retry.
-							}
+							} catch {}
 						}}
 						disabled={!newKey.trim()}
 					>
