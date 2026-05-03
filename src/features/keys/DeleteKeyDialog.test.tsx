@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDeleteKey = vi.fn();
@@ -98,7 +104,9 @@ describe("DeleteKeyDialog", () => {
 
 		expect(mockDeleteKey).toHaveBeenCalledTimes(1);
 
-		resolveRef.current?.();
+		act(() => {
+			resolveRef.current?.();
+		});
 
 		await waitFor(() => {
 			expect(mockDeleteKey).toHaveBeenCalledTimes(1);
@@ -123,7 +131,9 @@ describe("DeleteKeyDialog", () => {
 			expect(deleteButton).toBeDisabled();
 		});
 
-		resolveRef.current?.();
+		act(() => {
+			resolveRef.current?.();
+		});
 
 		await waitFor(() => {
 			expect(deleteButton).not.toBeDisabled();
@@ -147,6 +157,12 @@ describe("DeleteKeyDialog", () => {
 			expect(document.querySelector(".animate-spin")).toBeInTheDocument();
 		});
 
-		resolveRef.current?.();
+		act(() => {
+			resolveRef.current?.();
+		});
+
+		await waitFor(() => {
+			expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
+		});
 	});
 });

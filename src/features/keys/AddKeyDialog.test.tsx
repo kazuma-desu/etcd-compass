@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockAddKey = vi.fn();
@@ -109,7 +115,9 @@ describe("AddKeyDialog", () => {
 
 		expect(mockAddKey).toHaveBeenCalledTimes(1);
 
-		resolveRef.current?.();
+		act(() => {
+			resolveRef.current?.();
+		});
 
 		await waitFor(() => {
 			expect(mockAddKey).toHaveBeenCalledTimes(1);
@@ -134,7 +142,9 @@ describe("AddKeyDialog", () => {
 			expect(addButton).toBeDisabled();
 		});
 
-		resolveRef.current?.();
+		act(() => {
+			resolveRef.current?.();
+		});
 
 		await waitFor(() => {
 			expect(addButton).not.toBeDisabled();
@@ -158,6 +168,12 @@ describe("AddKeyDialog", () => {
 			expect(document.querySelector(".animate-spin")).toBeInTheDocument();
 		});
 
-		resolveRef.current?.();
+		act(() => {
+			resolveRef.current?.();
+		});
+
+		await waitFor(() => {
+			expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
+		});
 	});
 });

@@ -1,5 +1,6 @@
 import { Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -52,7 +53,13 @@ export function DeleteKeyDialog({
 							try {
 								await deleteKey(connectionId);
 								handleOpenChange(false);
-							} catch {
+							} catch (error) {
+								toast.error(
+									error instanceof Error
+										? error.message
+										: "Failed to delete key",
+								);
+								console.error(error);
 							} finally {
 								setIsDeleting(false);
 							}

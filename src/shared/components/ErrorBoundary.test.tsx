@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Component, type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 // =============================================================================
@@ -30,6 +30,18 @@ function NoThrow() {
 
 describe("ErrorBoundary", () => {
 	const originalConsoleError = console.error;
+	const originalLocation = window.location;
+
+	beforeEach(() => {});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+		console.error = originalConsoleError;
+		Object.defineProperty(window, "location", {
+			writable: true,
+			value: originalLocation,
+		});
+	});
 
 	it("should render children when no error occurs", () => {
 		render(
@@ -64,13 +76,10 @@ describe("ErrorBoundary", () => {
 		expect(
 			screen.getByRole("button", { name: /Reload Application/i }),
 		).toBeInTheDocument();
-
-		console.error = originalConsoleError;
 	});
 
 	it("should call window.location.reload when Reload Application is clicked", () => {
 		const mockReload = vi.fn();
-		const originalLocation = window.location;
 		Object.defineProperty(window, "location", {
 			writable: true,
 			value: { ...originalLocation, reload: mockReload },
@@ -90,12 +99,6 @@ describe("ErrorBoundary", () => {
 		fireEvent.click(reloadButton);
 
 		expect(mockReload).toHaveBeenCalledTimes(1);
-
-		Object.defineProperty(window, "location", {
-			writable: true,
-			value: originalLocation,
-		});
-		console.error = originalConsoleError;
 	});
 
 	it("should log error with component stack to console.error", () => {
@@ -128,7 +131,5 @@ describe("ErrorBoundary", () => {
 				),
 			),
 		).toBe(true);
-
-		console.error = originalConsoleError;
 	});
 });

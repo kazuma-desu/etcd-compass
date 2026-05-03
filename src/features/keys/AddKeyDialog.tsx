@@ -1,5 +1,6 @@
 import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -86,7 +87,11 @@ export function AddKeyDialog({
 							try {
 								await addKey(connectionId, newKeyLeaseId || undefined);
 								handleOpenChange(false);
-							} catch {
+							} catch (error) {
+								toast.error(
+									error instanceof Error ? error.message : "Failed to add key",
+								);
+								console.error(error);
 							} finally {
 								setIsSubmitting(false);
 							}
