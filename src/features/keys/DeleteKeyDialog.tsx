@@ -1,4 +1,5 @@
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -21,6 +22,7 @@ export function DeleteKeyDialog({
 }: DeleteKeyDialogProps) {
 	const { showDeleteDialog, selectedKey, setShowDeleteDialog, deleteKey } =
 		useKeysStore();
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleOpenChange = (open: boolean) => {
 		setShowDeleteDialog(open);
@@ -45,13 +47,23 @@ export function DeleteKeyDialog({
 					<Button
 						variant="destructive"
 						onClick={async () => {
+							if (isDeleting) return;
+							setIsDeleting(true);
 							try {
 								await deleteKey(connectionId);
 								handleOpenChange(false);
-							} catch {}
+							} catch {
+							} finally {
+								setIsDeleting(false);
+							}
 						}}
+						disabled={isDeleting}
 					>
-						<Trash2 className="w-4 h-4 mr-2" />
+						{isDeleting ? (
+							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						) : (
+							<Trash2 className="w-4 h-4 mr-2" />
+						)}
 						Delete
 					</Button>
 				</DialogFooter>

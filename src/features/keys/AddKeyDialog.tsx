@@ -1,4 +1,5 @@
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -33,6 +34,7 @@ export function AddKeyDialog({
 		setNewKeyLeaseId,
 		addKey,
 	} = useKeysStore();
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const handleOpenChange = (open: boolean) => {
 		setShowAddDialog(open);
@@ -79,14 +81,23 @@ export function AddKeyDialog({
 					</Button>
 					<Button
 						onClick={async () => {
+							if (isSubmitting) return;
+							setIsSubmitting(true);
 							try {
 								await addKey(connectionId, newKeyLeaseId || undefined);
 								handleOpenChange(false);
-							} catch {}
+							} catch {
+							} finally {
+								setIsSubmitting(false);
+							}
 						}}
-						disabled={!newKey.trim()}
+						disabled={!newKey.trim() || isSubmitting}
 					>
-						<Plus className="w-4 h-4 mr-2" />
+						{isSubmitting ? (
+							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						) : (
+							<Plus className="w-4 h-4 mr-2" />
+						)}
 						Add Key
 					</Button>
 				</DialogFooter>
