@@ -268,7 +268,10 @@ function AppShellContent() {
 									>
 										<ResizablePanel defaultSize={45} minSize={25}>
 											<FeatureErrorBoundary featureName="Keys Browser">
-												<KeyBrowser connectionId={connectionId} setDialogOpen={setDialogOpen} />
+												<KeyBrowser
+													connectionId={connectionId}
+													setDialogOpen={setDialogOpen}
+												/>
 											</FeatureErrorBoundary>
 										</ResizablePanel>
 										<ResizableHandle withHandle />
@@ -302,16 +305,16 @@ function AppShellContent() {
 													className="flex-1 min-h-0 mt-0"
 												>
 													<FeatureErrorBoundary featureName="Watch Panel">
-												<WatchPanel connectionId={connectionId} />
-											</FeatureErrorBoundary>
+														<WatchPanel connectionId={connectionId} />
+													</FeatureErrorBoundary>
 												</TabsContent>
 												<TabsContent
 													value="leases"
 													className="flex-1 min-h-0 mt-0"
 												>
 													<FeatureErrorBoundary featureName="Lease Panel">
-												<LeasePanel connectionId={connectionId} />
-											</FeatureErrorBoundary>
+														<LeasePanel connectionId={connectionId} />
+													</FeatureErrorBoundary>
 												</TabsContent>
 											</Tabs>
 										</ResizablePanel>
@@ -452,15 +455,15 @@ function AppShellContent() {
 				</div>
 			</SidebarInset>
 
-		<ConnectionForm
-			open={showConnectionDialog}
-			onOpenChange={setShowConnectionDialog}
-			onConnect={handleConnect}
-		/>
+			<ConnectionForm
+				open={showConnectionDialog}
+				onOpenChange={setShowConnectionDialog}
+				onConnect={handleConnect}
+			/>
 
-		<CommandPalette />
-		<ShortcutHelp open={showHelpDialog} onOpenChange={setShowHelpDialog} />
-	</>
+			<CommandPalette />
+			<ShortcutHelp open={showHelpDialog} onOpenChange={setShowHelpDialog} />
+		</>
 	);
 }
 

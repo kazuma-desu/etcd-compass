@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { clearEtcd, setupEtcdMock } from "./fixtures";
 
 const etcdEndpoint = process.env.ETCD_ENDPOINT ?? "http://localhost:2379";

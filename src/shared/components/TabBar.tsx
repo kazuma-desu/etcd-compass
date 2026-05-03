@@ -40,12 +40,15 @@ export function TabBar() {
 			e?.stopPropagation();
 			try {
 				await disconnectEtcd(id);
+				if (id === connectionId) {
+					setActiveConnectionId(null);
+				}
 				await loadTabs();
 			} catch (e) {
 				console.error("Failed to close tab:", e);
 			}
 		},
-		[loadTabs],
+		[loadTabs, connectionId, setActiveConnectionId],
 	);
 
 	const handleSelectTab = useCallback(

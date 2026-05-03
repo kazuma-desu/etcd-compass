@@ -190,30 +190,34 @@ describe("Keyboard Shortcuts", () => {
 		it("should not crash when navigator.platform is undefined", async () => {
 			const originalNavigator = globalThis.navigator;
 
-			globalThis.navigator = {} as Navigator;
+			try {
+				globalThis.navigator = {} as Navigator;
 
-			vi.resetModules();
+				vi.resetModules();
 
-			const mod = await import("./use-keyboard-shortcuts");
-			expect(mod.getIsMac()).toBe(false);
-			expect(mod.modifierKey).toBe("Ctrl");
-
-			globalThis.navigator = originalNavigator;
+				const mod = await import("./use-keyboard-shortcuts");
+				expect(mod.getIsMac()).toBe(false);
+				expect(mod.modifierKey).toBe("Ctrl");
+			} finally {
+				globalThis.navigator = originalNavigator;
+			}
 		});
 
 		it("should not crash when navigator is undefined", async () => {
 			const originalNavigator = globalThis.navigator;
 
-			// @ts-expect-error - intentionally removing navigator for test
-			globalThis.navigator = undefined;
+			try {
+				// @ts-expect-error - intentionally removing navigator for test
+				globalThis.navigator = undefined;
 
-			vi.resetModules();
+				vi.resetModules();
 
-			const mod = await import("./use-keyboard-shortcuts");
-			expect(mod.getIsMac()).toBe(false);
-			expect(mod.modifierKey).toBe("Ctrl");
-
-			globalThis.navigator = originalNavigator;
+				const mod = await import("./use-keyboard-shortcuts");
+				expect(mod.getIsMac()).toBe(false);
+				expect(mod.modifierKey).toBe("Ctrl");
+			} finally {
+				globalThis.navigator = originalNavigator;
+			}
 		});
 	});
 
@@ -239,7 +243,14 @@ describe("Keyboard Shortcuts", () => {
 
 		it("should NOT fire shortcuts when a dialog is open", () => {
 			useKeysStore.setState({
-				selectedKey: { key: "test", value: "val", version: 1, create_revision: 1, mod_revision: 1, lease: 0 },
+				selectedKey: {
+					key: "test",
+					value: "val",
+					version: 1,
+					create_revision: 1,
+					mod_revision: 1,
+					lease: 0,
+				},
 				refreshKeys: mockRefreshKeys,
 				setShowDeleteDialog: mockSetShowDeleteDialog,
 			});

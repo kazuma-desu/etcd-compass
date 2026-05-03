@@ -73,6 +73,10 @@ export function TreeView({
 		[allKeys],
 	);
 
+	const resolveNodeKey = (fullPath: string): EtcdKey | undefined => {
+		return keyByFullPath.get(fullPath) ?? keyByFullPath.get(`/${fullPath}`);
+	};
+
 	const parentRef = useRef<HTMLDivElement>(null);
 
 	const virtualizer = useVirtualizer({
@@ -123,17 +127,15 @@ export function TreeView({
 		if ((e.target as HTMLElement).closest("[data-checkbox-row]")) {
 			return;
 		}
-									if (node.isLeaf) {
-										const key =
-											keyByFullPath.get(node.fullPath) ??
-											keyByFullPath.get(`/${node.fullPath}`);
-										if (key) {
-											if (!e.ctrlKey && !e.metaKey) {
-												setSelectedKey(key);
-											}
-											addTab(key.key, key);
-										}
-									} else {
+		if (node.isLeaf) {
+			const key = resolveNodeKey(node.fullPath);
+			if (key) {
+				if (!e.ctrlKey && !e.metaKey) {
+					setSelectedKey(key);
+				}
+				addTab(key.key, key);
+			}
+		} else {
 			toggleNode(node.fullPath);
 		}
 	};
@@ -177,7 +179,7 @@ export function TreeView({
 										onClick={(e) => handleNodeClick(e, node)}
 										onAuxClick={(e) => {
 											if (e.button === 1 && node.isLeaf) {
-												const key = keyByFullPath.get(node.fullPath);
+												const key = resolveNodeKey(node.fullPath);
 												if (key) addTab(key.key, key);
 											}
 										}}
@@ -191,21 +193,21 @@ export function TreeView({
 												)}
 											</span>
 										)}
-									{node.isLeaf && (
-										<span
-											data-checkbox-row
-											className="inline-flex"
-											onClick={(e) => e.stopPropagation()}
-										>
-											<Checkbox
-												checked={isKeySelected(node.fullPath)}
-												onCheckedChange={() =>
-													toggleKeySelectionForBulk(node.fullPath)
-												}
-												aria-label={`Select ${node.fullPath}`}
-											/>
-										</span>
-									)}
+										{node.isLeaf && (
+											<span
+												data-checkbox-row
+												className="inline-flex"
+												onClick={(e) => e.stopPropagation()}
+											>
+												<Checkbox
+													checked={isKeySelected(node.fullPath)}
+													onCheckedChange={() =>
+														toggleKeySelectionForBulk(node.fullPath)
+													}
+													aria-label={`Select ${node.fullPath}`}
+												/>
+											</span>
+										)}
 										{node.isLeaf ? (
 											<FileKey className="w-4 h-4 text-primary" />
 										) : (

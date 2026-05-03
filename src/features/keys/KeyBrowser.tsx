@@ -147,8 +147,14 @@ export function KeyBrowser({ connectionId, setDialogOpen }: KeyBrowserProps) {
 			</div>
 
 			<AddKeyDialog connectionId={connectionId} setDialogOpen={setDialogOpen} />
-			<EditKeyDialog connectionId={connectionId} setDialogOpen={setDialogOpen} />
-			<DeleteKeyDialog connectionId={connectionId} setDialogOpen={setDialogOpen} />
+			<EditKeyDialog
+				connectionId={connectionId}
+				setDialogOpen={setDialogOpen}
+			/>
+			<DeleteKeyDialog
+				connectionId={connectionId}
+				setDialogOpen={setDialogOpen}
+			/>
 			<BulkDeleteDialog connectionId={connectionId} />
 			<ExportDialog connectionId={connectionId} />
 			<ImportPreviewDialog connectionId={connectionId} />

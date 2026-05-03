@@ -24,14 +24,32 @@ vi.mock("@/commands/watch", () => ({
 }));
 
 vi.mock("@/components/ui/badge", () => ({
-	Badge: ({ children, variant }: { children?: React.ReactNode; variant?: string }) => (
-		<span data-testid="badge" data-variant={variant}>{children}</span>
+	Badge: ({
+		children,
+		variant,
+	}: {
+		children?: React.ReactNode;
+		variant?: string;
+	}) => (
+		<span data-testid="badge" data-variant={variant}>
+			{children}
+		</span>
 	),
 }));
 
 vi.mock("@/components/ui/button", () => ({
-	Button: ({ children, onClick, disabled }: { children?: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
-		<button type="button" onClick={onClick} disabled={disabled}>{children}</button>
+	Button: ({
+		children,
+		onClick,
+		disabled,
+	}: {
+		children?: React.ReactNode;
+		onClick?: () => void;
+		disabled?: boolean;
+	}) => (
+		<button type="button" onClick={onClick} disabled={disabled}>
+			{children}
+		</button>
 	),
 }));
 
@@ -42,9 +60,13 @@ vi.mock("@/components/ui/input", () => ({
 }));
 
 vi.mock("@/components/ui/label", () => ({
-	Label: ({ children, htmlFor }: { children?: React.ReactNode; htmlFor?: string }) => (
-		<label htmlFor={htmlFor}>{children}</label>
-	),
+	Label: ({
+		children,
+		htmlFor,
+	}: {
+		children?: React.ReactNode;
+		htmlFor?: string;
+	}) => <label htmlFor={htmlFor}>{children}</label>,
 }));
 
 vi.mock("@/components/ui/scroll-area", () => ({
@@ -54,7 +76,15 @@ vi.mock("@/components/ui/scroll-area", () => ({
 }));
 
 vi.mock("@/components/ui/switch", () => ({
-	Switch: ({ checked, onCheckedChange, disabled }: { checked?: boolean; onCheckedChange?: (v: boolean) => void; disabled?: boolean }) => (
+	Switch: ({
+		checked,
+		onCheckedChange,
+		disabled,
+	}: {
+		checked?: boolean;
+		onCheckedChange?: (v: boolean) => void;
+		disabled?: boolean;
+	}) => (
 		<input
 			type="checkbox"
 			checked={checked}
@@ -78,7 +108,9 @@ describe("WatchPanel error handling regression", () => {
 
 		render(<WatchPanel connectionId="conn-123" />);
 
-		const input = screen.getByPlaceholderText("Enter key to watch (e.g., /config/app)");
+		const input = screen.getByPlaceholderText(
+			"Enter key to watch (e.g., /config/app)",
+		);
 		fireEvent.change(input, { target: { value: "/test/key" } });
 
 		const startButton = screen.getByText("Start Watching");
@@ -97,7 +129,9 @@ describe("WatchPanel error handling regression", () => {
 
 		render(<WatchPanel connectionId="conn-123" />);
 
-		const input = screen.getByPlaceholderText("Enter key to watch (e.g., /config/app)");
+		const input = screen.getByPlaceholderText(
+			"Enter key to watch (e.g., /config/app)",
+		);
 		fireEvent.change(input, { target: { value: "/test/key" } });
 
 		const startButton = screen.getByText("Start Watching");
@@ -116,12 +150,16 @@ describe("WatchPanel error handling regression", () => {
 	});
 
 	it("should show toast.error when setupListener fails", async () => {
-		mockOnWatchEvent.mockRejectedValueOnce(new Error("event system unavailable"));
+		mockOnWatchEvent.mockRejectedValueOnce(
+			new Error("event system unavailable"),
+		);
 
 		render(<WatchPanel connectionId="conn-123" />);
 
 		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith("Failed to set up watch listener");
+			expect(toast.error).toHaveBeenCalledWith(
+				"Failed to set up watch listener",
+			);
 		});
 	});
 
@@ -131,7 +169,9 @@ describe("WatchPanel error handling regression", () => {
 
 		const { unmount } = render(<WatchPanel connectionId="conn-123" />);
 
-		const input = screen.getByPlaceholderText("Enter key to watch (e.g., /config/app)");
+		const input = screen.getByPlaceholderText(
+			"Enter key to watch (e.g., /config/app)",
+		);
 		fireEvent.change(input, { target: { value: "/test/key" } });
 
 		const startButton = screen.getByText("Start Watching");
@@ -144,7 +184,9 @@ describe("WatchPanel error handling regression", () => {
 		unmount();
 
 		await waitFor(() => {
-			expect(toast.error).toHaveBeenCalledWith("Failed to clean up watch on unmount");
+			expect(toast.error).toHaveBeenCalledWith(
+				"Failed to clean up watch on unmount",
+			);
 		});
 	});
 });

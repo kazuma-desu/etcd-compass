@@ -137,9 +137,7 @@ export function ClusterSidebar({
 
 			setConnections(
 				history.map((config) => ({
-					id:
-						endpointToId.get(config.endpoint) ||
-						crypto.randomUUID(),
+					id: endpointToId.get(config.endpoint) || crypto.randomUUID(),
 					endpoint: config.endpoint,
 					name: config.name,
 					color: config.color,

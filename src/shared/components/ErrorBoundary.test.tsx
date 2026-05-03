@@ -106,9 +106,9 @@ describe("ErrorBoundary", () => {
 
 		expect(mockConsoleError).toHaveBeenCalled();
 		const calls = mockConsoleError.mock.calls;
-		expect(calls.some((call) => call[0] === "ErrorBoundary caught an error:")).toBe(
-			true,
-		);
+		expect(
+			calls.some((call) => call[0] === "ErrorBoundary caught an error:"),
+		).toBe(true);
 		expect(
 			calls.some((call) =>
 				call.some(
@@ -120,8 +120,7 @@ describe("ErrorBoundary", () => {
 		expect(
 			calls.some((call) =>
 				call.some(
-					(arg) =>
-						typeof arg === "string" && arg.includes("Component stack"),
+					(arg) => typeof arg === "string" && arg.includes("Component stack"),
 				),
 			),
 		).toBe(true);

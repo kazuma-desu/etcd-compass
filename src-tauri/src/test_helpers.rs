@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub mod test_helpers {
     use anyhow::{Context, Result};
-    use std::net::TcpListener;
+    use testcontainers::core::ports::IntoContainerPort;
     use testcontainers::runners::AsyncRunner;
     use testcontainers::{ContainerAsync, GenericImage, ImageExt};
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -17,29 +17,37 @@ pub mod test_helpers {
     /// Starts an etcd container using testcontainers with dynamic port allocation.
     /// Returns the container handle and a connection string like `http://localhost:{port}`.
     pub async fn start_etcd_container() -> Result<EtcdContainer> {
-        let client_port = find_free_port().context("Failed to find a free client port for etcd")?;
-        let peer_port = find_free_port().context("Failed to find a free peer port for etcd")?;
-        let connection_string = format!("http://127.0.0.1:{}", client_port);
-
         let image = GenericImage::new("gcr.io/etcd-development/etcd", "v3.5.15")
+            .with_exposed_port(2379.tcp())
+            .with_exposed_port(2380.tcp())
             .with_cmd(vec![
                 "etcd",
                 "--listen-client-urls",
-                &format!("http://0.0.0.0:{}", client_port),
+                "http://0.0.0.0:2379",
                 "--advertise-client-urls",
-                &format!("http://127.0.0.1:{}", client_port),
+                "http://127.0.0.1:2379",
                 "--listen-peer-urls",
-                &format!("http://0.0.0.0:{}", peer_port),
+                "http://0.0.0.0:2380",
                 "--initial-advertise-peer-urls",
-                &format!("http://127.0.0.1:{}", peer_port),
+                "http://127.0.0.1:2380",
                 "--initial-cluster",
-                &format!("default=http://127.0.0.1:{}", peer_port),
+                "default=http://127.0.0.1:2380",
             ]);
 
         let container = image
             .start()
             .await
             .context("Failed to start etcd container")?;
+
+        let client_port = container
+            .get_host_port_ipv4(2379.tcp())
+            .await
+            .context("Failed to get mapped client port")?;
+        let _peer_port = container
+            .get_host_port_ipv4(2380.tcp())
+            .await
+            .context("Failed to get mapped peer port")?;
+        let connection_string = format!("http://127.0.0.1:{}", client_port);
 
         wait_for_etcd_ready(&connection_string).await?;
 
@@ -58,33 +66,32 @@ pub mod test_helpers {
         Ok(())
     }
 
-    fn find_free_port() -> Result<u16> {
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .context("Failed to bind to ephemeral port")?;
-        let port = listener
-            .local_addr()
-            .context("Failed to get local address")?
-            .port();
-        drop(listener);
-        Ok(port)
-    }
-
     async fn wait_for_etcd_ready(connection_string: &str) -> Result<()> {
         let addr = connection_string
             .strip_prefix("http://")
             .unwrap_or(connection_string);
 
+        let mut last_err = None;
         for attempt in 0..60 {
             match check_etcd_health(addr).await {
                 Ok(()) => return Ok(()),
-                Err(_) if attempt < 59 => {
+                Err(e) if attempt < 59 => {
+                    last_err = Some(e);
                     sleep(Duration::from_millis(500)).await;
                 }
-                Err(e) => return Err(e),
+                Err(e) => {
+                    last_err = Some(e);
+                    break;
+                }
             }
         }
 
-        anyhow::bail!("Etcd container did not become healthy within timeout")
+        anyhow::bail!(
+            "Etcd container did not become healthy within timeout: {}",
+            last_err
+                .map(|e| e.to_string())
+                .unwrap_or_else(|| "unknown error".to_string())
+        )
     }
 
     async fn check_etcd_health(addr: &str) -> Result<()> {

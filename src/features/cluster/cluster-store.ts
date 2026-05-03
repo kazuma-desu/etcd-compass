@@ -74,24 +74,33 @@ export const useClusterStore = create<ClusterState>((set, get) => ({
 	},
 
 	setAutoRefresh: (enabled: boolean, connectionId?: string) => {
-		const { refreshInterval, refreshIntervalMs } = get();
+		const { refreshInterval, refreshIntervalMs, refreshConnectionId } = get();
+		const effectiveConnectionId = connectionId ?? refreshConnectionId;
 
 		if (refreshInterval) {
 			window.clearInterval(refreshInterval);
 		}
 
-		if (enabled && connectionId) {
+		if (enabled && effectiveConnectionId) {
 			const interval = window.setInterval(() => {
-				get().fetchStatus(connectionId);
+				get().fetchStatus(effectiveConnectionId);
 			}, refreshIntervalMs);
-			set({ autoRefresh: true, refreshInterval: interval, refreshConnectionId: connectionId });
+			set({
+				autoRefresh: true,
+				refreshInterval: interval,
+				refreshConnectionId: effectiveConnectionId,
+			});
 		} else {
-			set({ autoRefresh: false, refreshInterval: null, refreshConnectionId: null });
+			set({
+				autoRefresh: false,
+				refreshInterval: null,
+				refreshConnectionId: null,
+			});
 		}
 	},
 
 	setRefreshInterval: (intervalMs: number, connectionId?: string) => {
-		const { autoRefresh, refreshInterval } = get();
+		const { autoRefresh, refreshInterval, refreshConnectionId } = get();
 
 		// Clear existing interval
 		if (refreshInterval) {
@@ -102,11 +111,15 @@ export const useClusterStore = create<ClusterState>((set, get) => ({
 		set({ refreshIntervalMs: intervalMs, refreshInterval: null });
 
 		// Restart auto-refresh if it was enabled
-		if (autoRefresh && connectionId) {
+		const effectiveConnectionId = connectionId ?? refreshConnectionId;
+		if (autoRefresh && effectiveConnectionId) {
 			const interval = window.setInterval(() => {
-				get().fetchStatus(connectionId);
+				get().fetchStatus(effectiveConnectionId);
 			}, intervalMs);
-			set({ refreshInterval: interval, refreshConnectionId: connectionId });
+			set({
+				refreshInterval: interval,
+				refreshConnectionId: effectiveConnectionId,
+			});
 		}
 	},
 

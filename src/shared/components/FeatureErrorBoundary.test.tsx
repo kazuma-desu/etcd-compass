@@ -52,7 +52,7 @@ describe("FeatureErrorBoundary", () => {
 		);
 
 		expect(
-			screen.getByText('Keys Browser encountered an error'),
+			screen.getByText("Keys Browser encountered an error"),
 		).toBeInTheDocument();
 		expect(screen.getByText("Something went wrong")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
@@ -131,7 +131,9 @@ describe("FeatureErrorBoundary", () => {
 			call.some(
 				(arg) =>
 					typeof arg === "string" &&
-					arg.includes('FeatureErrorBoundary caught error in "Cluster Sidebar"'),
+					arg.includes(
+						'FeatureErrorBoundary caught error in "Cluster Sidebar"',
+					),
 			),
 		);
 		expect(featureErrorCall).toBeTruthy();

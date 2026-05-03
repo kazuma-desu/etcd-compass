@@ -1,6 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
-process.env.TESTCONTAINERS_RYUK_DISABLED = "true";
+// Opt-in to disable Testcontainers Ryuk (resource reaper) via env var.
+// Set TESTCONTAINERS_RYUK_DISABLE_OPT_IN=true to disable Ryuk.
+if (process.env.TESTCONTAINERS_RYUK_DISABLE_OPT_IN === "true") {
+	process.env.TESTCONTAINERS_RYUK_DISABLED = "true";
+}
 
 export default defineConfig({
 	testDir: ".",
@@ -23,9 +27,9 @@ export default defineConfig({
 		},
 	],
 	webServer: {
-		command: "npm run tauri:dev",
+		command: "npm run dev",
 		url: "http://localhost:1420",
 		reuseExistingServer: !process.env.CI,
-		timeout: 120_000,
+		timeout: 30_000,
 	},
 });

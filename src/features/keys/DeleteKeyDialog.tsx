@@ -15,7 +15,10 @@ interface DeleteKeyDialogProps {
 	setDialogOpen?: (open: boolean) => void;
 }
 
-export function DeleteKeyDialog({ connectionId, setDialogOpen }: DeleteKeyDialogProps) {
+export function DeleteKeyDialog({
+	connectionId,
+	setDialogOpen,
+}: DeleteKeyDialogProps) {
 	const { showDeleteDialog, selectedKey, setShowDeleteDialog, deleteKey } =
 		useKeysStore();
 
@@ -39,7 +42,13 @@ export function DeleteKeyDialog({ connectionId, setDialogOpen }: DeleteKeyDialog
 					<Button variant="outline" onClick={() => handleOpenChange(false)}>
 						Cancel
 					</Button>
-					<Button variant="destructive" onClick={() => deleteKey(connectionId)}>
+					<Button
+						variant="destructive"
+						onClick={async () => {
+							await deleteKey(connectionId);
+							handleOpenChange(false);
+						}}
+					>
 						<Trash2 className="w-4 h-4 mr-2" />
 						Delete
 					</Button>

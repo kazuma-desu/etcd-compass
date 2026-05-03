@@ -1,11 +1,21 @@
 #[cfg(test)]
 mod stress_tests {
     use crate::etcd::{EtcdClient, EtcdConfig};
-    use crate::test_helpers::test_helpers::{
-        start_etcd_container, stop_etcd_container,
-    };
+    use crate::test_helpers::test_helpers::start_etcd_container;
+    use anyhow::Result;
     use serial_test::serial;
     use std::time::Instant;
+
+    pub struct EtcdGuard {
+        pub connection_string: String,
+    }
+
+    pub async fn start_etcd_with_guard() -> Result<EtcdGuard> {
+        let etcd = start_etcd_container().await?;
+        Ok(EtcdGuard {
+            connection_string: etcd.connection_string,
+        })
+    }
 
     fn make_config(connection_string: &str) -> EtcdConfig {
         let endpoint = connection_string
@@ -37,7 +47,7 @@ mod stress_tests {
     #[tokio::test]
     #[serial]
     async fn test_concurrent_connections() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -64,10 +74,7 @@ mod stress_tests {
                 let put_ms = op_start.elapsed().as_millis();
 
                 let op_start = Instant::now();
-                let fetched = client
-                    .get_key(&key)
-                    .await
-                    .expect("Failed to get key");
+                let fetched = client.get_key(&key).await.expect("Failed to get key");
                 let get_ms = op_start.elapsed().as_millis();
 
                 assert!(fetched.is_some(), "Expected key to exist");
@@ -93,8 +100,10 @@ mod stress_tests {
         let p95_put = compute_p95(all_put_ms);
         let p95_get = compute_p95(all_get_ms);
 
-        println!("Concurrent connections P95: connect={}ms, put={}ms, get={}ms", 
-            p95_connect, p95_put, p95_get);
+        println!(
+            "Concurrent connections P95: connect={}ms, put={}ms, get={}ms",
+            p95_connect, p95_put, p95_get
+        );
 
         assert!(
             p95_put < 100,
@@ -106,16 +115,12 @@ mod stress_tests {
             "Expected P95 get latency < 100ms, got {}ms",
             p95_get
         );
-
-        stop_etcd_container(etcd.container)
-            .await
-            .expect("Failed to stop etcd container");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_rapid_connect_disconnect() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -137,10 +142,7 @@ mod stress_tests {
                 .await
                 .expect("Failed to put key");
 
-            let fetched = client
-                .get_key(&key)
-                .await
-                .expect("Failed to get key");
+            let fetched = client.get_key(&key).await.expect("Failed to get key");
             assert!(fetched.is_some());
             assert_eq!(fetched.unwrap().value, value);
 
@@ -148,23 +150,22 @@ mod stress_tests {
         }
 
         let p95_connect = compute_p95(latencies);
-        println!("Rapid connect/disconnect P95 connect latency: {}ms", p95_connect);
+        println!(
+            "Rapid connect/disconnect P95 connect latency: {}ms",
+            p95_connect
+        );
 
         assert!(
             p95_connect < 100,
             "Expected P95 connect latency < 100ms, got {}ms",
             p95_connect
         );
-
-        stop_etcd_container(etcd.container)
-            .await
-            .expect("Failed to stop etcd container");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_connection_pool_exhaustion() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -208,10 +209,6 @@ mod stress_tests {
                 .await
                 .expect("Failed to put key with pooled connection");
         }
-
-        stop_etcd_container(etcd.container)
-            .await
-            .expect("Failed to stop etcd container");
     }
 
     /// Generate a 1MB string value for large-value tests.
@@ -220,27 +217,27 @@ mod stress_tests {
     }
 
     /// Clean up all keys under a prefix by iterating through paginated results.
-    async fn cleanup_keys(client: &mut EtcdClient, prefix: &str) {
+    async fn cleanup_keys(client: &mut EtcdClient, prefix: &str) -> Result<()> {
         let mut cursor: Option<String> = None;
         loop {
             let (keys, has_more) = client
                 .get_keys_with_prefix(prefix, 100, cursor.clone(), true)
-                .await
-                .unwrap_or_default();
+                .await?;
             for key in &keys {
-                let _ = client.delete_key(&key.key).await;
+                client.delete_key(&key.key).await?;
             }
             if !has_more || keys.is_empty() {
                 break;
             }
             cursor = keys.last().map(|k| k.key.clone());
         }
+        Ok(())
     }
 
     #[tokio::test]
     #[serial]
     async fn test_bulk_key_insertion() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -299,17 +296,15 @@ mod stress_tests {
             assert_eq!(fetched.value, format!("value_{}", idx));
         }
 
-        cleanup_keys(&mut client, prefix).await;
-
-        stop_etcd_container(etcd.container)
+        cleanup_keys(&mut client, prefix)
             .await
-            .expect("Failed to stop etcd container");
+            .expect("Failed to clean up keys");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_bulk_key_deletion() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -386,16 +381,12 @@ mod stress_tests {
             let fetched = client.get_key(&key).await.expect("Failed to get key");
             assert!(fetched.is_none(), "Expected key {} to be deleted", key);
         }
-
-        stop_etcd_container(etcd.container)
-            .await
-            .expect("Failed to stop etcd container");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_large_value_handling() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -450,17 +441,16 @@ mod stress_tests {
         );
         assert_eq!(fetched.value, large_value, "Retrieved value does not match");
 
-        client.delete_key(key).await.expect("Failed to delete large value");
-
-        stop_etcd_container(etcd.container)
+        client
+            .delete_key(key)
             .await
-            .expect("Failed to stop etcd container");
+            .expect("Failed to delete large value");
     }
 
     #[tokio::test]
     #[serial]
     async fn test_pagination_performance() {
-        let etcd = start_etcd_container()
+        let etcd = start_etcd_with_guard()
             .await
             .expect("Failed to start etcd container");
 
@@ -556,10 +546,8 @@ mod stress_tests {
             duration
         );
 
-        cleanup_keys(&mut client, prefix).await;
-
-        stop_etcd_container(etcd.container)
+        cleanup_keys(&mut client, prefix)
             .await
-            .expect("Failed to stop etcd container");
+            .expect("Failed to clean up keys");
     }
 }

@@ -155,6 +155,11 @@ describe("Connection Store", () => {
 				endpoint: "",
 				username: "",
 				password: "",
+				tls_enabled: false,
+				ca_cert_path: "",
+				client_cert_path: "",
+				client_key_path: "",
+				skip_verify: false,
 			});
 		});
 

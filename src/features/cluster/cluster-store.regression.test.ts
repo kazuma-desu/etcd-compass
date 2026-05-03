@@ -48,6 +48,7 @@ describe("cluster-store auto-refresh regression", () => {
 
 	afterEach(() => {
 		vi.useRealTimers();
+		vi.restoreAllMocks();
 	});
 
 	it("should clear old interval when switching connections with auto-refresh on", () => {
@@ -122,6 +123,25 @@ describe("cluster-store auto-refresh regression", () => {
 		expect(interval2).not.toBe(interval1);
 
 		clearIntervalSpy.mockRestore();
+		setIntervalSpy.mockRestore();
+	});
+
+	it("should reuse stored refreshConnectionId when setAutoRefresh(true) is called without connectionId", () => {
+		const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+		// Start auto-refresh for connection "A"
+		useClusterStore.getState().setAutoRefresh(true, "conn-A");
+		expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+		expect(useClusterStore.getState().refreshConnectionId).toBe("conn-A");
+		expect(useClusterStore.getState().autoRefresh).toBe(true);
+
+		// Call setAutoRefresh(true) without passing connectionId
+		// Should reuse the stored refreshConnectionId
+		useClusterStore.getState().setAutoRefresh(true);
+		expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+		expect(useClusterStore.getState().refreshConnectionId).toBe("conn-A");
+		expect(useClusterStore.getState().autoRefresh).toBe(true);
+
 		setIntervalSpy.mockRestore();
 	});
 });

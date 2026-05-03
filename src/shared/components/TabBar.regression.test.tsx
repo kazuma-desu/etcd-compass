@@ -41,7 +41,13 @@ vi.mock("@/shared/components/ConnectionStatus", () => ({
 }));
 
 vi.mock("@/components/ui/button", () => ({
-	Button: ({ children, onClick }: { children?: React.ReactNode; onClick?: () => void }) => (
+	Button: ({
+		children,
+		onClick,
+	}: {
+		children?: React.ReactNode;
+		onClick?: () => void;
+	}) => (
 		<button type="button" onClick={onClick}>
 			{children}
 		</button>
@@ -69,9 +75,7 @@ describe("TabBar regression - double-disconnect", () => {
 		const tabId = "tab-abc-123";
 		const tabEndpoint = "localhost:2379";
 
-		mockListConnections.mockResolvedValue([
-			[tabId, tabEndpoint],
-		]);
+		mockListConnections.mockResolvedValue([[tabId, tabEndpoint]]);
 
 		render(<TabBar />);
 
@@ -103,9 +107,7 @@ describe("TabBar regression - double-disconnect", () => {
 			disconnect: mockDisconnectStore,
 		});
 
-		mockListConnections.mockResolvedValue([
-			[tabId, tabEndpoint],
-		]);
+		mockListConnections.mockResolvedValue([[tabId, tabEndpoint]]);
 
 		render(<TabBar />);
 

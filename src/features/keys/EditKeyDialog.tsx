@@ -18,7 +18,10 @@ interface EditKeyDialogProps {
 	setDialogOpen?: (open: boolean) => void;
 }
 
-export function EditKeyDialog({ connectionId, setDialogOpen }: EditKeyDialogProps) {
+export function EditKeyDialog({
+	connectionId,
+	setDialogOpen,
+}: EditKeyDialogProps) {
 	const {
 		showEditDialog,
 		selectedKey,
@@ -65,7 +68,15 @@ export function EditKeyDialog({ connectionId, setDialogOpen }: EditKeyDialogProp
 						Cancel
 					</Button>
 					<Button
-						onClick={() => editKey(connectionId, editKeyLeaseId || undefined)}
+						onClick={async () => {
+							try {
+								await editKey(connectionId, editKeyLeaseId || undefined);
+								handleOpenChange(false);
+							} catch {
+								// Error is already surfaced via toast in keys-store;
+								// keep the dialog open so the user can retry.
+							}
+						}}
 					>
 						<Check className="w-4 h-4 mr-2" />
 						Save Changes

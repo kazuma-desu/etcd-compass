@@ -1,4 +1,4 @@
-import { request, type Page } from "@playwright/test";
+import { type Page, request } from "@playwright/test";
 
 export interface MockEtcdKey {
 	key: string;
@@ -16,13 +16,17 @@ function toB64(str: string): string {
 export async function clearEtcd(etcdEndpoint: string): Promise<void> {
 	const ctx = await request.newContext();
 	try {
-		await ctx.post(`${etcdEndpoint}/v3/kv/deleterange`, {
+		const resp = await ctx.post(`${etcdEndpoint}/v3/kv/deleterange`, {
 			data: JSON.stringify({
 				key: toB64("\0"),
 				range_end: toB64("\0"),
 			}),
 			headers: { "Content-Type": "application/json" },
 		});
+		if (!resp.ok()) {
+			const body = await resp.text();
+			throw new Error(`clearEtcd failed with status ${resp.status()}: ${body}`);
+		}
 	} finally {
 		await ctx.dispose();
 	}
@@ -35,13 +39,19 @@ export async function seedEtcd(
 	const ctx = await request.newContext();
 	try {
 		for (const { key, value } of keys) {
-			await ctx.post(`${etcdEndpoint}/v3/kv/put`, {
+			const resp = await ctx.post(`${etcdEndpoint}/v3/kv/put`, {
 				data: JSON.stringify({
 					key: toB64(key),
 					value: toB64(value),
 				}),
 				headers: { "Content-Type": "application/json" },
 			});
+			if (!resp.ok()) {
+				const body = await resp.text();
+				throw new Error(
+					`seedEtcd failed for key "${key}" with status ${resp.status()}: ${body}`,
+				);
+			}
 		}
 	} finally {
 		await ctx.dispose();
@@ -74,6 +84,23 @@ export async function setupEtcdMock(
 			body: unknown,
 		): Promise<Record<string, unknown>> {
 			const res = await fetch(`${endpoint}${path}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!res.ok) {
+				const text = await res.text();
+				throw new Error(`etcd HTTP error ${res.status}: ${text}`);
+			}
+			return res.json() as Promise<Record<string, unknown>>;
+		}
+
+		async function etcdPostTo(
+			baseUrl: string,
+			path: string,
+			body: unknown,
+		): Promise<Record<string, unknown>> {
+			const res = await fetch(`${baseUrl}${path}`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
@@ -145,6 +172,7 @@ export async function setupEtcdMock(
 			}>,
 			limit: number,
 			cursor: string | null,
+			sortAscending: boolean,
 		): {
 			keys: Array<{
 				key: string;
@@ -159,7 +187,9 @@ export async function setupEtcdMock(
 		} {
 			let startIndex = 0;
 			if (cursor) {
-				startIndex = keys.findIndex((k) => k.key > cursor);
+				startIndex = keys.findIndex((k) =>
+					sortAscending ? k.key > cursor : k.key < cursor,
+				);
 				if (startIndex === -1) startIndex = keys.length;
 			}
 			const pageKeys = keys.slice(startIndex, startIndex + limit);
@@ -180,29 +210,23 @@ export async function setupEtcdMock(
 				};
 			}
 		).__TAURI_INTERNALS__ = {
-			invoke: async (
-				cmd: string,
-				args?: Record<string, unknown>,
-			) => {
+			invoke: async (cmd: string, args?: Record<string, unknown>) => {
 				await new Promise((r) => setTimeout(r, 50));
 
 				switch (cmd) {
 					case "connect_etcd": {
 						const endpointArg = args?.endpoint as string | undefined;
-						if (
-							!endpointArg ||
-							endpointArg.includes("invalid")
-						) {
+						if (!endpointArg || endpointArg.includes("invalid")) {
 							throw new Error(
 								"Connection refused: unable to connect to endpoint",
 							);
 						}
 						try {
-							await etcdPost("/v3/kv/put", {
+							await etcdPostTo(endpointArg, "/v3/kv/put", {
 								key: toB64Browser("__health_check__"),
 								value: toB64Browser("ok"),
 							});
-							await etcdPost("/v3/kv/deleterange", {
+							await etcdPostTo(endpointArg, "/v3/kv/deleterange", {
 								key: toB64Browser("__health_check__"),
 							});
 						} catch {
@@ -240,20 +264,17 @@ export async function setupEtcdMock(
 
 					case "test_connection": {
 						const endpointArg = args?.endpoint as string | undefined;
-						if (
-							!endpointArg ||
-							endpointArg.includes("invalid")
-						) {
+						if (!endpointArg || endpointArg.includes("invalid")) {
 							throw new Error(
 								"Connection refused: unable to connect to endpoint",
 							);
 						}
 						try {
-							await etcdPost("/v3/kv/put", {
+							await etcdPostTo(endpointArg, "/v3/kv/put", {
 								key: toB64Browser("__health_check__"),
 								value: toB64Browser("ok"),
 							});
-							await etcdPost("/v3/kv/deleterange", {
+							await etcdPostTo(endpointArg, "/v3/kv/deleterange", {
 								key: toB64Browser("__health_check__"),
 							});
 						} catch {
@@ -281,7 +302,7 @@ export async function setupEtcdMock(
 						}
 
 						keys = sortKeys(keys, sortAscending);
-						return paginate(keys, limit, cursor);
+						return paginate(keys, limit, cursor, sortAscending);
 					}
 
 					case "get_keys_with_prefix": {
@@ -293,7 +314,7 @@ export async function setupEtcdMock(
 						let keys = await getAllEtcdKeys();
 						keys = keys.filter((k) => k.key.startsWith(prefix));
 						keys = sortKeys(keys, sortAscending);
-						return paginate(keys, limit, cursor);
+						return paginate(keys, limit, cursor, sortAscending);
 					}
 
 					case "get_key": {
@@ -392,9 +413,7 @@ export async function setupEtcdMock(
 					}
 
 					case "update_connection_favorite": {
-						const hist = mockHistory.find(
-							(h) => h.endpoint === args?.endpoint,
-						);
+						const hist = mockHistory.find((h) => h.endpoint === args?.endpoint);
 						if (hist) hist.isFavorite = args?.isFavorite;
 						return;
 					}

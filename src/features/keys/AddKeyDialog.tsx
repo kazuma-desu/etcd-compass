@@ -18,7 +18,10 @@ interface AddKeyDialogProps {
 	setDialogOpen?: (open: boolean) => void;
 }
 
-export function AddKeyDialog({ connectionId, setDialogOpen }: AddKeyDialogProps) {
+export function AddKeyDialog({
+	connectionId,
+	setDialogOpen,
+}: AddKeyDialogProps) {
 	const {
 		showAddDialog,
 		newKey,
@@ -75,7 +78,15 @@ export function AddKeyDialog({ connectionId, setDialogOpen }: AddKeyDialogProps)
 						Cancel
 					</Button>
 					<Button
-						onClick={() => addKey(connectionId, newKeyLeaseId || undefined)}
+						onClick={async () => {
+							try {
+								await addKey(connectionId, newKeyLeaseId || undefined);
+								handleOpenChange(false);
+							} catch {
+								// Error is already surfaced via toast in keys-store;
+								// keep the dialog open so the user can retry.
+							}
+						}}
 						disabled={!newKey.trim()}
 					>
 						<Plus className="w-4 h-4 mr-2" />

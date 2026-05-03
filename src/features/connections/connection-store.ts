@@ -81,18 +81,20 @@ interface ConnectionState {
 	setActiveConnectionId: (id: string | null) => void;
 }
 
+export const EMPTY_ETCD_CONFIG: EtcdConfig = {
+	endpoint: "",
+	username: "",
+	password: "",
+	tls_enabled: false,
+	ca_cert_path: "",
+	client_cert_path: "",
+	client_key_path: "",
+	skip_verify: false,
+};
+
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
 	connectionId: null,
-	config: {
-		endpoint: "",
-		username: "",
-		password: "",
-		tls_enabled: false,
-		ca_cert_path: "",
-		client_cert_path: "",
-		client_key_path: "",
-		skip_verify: false,
-	},
+	config: EMPTY_ETCD_CONFIG,
 	isConnecting: false,
 	connectionError: "",
 	connectionHistory: [],
@@ -112,9 +114,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 				set({ config: saved });
 			}
 		} catch (_e) {
-			set({
-				config: { endpoint: "", username: "", password: "" },
-			});
+			set({ config: EMPTY_ETCD_CONFIG });
 		}
 	},
 
@@ -213,16 +213,7 @@ export const useConnectionStore = create<ConnectionState>((set, get) => ({
 				connectionId: null,
 				phase: "disconnected",
 				phaseOrder: buildConnectionPhaseOrder(false),
-				config: {
-					endpoint: "",
-					username: "",
-					password: "",
-					tls_enabled: false,
-					ca_cert_path: "",
-					client_cert_path: "",
-					client_key_path: "",
-					skip_verify: false,
-				},
+				config: EMPTY_ETCD_CONFIG,
 			});
 			toast.info("Disconnected from ETCD");
 		} catch (error: unknown) {

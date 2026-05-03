@@ -1,30 +1,29 @@
-import { test, expect, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import type { MockEtcdKey } from "./fixtures";
 import { clearEtcd, seedEtcd, setupEtcdMock } from "./fixtures";
-
-interface MockEtcdKey {
-	key: string;
-	value: string;
-	version: number;
-	create_revision: number;
-	mod_revision: number;
-	lease: number;
-}
 
 const etcdEndpoint = process.env.ETCD_ENDPOINT ?? "http://localhost:2379";
 
-async function connectToEtcd(page: Page, endpoint = "localhost:2379") {
+async function connectToEtcd(page: Page, endpoint = "http://localhost:2379") {
 	await page.goto("/");
 
 	await expect(
 		page.getByRole("heading", { name: "Welcome to ETCD Compass" }),
 	).toBeVisible();
 
-	await page.getByRole("button", { name: "Add new connection" }).first().click();
+	await page
+		.getByRole("button", { name: "Add new connection" })
+		.first()
+		.click();
 
 	await expect(page.getByRole("dialog")).toBeVisible();
-	await expect(page.getByRole("heading", { name: "New Connection" })).toBeVisible();
+	await expect(
+		page.getByRole("heading", { name: "New Connection" }),
+	).toBeVisible();
 
-	const endpointInput = page.locator('input[placeholder*="localhost:2379"]').first();
+	const endpointInput = page
+		.locator('input[placeholder*="localhost:2379"]')
+		.first();
 	await endpointInput.fill(endpoint);
 
 	await page.getByRole("button", { name: "Connect" }).last().click();
@@ -78,9 +77,7 @@ test.describe("Key Browsing CRUD", () => {
 		await expect(
 			page.getByTestId("flatview-card-/config/app/port"),
 		).toBeVisible();
-		await expect(
-			page.getByTestId("flatview-card-/users/admin"),
-		).toBeVisible();
+		await expect(page.getByTestId("flatview-card-/users/admin")).toBeVisible();
 
 		await expect(page.getByText("my-app")).toBeVisible();
 		await expect(page.getByText("8080")).toBeVisible();
@@ -110,17 +107,21 @@ test.describe("Key Browsing CRUD", () => {
 		await connectToEtcd(page);
 
 		await page.getByRole("tab", { name: /Tree/i }).click();
-		await page.waitForTimeout(300);
+		await expect(page.getByTestId("treeview-node-config")).toBeVisible();
 
 		await page.getByTestId("treeview-node-config").click();
-		await page.waitForTimeout(300);
+		await expect(page.getByTestId("treeview-node-config/app")).toBeVisible();
 
 		await page.getByTestId("treeview-node-config/app").click();
-		await page.waitForTimeout(300);
+		await expect(
+			page.getByTestId("treeview-node-config/app/name"),
+		).toBeVisible();
 
 		await page.getByTestId("treeview-node-config/app/name").click();
 
-		await expect(page.getByRole("heading", { name: "Key Details" })).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: "Key Details" }),
+		).toBeVisible();
 
 		await page.getByTestId("edit-key-button").click();
 
@@ -135,7 +136,9 @@ test.describe("Key Browsing CRUD", () => {
 		await page.getByRole("tab", { name: /Flat/i }).click();
 
 		await expect(
-			page.getByTestId("flatview-card-/config/app/name").getByText("my-updated-app"),
+			page
+				.getByTestId("flatview-card-/config/app/name")
+				.getByText("my-updated-app"),
 		).toBeVisible();
 		await expect(
 			page.getByTestId("flatview-card-/config/app/name").getByText("my-app"),

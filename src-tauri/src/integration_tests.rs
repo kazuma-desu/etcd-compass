@@ -1,9 +1,7 @@
 #[cfg(test)]
 mod integration_tests {
     use crate::etcd::{EtcdClient, EtcdConfig};
-    use crate::test_helpers::test_helpers::{
-        start_etcd_container, stop_etcd_container,
-    };
+    use crate::test_helpers::test_helpers::{start_etcd_container, stop_etcd_container};
     use serial_test::serial;
 
     fn make_config(connection_string: &str) -> EtcdConfig {
@@ -36,7 +34,11 @@ mod integration_tests {
 
         let mut client = result.unwrap();
         let status = client.status().await;
-        assert!(status.is_ok(), "Expected status call to succeed: {:?}", status);
+        assert!(
+            status.is_ok(),
+            "Expected status call to succeed: {:?}",
+            status
+        );
 
         stop_etcd_container(etcd.container)
             .await
@@ -59,10 +61,18 @@ mod integration_tests {
         let value = "hello_world";
 
         let put_result = client.put_key(key, value, None).await;
-        assert!(put_result.is_ok(), "Expected put to succeed: {:?}", put_result);
+        assert!(
+            put_result.is_ok(),
+            "Expected put to succeed: {:?}",
+            put_result
+        );
 
         let get_result = client.get_key(key).await;
-        assert!(get_result.is_ok(), "Expected get to succeed: {:?}", get_result);
+        assert!(
+            get_result.is_ok(),
+            "Expected get to succeed: {:?}",
+            get_result
+        );
 
         let fetched = get_result.unwrap();
         assert!(fetched.is_some(), "Expected key to exist after put");
@@ -93,11 +103,22 @@ mod integration_tests {
             .expect("Failed to put key");
 
         let delete_result = client.delete_key(key).await;
-        assert!(delete_result.is_ok(), "Expected delete to succeed: {:?}", delete_result);
+        assert!(
+            delete_result.is_ok(),
+            "Expected delete to succeed: {:?}",
+            delete_result
+        );
 
         let get_result = client.get_key(key).await;
-        assert!(get_result.is_ok(), "Expected get to succeed after delete: {:?}", get_result);
-        assert!(get_result.unwrap().is_none(), "Expected key to be gone after delete");
+        assert!(
+            get_result.is_ok(),
+            "Expected get to succeed after delete: {:?}",
+            get_result
+        );
+        assert!(
+            get_result.unwrap().is_none(),
+            "Expected key to be gone after delete"
+        );
 
         stop_etcd_container(etcd.container)
             .await
@@ -118,7 +139,11 @@ mod integration_tests {
 
         for i in 0..5 {
             client
-                .put_key(&format!("/test/all_keys/{}", i), &format!("value_{}", i), None)
+                .put_key(
+                    &format!("/test/all_keys/{}", i),
+                    &format!("value_{}", i),
+                    None,
+                )
                 .await
                 .expect("Failed to put key");
         }
@@ -172,11 +197,13 @@ mod integration_tests {
 
         assert_eq!(keys.len(), 2, "Expected 2 keys matching prefix");
         assert!(
-            keys.iter().any(|k| k.key == "/prefix/app/key1" && k.value == "val1"),
+            keys.iter()
+                .any(|k| k.key == "/prefix/app/key1" && k.value == "val1"),
             "Expected /prefix/app/key1"
         );
         assert!(
-            keys.iter().any(|k| k.key == "/prefix/app/key2" && k.value == "val2"),
+            keys.iter()
+                .any(|k| k.key == "/prefix/app/key2" && k.value == "val2"),
             "Expected /prefix/app/key2"
         );
         assert!(!has_more, "Expected no more pages with limit 100");

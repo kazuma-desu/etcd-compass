@@ -132,9 +132,7 @@ describe("ClusterSidebar regression - connection ID mapping", () => {
 		mockGetConnectionHistory.mockResolvedValue([
 			{ endpoint: "localhost:2379" },
 		]);
-		mockListConnections.mockResolvedValue([
-			[activeUuid, "localhost:2379"],
-		]);
+		mockListConnections.mockResolvedValue([[activeUuid, "localhost:2379"]]);
 
 		render(<ClusterSidebar {...defaultProps} />);
 
