@@ -194,9 +194,10 @@ export function TreeView({
 											</span>
 										)}
 										{node.isLeaf && (
-											<span
+											<button
+												type="button"
 												data-checkbox-row
-												className="inline-flex"
+												className="inline-flex appearance-none bg-transparent border-none p-0"
 												onClick={(e) => e.stopPropagation()}
 											>
 												<Checkbox
@@ -206,7 +207,7 @@ export function TreeView({
 													}
 													aria-label={`Select ${node.fullPath}`}
 												/>
-											</span>
+											</button>
 										)}
 										{node.isLeaf ? (
 											<FileKey className="w-4 h-4 text-primary" />

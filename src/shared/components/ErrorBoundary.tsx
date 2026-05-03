@@ -30,8 +30,8 @@ export class ErrorBoundary extends Component<Props, State> {
 		);
 	}
 
-	private handleReload = (): void => {
-		window.location.reload();
+	private readonly handleReload = (): void => {
+		globalThis.location.reload();
 	};
 
 	render(): ReactNode {

@@ -26,8 +26,8 @@ import { PAGE_SIZE_OPTIONS, useKeysStore } from "./keys-store";
 import { TreeView } from "./TreeView";
 
 interface KeyBrowserProps {
-	connectionId: string;
-	setDialogOpen?: (open: boolean) => void;
+	readonly connectionId: string;
+	readonly setDialogOpen?: (open: boolean) => void;
 }
 
 export function KeyBrowser({ connectionId, setDialogOpen }: KeyBrowserProps) {

@@ -2,11 +2,8 @@ import { useCallback, useEffect, useRef } from "react";
 import { useKeysStore } from "@/features/keys/keys-store";
 
 export function getIsMac(): boolean {
-	return (
-		(typeof navigator !== "undefined" &&
-			navigator?.platform?.toUpperCase().includes("MAC")) ??
-		false
-	);
+	if (typeof navigator === "undefined") return false;
+	return /MAC/i.test(navigator.userAgent);
 }
 export const isMac = getIsMac();
 export const modifierKey = getIsMac() ? "Cmd" : "Ctrl";

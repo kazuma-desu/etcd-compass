@@ -53,7 +53,8 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 				watchId: response.watch_id,
 				isWatching: true,
 			}));
-		} catch (_error) {
+		} catch (error) {
+			console.error("Failed to start watch:", error);
 			toast.error("Failed to start watch");
 		} finally {
 			setIsWatchPending(false);
@@ -71,7 +72,8 @@ export function WatchPanel({ connectionId }: WatchPanelProps) {
 				watchId: null,
 				isWatching: false,
 			}));
-		} catch (_error) {
+		} catch (error) {
+			console.error("Failed to stop watch:", error);
 			toast.error("Failed to stop watch");
 		} finally {
 			setIsWatchPending(false);

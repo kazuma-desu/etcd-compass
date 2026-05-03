@@ -144,4 +144,100 @@ describe("cluster-store auto-refresh regression", () => {
 
 		setIntervalSpy.mockRestore();
 	});
+
+	describe("fetchStatus", () => {
+		it("should fetch status and update metrics history on success", async () => {
+			const mockStatus = {
+				members: [],
+				db_size: 1024,
+				db_size_in_use: 512,
+				raft_term: 2,
+				raft_index: 10,
+				version: "3.5.0",
+				cluster_id: "test-cluster",
+				leader_id: "leader-1",
+			};
+			mockClusterStatus.mockResolvedValueOnce(mockStatus);
+
+			await useClusterStore.getState().fetchStatus("conn-1");
+
+			expect(mockClusterStatus).toHaveBeenCalledWith("conn-1");
+			expect(useClusterStore.getState().status).toEqual(mockStatus);
+			expect(useClusterStore.getState().loading).toBe(false);
+			expect(useClusterStore.getState().error).toBeNull();
+			expect(useClusterStore.getState().metricsHistory).toHaveLength(1);
+			expect(useClusterStore.getState().metricsHistory[0].dbSize).toBe(1024);
+		});
+
+		it("should set error state when fetchStatus fails", async () => {
+			mockClusterStatus.mockRejectedValueOnce(new Error("Network error"));
+
+			await useClusterStore.getState().fetchStatus("conn-1");
+
+			expect(useClusterStore.getState().status).toBeNull();
+			expect(useClusterStore.getState().loading).toBe(false);
+			expect(useClusterStore.getState().error).toBe("Network error");
+		});
+
+		it("should append metrics points up to MAX_HISTORY_POINTS", async () => {
+			mockClusterStatus.mockResolvedValue({
+				members: [],
+				db_size: 100,
+				db_size_in_use: 50,
+				raft_term: 1,
+				raft_index: 1,
+				version: "3.5.0",
+				cluster_id: "c",
+				leader_id: "l",
+			});
+
+			for (let i = 0; i < 65; i++) {
+				await useClusterStore.getState().fetchStatus("conn-1");
+			}
+
+			expect(useClusterStore.getState().metricsHistory).toHaveLength(60);
+		});
+	});
+
+	describe("setRefreshInterval", () => {
+		it("should update interval and restart auto-refresh when enabled", () => {
+			const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+			const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+			useClusterStore.getState().setAutoRefresh(true, "conn-A");
+			expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+			const intervalId = setIntervalSpy.mock.results[0].value;
+
+			useClusterStore.getState().setRefreshInterval(15000, "conn-A");
+
+			expect(clearIntervalSpy).toHaveBeenCalledWith(intervalId);
+			expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+			expect(useClusterStore.getState().refreshIntervalMs).toBe(15000);
+
+			clearIntervalSpy.mockRestore();
+			setIntervalSpy.mockRestore();
+		});
+
+		it("should update interval without restarting when auto-refresh is disabled", () => {
+			const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+			useClusterStore.getState().setRefreshInterval(10000);
+
+			expect(setIntervalSpy).not.toHaveBeenCalled();
+			expect(useClusterStore.getState().refreshIntervalMs).toBe(10000);
+			expect(useClusterStore.getState().refreshInterval).toBeNull();
+
+			setIntervalSpy.mockRestore();
+		});
+	});
+
+	describe("clearError", () => {
+		it("should clear the error state", () => {
+			useClusterStore.setState({ error: "Some error" });
+			expect(useClusterStore.getState().error).toBe("Some error");
+
+			useClusterStore.getState().clearError();
+			expect(useClusterStore.getState().error).toBeNull();
+		});
+	});
 });

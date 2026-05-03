@@ -14,8 +14,8 @@ import { LeaseSelector } from "@/features/leases/LeaseSelector";
 import { useKeysStore } from "./keys-store";
 
 interface EditKeyDialogProps {
-	connectionId: string;
-	setDialogOpen?: (open: boolean) => void;
+	readonly connectionId: string;
+	readonly setDialogOpen?: (open: boolean) => void;
 }
 
 export function EditKeyDialog({

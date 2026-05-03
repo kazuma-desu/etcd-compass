@@ -11,8 +11,8 @@ import {
 import { useKeysStore } from "./keys-store";
 
 interface DeleteKeyDialogProps {
-	connectionId: string;
-	setDialogOpen?: (open: boolean) => void;
+	readonly connectionId: string;
+	readonly setDialogOpen?: (open: boolean) => void;
 }
 
 export function DeleteKeyDialog({

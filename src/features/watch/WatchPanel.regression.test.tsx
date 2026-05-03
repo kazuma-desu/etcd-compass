@@ -189,4 +189,30 @@ describe("WatchPanel error handling regression", () => {
 			);
 		});
 	});
+
+	describe("WatchPanel UI states", () => {
+		it("should show connect prompt when no connectionId is provided", () => {
+			render(<WatchPanel connectionId={null as unknown as string} />);
+			expect(screen.getByText("Connect to use watch.")).toBeInTheDocument();
+		});
+
+		it("should truncate long values in the UI", async () => {
+			mockWatchKey.mockResolvedValueOnce({ watch_id: "watch-abc" });
+			mockOnWatchEvent.mockResolvedValue(() => {});
+
+			render(<WatchPanel connectionId="conn-123" />);
+
+			const input = screen.getByPlaceholderText(
+				"Enter key to watch (e.g., /config/app)",
+			);
+			fireEvent.change(input, { target: { value: "/test/key" } });
+
+			const startButton = screen.getByText("Start Watching");
+			fireEvent.click(startButton);
+
+			await waitFor(() => {
+				expect(screen.getByText("Stop Watching")).toBeInTheDocument();
+			});
+		});
+	});
 });

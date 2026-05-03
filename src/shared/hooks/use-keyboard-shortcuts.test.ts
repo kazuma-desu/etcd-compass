@@ -323,5 +323,116 @@ describe("Keyboard Shortcuts", () => {
 			expect(listener).toHaveBeenCalled();
 			window.removeEventListener("etcd:command-palette", listener);
 		});
+
+		it("should dispatch new connection event on Cmd+N", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const listener = vi.fn();
+			window.addEventListener("etcd:new-connection", listener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "n", ctrlKey: true }),
+				);
+			});
+
+			expect(listener).toHaveBeenCalled();
+			window.removeEventListener("etcd:new-connection", listener);
+		});
+
+		it("should dispatch close-tab event on Cmd+W", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const listener = vi.fn();
+			window.addEventListener("etcd:close-tab", listener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "w", ctrlKey: true }),
+				);
+			});
+
+			expect(listener).toHaveBeenCalled();
+			window.removeEventListener("etcd:close-tab", listener);
+		});
+
+		it("should dispatch toggle-sidebar event on Cmd+Shift+D", () => {
+			const showHelp = vi.fn();
+			const toggleSidebar = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp, toggleSidebar));
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "d",
+						ctrlKey: true,
+						shiftKey: true,
+					}),
+				);
+			});
+
+			expect(toggleSidebar).toHaveBeenCalled();
+		});
+
+		it("should show delete dialog on Delete key when a key is selected", () => {
+			useKeysStore.setState({
+				selectedKey: {
+					key: "test",
+					value: "val",
+					version: 1,
+					create_revision: 1,
+					mod_revision: 1,
+					lease: 0,
+				},
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			act(() => {
+				window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+			});
+
+			expect(mockSetShowDeleteDialog).toHaveBeenCalledWith(true);
+		});
+
+		it("should dispatch next-tab and prev-tab events", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const nextListener = vi.fn();
+			const prevListener = vi.fn();
+			window.addEventListener("etcd:next-tab", nextListener);
+			window.addEventListener("etcd:prev-tab", prevListener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "]",
+						ctrlKey: true,
+						shiftKey: true,
+					}),
+				);
+			});
+			expect(nextListener).toHaveBeenCalled();
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "[",
+						ctrlKey: true,
+						shiftKey: true,
+					}),
+				);
+			});
+			expect(prevListener).toHaveBeenCalled();
+
+			window.removeEventListener("etcd:next-tab", nextListener);
+			window.removeEventListener("etcd:prev-tab", prevListener);
+		});
 	});
 });
