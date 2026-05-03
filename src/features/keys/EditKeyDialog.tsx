@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -72,7 +73,14 @@ export function EditKeyDialog({
 							try {
 								await editKey(connectionId, editKeyLeaseId || undefined);
 								handleOpenChange(false);
-							} catch {}
+							} catch (error) {
+								toast.error(
+									error instanceof Error
+										? error.message
+										: "Failed to update key",
+								);
+								console.error(error);
+							}
 						}}
 					>
 						<Check className="w-4 h-4 mr-2" />
