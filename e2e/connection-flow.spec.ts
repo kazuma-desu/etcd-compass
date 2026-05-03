@@ -23,7 +23,7 @@ test("user can connect to etcd", async ({ page }) => {
 		page.getByRole("heading", { name: "New Connection" }),
 	).toBeVisible();
 
-	await page.locator('input[name="endpoint"]').fill("localhost:2379");
+	await page.locator('input[name="endpoint"]').fill(etcdEndpoint);
 	await page
 		.getByRole("dialog")
 		.getByRole("button", { name: "Connect", exact: true })
@@ -40,7 +40,7 @@ test("user can disconnect from etcd", async ({ page }) => {
 		.getByRole("button", { name: "Add new connection" })
 		.first()
 		.click();
-	await page.locator('input[name="endpoint"]').fill("localhost:2379");
+	await page.locator('input[name="endpoint"]').fill(etcdEndpoint);
 	await page
 		.getByRole("dialog")
 		.getByRole("button", { name: "Connect", exact: true })
@@ -51,7 +51,7 @@ test("user can disconnect from etcd", async ({ page }) => {
 	).not.toBeVisible();
 
 	await page
-		.getByRole("button", { name: "localhost:2379" })
+		.getByRole("button", { name: etcdEndpoint })
 		.first()
 		.click({ button: "right" });
 	await page.getByText("Disconnect").click();
@@ -79,7 +79,7 @@ test("user can view connection history", async ({ page }) => {
 		.getByRole("button", { name: "Add new connection" })
 		.first()
 		.click();
-	await page.locator('input[name="endpoint"]').fill("localhost:2379");
+	await page.locator('input[name="endpoint"]').fill(etcdEndpoint);
 	await page
 		.getByRole("dialog")
 		.getByRole("button", { name: "Connect", exact: true })
@@ -87,12 +87,12 @@ test("user can view connection history", async ({ page }) => {
 	await expect(page.getByRole("dialog")).not.toBeVisible();
 
 	await page
-		.getByRole("button", { name: "localhost:2379" })
+		.getByRole("button", { name: etcdEndpoint })
 		.first()
 		.click({ button: "right" });
 	await page.getByText("Disconnect").click();
 
 	await expect(
-		page.getByRole("button", { name: "localhost:2379" }).first(),
+		page.getByRole("button", { name: etcdEndpoint }).first(),
 	).toBeVisible();
 });

@@ -4,7 +4,7 @@ import { clearEtcd, seedEtcd, setupEtcdMock } from "./fixtures";
 
 const etcdEndpoint = process.env.ETCD_ENDPOINT ?? "http://localhost:2379";
 
-async function connectToEtcd(page: Page, endpoint = "http://localhost:2379") {
+async function connectToEtcd(page: Page, endpoint = etcdEndpoint) {
 	await page.goto("/");
 
 	await expect(

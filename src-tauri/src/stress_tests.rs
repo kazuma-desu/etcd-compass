@@ -5,14 +5,17 @@ mod stress_tests {
     use anyhow::Result;
     use serial_test::serial;
     use std::time::Instant;
+    use testcontainers::{ContainerAsync, GenericImage};
 
     pub struct EtcdGuard {
+        pub _container: ContainerAsync<GenericImage>,
         pub connection_string: String,
     }
 
     pub async fn start_etcd_with_guard() -> Result<EtcdGuard> {
         let etcd = start_etcd_container().await?;
         Ok(EtcdGuard {
+            _container: etcd.container,
             connection_string: etcd.connection_string,
         })
     }
