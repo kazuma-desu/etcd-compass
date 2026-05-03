@@ -93,11 +93,11 @@ describe("AddKeyDialog", () => {
 	});
 
 	it("should prevent double-submit on rapid clicks", async () => {
-		let resolveAddKey: (() => void) | null = null;
+		const resolveRef = { current: null as (() => void) | null };
 		mockAddKey.mockImplementation(
 			() =>
 				new Promise<void>((resolve) => {
-					resolveAddKey = resolve;
+					resolveRef.current = resolve;
 				}),
 		);
 
@@ -109,7 +109,7 @@ describe("AddKeyDialog", () => {
 
 		expect(mockAddKey).toHaveBeenCalledTimes(1);
 
-		resolveAddKey?.();
+		resolveRef.current?.();
 
 		await waitFor(() => {
 			expect(mockAddKey).toHaveBeenCalledTimes(1);
@@ -117,11 +117,11 @@ describe("AddKeyDialog", () => {
 	});
 
 	it("should disable the Add Key button while submitting", async () => {
-		let resolveAddKey: (() => void) | null = null;
+		const resolveRef = { current: null as (() => void) | null };
 		mockAddKey.mockImplementation(
 			() =>
 				new Promise<void>((resolve) => {
-					resolveAddKey = resolve;
+					resolveRef.current = resolve;
 				}),
 		);
 
@@ -134,7 +134,7 @@ describe("AddKeyDialog", () => {
 			expect(addButton).toBeDisabled();
 		});
 
-		resolveAddKey?.();
+		resolveRef.current?.();
 
 		await waitFor(() => {
 			expect(addButton).not.toBeDisabled();
@@ -142,11 +142,11 @@ describe("AddKeyDialog", () => {
 	});
 
 	it("should show a loading spinner while submitting", async () => {
-		let resolveAddKey: (() => void) | null = null;
+		const resolveRef = { current: null as (() => void) | null };
 		mockAddKey.mockImplementation(
 			() =>
 				new Promise<void>((resolve) => {
-					resolveAddKey = resolve;
+					resolveRef.current = resolve;
 				}),
 		);
 
@@ -158,6 +158,6 @@ describe("AddKeyDialog", () => {
 			expect(document.querySelector(".animate-spin")).toBeInTheDocument();
 		});
 
-		resolveAddKey?.();
+		resolveRef.current?.();
 	});
 });

@@ -82,11 +82,11 @@ describe("DeleteKeyDialog", () => {
 	});
 
 	it("should prevent double-submit on rapid clicks", async () => {
-		let resolveDeleteKey: (() => void) | null = null;
+		const resolveRef = { current: null as (() => void) | null };
 		mockDeleteKey.mockImplementation(
 			() =>
 				new Promise<void>((resolve) => {
-					resolveDeleteKey = resolve;
+					resolveRef.current = resolve;
 				}),
 		);
 
@@ -98,7 +98,7 @@ describe("DeleteKeyDialog", () => {
 
 		expect(mockDeleteKey).toHaveBeenCalledTimes(1);
 
-		resolveDeleteKey?.();
+		resolveRef.current?.();
 
 		await waitFor(() => {
 			expect(mockDeleteKey).toHaveBeenCalledTimes(1);
@@ -106,11 +106,11 @@ describe("DeleteKeyDialog", () => {
 	});
 
 	it("should disable the Delete button while deleting", async () => {
-		let resolveDeleteKey: (() => void) | null = null;
+		const resolveRef = { current: null as (() => void) | null };
 		mockDeleteKey.mockImplementation(
 			() =>
 				new Promise<void>((resolve) => {
-					resolveDeleteKey = resolve;
+					resolveRef.current = resolve;
 				}),
 		);
 
@@ -123,7 +123,7 @@ describe("DeleteKeyDialog", () => {
 			expect(deleteButton).toBeDisabled();
 		});
 
-		resolveDeleteKey?.();
+		resolveRef.current?.();
 
 		await waitFor(() => {
 			expect(deleteButton).not.toBeDisabled();
@@ -131,11 +131,11 @@ describe("DeleteKeyDialog", () => {
 	});
 
 	it("should show a loading spinner while deleting", async () => {
-		let resolveDeleteKey: (() => void) | null = null;
+		const resolveRef = { current: null as (() => void) | null };
 		mockDeleteKey.mockImplementation(
 			() =>
 				new Promise<void>((resolve) => {
-					resolveDeleteKey = resolve;
+					resolveRef.current = resolve;
 				}),
 		);
 
@@ -147,6 +147,6 @@ describe("DeleteKeyDialog", () => {
 			expect(document.querySelector(".animate-spin")).toBeInTheDocument();
 		});
 
-		resolveDeleteKey?.();
+		resolveRef.current?.();
 	});
 });
