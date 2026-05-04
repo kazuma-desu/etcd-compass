@@ -1,4 +1,3 @@
-import type { InputHTMLAttributes, ReactNode } from "react";
 import {
 	act,
 	fireEvent,
@@ -6,6 +5,7 @@ import {
 	screen,
 	waitFor,
 } from "@testing-library/react";
+import type { InputHTMLAttributes, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const toastError = vi.fn();
@@ -49,9 +49,7 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-	Dialog: ({ children }: { children?: ReactNode }) => (
-		<div>{children}</div>
-	),
+	Dialog: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 	DialogContent: ({ children }: { children?: ReactNode }) => (
 		<div data-testid="add-key-dialog">{children}</div>
 	),
@@ -70,9 +68,7 @@ vi.mock("@/components/ui/dialog", () => ({
 }));
 
 vi.mock("@/components/ui/input", () => ({
-	Input: (props: InputHTMLAttributes<HTMLInputElement>) => (
-		<input {...props} />
-	),
+	Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
 }));
 
 vi.mock("@/components/ui/label", () => ({
