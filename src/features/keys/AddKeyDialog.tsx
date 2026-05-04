@@ -38,6 +38,7 @@ export function AddKeyDialog({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	const handleOpenChange = (open: boolean) => {
+		if (isSubmitting) return;
 		setShowAddDialog(open);
 		setDialogOpen?.(open);
 	};
@@ -77,9 +78,13 @@ export function AddKeyDialog({
 					/>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => handleOpenChange(false)}>
-						Cancel
-					</Button>
+				<Button
+					variant="outline"
+					disabled={isSubmitting}
+					onClick={() => handleOpenChange(false)}
+				>
+					Cancel
+				</Button>
 					<Button
 						onClick={async () => {
 							if (isSubmitting) return;

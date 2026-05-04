@@ -1,3 +1,4 @@
+import type { InputHTMLAttributes, ReactNode } from "react";
 import {
 	act,
 	fireEvent,
@@ -6,6 +7,14 @@ import {
 	waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const toastError = vi.fn();
+vi.mock("sonner", () => ({
+	toast: {
+		success: vi.fn(),
+		error: (...args: unknown[]) => toastError(...args),
+	},
+}));
 
 const mockAddKey = vi.fn();
 
@@ -29,7 +38,7 @@ vi.mock("@/components/ui/button", () => ({
 		onClick,
 		disabled,
 	}: {
-		children?: React.ReactNode;
+		children?: ReactNode;
 		onClick?: () => void;
 		disabled?: boolean;
 	}) => (
@@ -40,28 +49,28 @@ vi.mock("@/components/ui/button", () => ({
 }));
 
 vi.mock("@/components/ui/dialog", () => ({
-	Dialog: ({ children }: { children?: React.ReactNode }) => (
+	Dialog: ({ children }: { children?: ReactNode }) => (
 		<div>{children}</div>
 	),
-	DialogContent: ({ children }: { children?: React.ReactNode }) => (
+	DialogContent: ({ children }: { children?: ReactNode }) => (
 		<div data-testid="add-key-dialog">{children}</div>
 	),
-	DialogDescription: ({ children }: { children?: React.ReactNode }) => (
+	DialogDescription: ({ children }: { children?: ReactNode }) => (
 		<div>{children}</div>
 	),
-	DialogFooter: ({ children }: { children?: React.ReactNode }) => (
+	DialogFooter: ({ children }: { children?: ReactNode }) => (
 		<div>{children}</div>
 	),
-	DialogHeader: ({ children }: { children?: React.ReactNode }) => (
+	DialogHeader: ({ children }: { children?: ReactNode }) => (
 		<div>{children}</div>
 	),
-	DialogTitle: ({ children }: { children?: React.ReactNode }) => (
+	DialogTitle: ({ children }: { children?: ReactNode }) => (
 		<div>{children}</div>
 	),
 }));
 
 vi.mock("@/components/ui/input", () => ({
-	Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+	Input: (props: InputHTMLAttributes<HTMLInputElement>) => (
 		<input {...props} />
 	),
 }));
@@ -71,7 +80,7 @@ vi.mock("@/components/ui/label", () => ({
 		children,
 		htmlFor,
 	}: {
-		children?: React.ReactNode;
+		children?: ReactNode;
 		htmlFor?: string;
 	}) => <label htmlFor={htmlFor}>{children}</label>,
 }));
@@ -175,5 +184,34 @@ describe("AddKeyDialog", () => {
 		await waitFor(() => {
 			expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
 		});
+	});
+
+	it("should show error toast and keep dialog open on addKey failure", async () => {
+		const setShowAddDialogMock = vi.fn();
+		const { useKeysStore } = await import("./keys-store");
+		vi.mocked(useKeysStore).mockReturnValue({
+			showAddDialog: true,
+			newKey: "test-key",
+			newValue: "test-value",
+			newKeyLeaseId: null,
+			setShowAddDialog: setShowAddDialogMock,
+			setNewKey: vi.fn(),
+			setNewValue: vi.fn(),
+			setNewKeyLeaseId: vi.fn(),
+			addKey: (...args: unknown[]) => mockAddKey(...args),
+		});
+
+		const error = new Error("etcd connection failed");
+		mockAddKey.mockRejectedValue(error);
+
+		render(<AddKeyDialog connectionId="conn-1" />);
+
+		fireEvent.click(screen.getByText("Add Key"));
+
+		await waitFor(() => {
+			expect(toastError).toHaveBeenCalledWith("etcd connection failed");
+		});
+
+		expect(setShowAddDialogMock).not.toHaveBeenCalledWith(false);
 	});
 });

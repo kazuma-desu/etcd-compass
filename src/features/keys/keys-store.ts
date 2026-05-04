@@ -530,7 +530,9 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			});
 
 			if (direction === "refresh") {
-				toast.success(`Loaded ${result.keys.length} keys`);
+				toast.success(`Loaded ${result.keys.length} keys`, {
+					id: "keys-loaded",
+				});
 			}
 		} catch (error: unknown) {
 			set({ isLoading: false });
@@ -551,7 +553,6 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		if (!newKey.trim()) return;
 
 		await putKey(connectionId, newKey, newValue, leaseId);
-		toast.success("Key added successfully");
 
 		const result = await getAllKeys(
 			connectionId,
@@ -561,6 +562,8 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			rangeStart || null,
 			rangeEnd || null,
 		);
+
+		toast.success("Key added successfully");
 
 		set({
 			keys: result.keys,
@@ -592,7 +595,6 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		if (!selectedKey) return;
 
 		await putKey(connectionId, selectedKey.key, editValue, leaseId);
-		toast.success("Key updated successfully");
 
 		const result = await getAllKeys(
 			connectionId,
@@ -602,6 +604,8 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			rangeStart || null,
 			rangeEnd || null,
 		);
+
+		toast.success("Key updated successfully");
 
 		const updatedKey = result.keys.find((k) => k.key === selectedKey.key);
 		const { openTabs } = get();
@@ -636,7 +640,6 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		if (!selectedKey) return;
 
 		await deleteKey(connectionId, selectedKey.key);
-		toast.success("Key deleted successfully");
 
 		const result = await getAllKeys(
 			connectionId,
@@ -646,6 +649,8 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			rangeStart || null,
 			rangeEnd || null,
 		);
+
+		toast.success("Key deleted successfully");
 
 		const { openTabs } = get();
 		set({

@@ -26,6 +26,7 @@ export function DeleteKeyDialog({
 	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleOpenChange = (open: boolean) => {
+		if (isDeleting) return;
 		setShowDeleteDialog(open);
 		setDialogOpen?.(open);
 	};
@@ -42,7 +43,11 @@ export function DeleteKeyDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => handleOpenChange(false)}>
+					<Button
+						variant="outline"
+						disabled={isDeleting}
+						onClick={() => handleOpenChange(false)}
+					>
 						Cancel
 					</Button>
 					<Button

@@ -1,4 +1,5 @@
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +34,10 @@ export function EditKeyDialog({
 		setEditKeyLeaseId,
 		editKey,
 	} = useKeysStore();
+	const [isEditing, setIsEditing] = useState(false);
 
 	const handleOpenChange = (open: boolean) => {
+		if (isEditing) return;
 		setShowEditDialog(open);
 		setDialogOpen?.(open);
 	};
@@ -65,27 +68,40 @@ export function EditKeyDialog({
 					/>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => handleOpenChange(false)}>
-						Cancel
-					</Button>
-					<Button
-						onClick={async () => {
-							try {
-								await editKey(connectionId, editKeyLeaseId || undefined);
-								handleOpenChange(false);
-							} catch (error) {
-								toast.error(
-									error instanceof Error
-										? error.message
-										: "Failed to update key",
-								);
-								console.error(error);
-							}
-						}}
-					>
+				<Button
+					variant="outline"
+					disabled={isEditing}
+					onClick={() => handleOpenChange(false)}
+				>
+					Cancel
+				</Button>
+				<Button
+					onClick={async () => {
+						if (isEditing) return;
+						setIsEditing(true);
+						try {
+							await editKey(connectionId, editKeyLeaseId || undefined);
+							handleOpenChange(false);
+						} catch (error) {
+							toast.error(
+								error instanceof Error
+									? error.message
+									: "Failed to update key",
+							);
+							console.error(error);
+						} finally {
+							setIsEditing(false);
+						}
+					}}
+					disabled={isEditing}
+				>
+					{isEditing ? (
+						<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+					) : (
 						<Check className="w-4 h-4 mr-2" />
-						Save Changes
-					</Button>
+					)}
+					Save Changes
+				</Button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
