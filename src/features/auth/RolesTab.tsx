@@ -98,7 +98,6 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 		setPermissionType,
 		setPermissionKey,
 		setPermissionRangeEnd,
-		clearErrors,
 	} = useAuthStore();
 
 	useEffect(() => {
@@ -170,7 +169,6 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 								variant="outline"
 								size="sm"
 								onClick={() => {
-									clearErrors();
 									fetchRoles(connectionId);
 								}}
 								className="mt-4"
@@ -309,7 +307,7 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 														<TableBody>
 															{perms.permissions.map((perm) => (
 																<TableRow
-																	key={`${role}-${perm.key}-${perm.perm_type}-${perm.range_end || ""}`}
+																	key={`${role.name}-${perm.key}-${perm.perm_type}-${perm.range_end || ""}`}
 																>
 																	<TableCell>
 																		<Badge

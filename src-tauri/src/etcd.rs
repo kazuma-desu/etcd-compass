@@ -797,6 +797,48 @@ impl EtcdClient {
         Ok(total_written)
     }
 
+    fn map_code_5_error(msg: &str, user: Option<&str>, role: Option<&str>) -> AuthError {
+        let is_role_err = msg.to_lowercase().contains("role");
+        let is_user_err = msg.to_lowercase().contains("user");
+        if is_role_err {
+            if let Some(name) = role {
+                return AuthError::RoleNotFound(name.to_string());
+            }
+        } else if is_user_err {
+            if let Some(name) = user {
+                return AuthError::UserNotFound(name.to_string());
+            }
+        }
+        if let Some(name) = user {
+            AuthError::UserNotFound(name.to_string())
+        } else if let Some(name) = role {
+            AuthError::RoleNotFound(name.to_string())
+        } else {
+            AuthError::EtcdError(msg.to_string())
+        }
+    }
+
+    fn map_code_6_error(msg: &str, user: Option<&str>, role: Option<&str>) -> AuthError {
+        let is_role_err = msg.to_lowercase().contains("role");
+        let is_user_err = msg.to_lowercase().contains("user");
+        if is_role_err {
+            if let Some(name) = role {
+                return AuthError::RoleAlreadyExists(name.to_string());
+            }
+        } else if is_user_err {
+            if let Some(name) = user {
+                return AuthError::UserAlreadyExists(name.to_string());
+            }
+        }
+        if let Some(name) = user {
+            AuthError::UserAlreadyExists(name.to_string())
+        } else if let Some(name) = role {
+            AuthError::RoleAlreadyExists(name.to_string())
+        } else {
+            AuthError::EtcdError(msg.to_string())
+        }
+    }
+
     fn map_etcd_auth_error(
         e: etcd_client::Error,
         user: Option<&str>,
@@ -809,46 +851,8 @@ impl EtcdClient {
                 match code {
                     16 => AuthError::AuthFailed(msg),
                     7 => AuthError::PermissionDenied(msg),
-                    5 => {
-                        let is_role_err = msg.to_lowercase().contains("role");
-                        let is_user_err = msg.to_lowercase().contains("user");
-                        if is_role_err {
-                            if let Some(name) = role {
-                                return AuthError::RoleNotFound(name.to_string());
-                            }
-                        } else if is_user_err {
-                            if let Some(name) = user {
-                                return AuthError::UserNotFound(name.to_string());
-                            }
-                        }
-                        if let Some(name) = user {
-                            AuthError::UserNotFound(name.to_string())
-                        } else if let Some(name) = role {
-                            AuthError::RoleNotFound(name.to_string())
-                        } else {
-                            AuthError::EtcdError(msg)
-                        }
-                    }
-                    6 => {
-                        let is_role_err = msg.to_lowercase().contains("role");
-                        let is_user_err = msg.to_lowercase().contains("user");
-                        if is_role_err {
-                            if let Some(name) = role {
-                                return AuthError::RoleAlreadyExists(name.to_string());
-                            }
-                        } else if is_user_err {
-                            if let Some(name) = user {
-                                return AuthError::UserAlreadyExists(name.to_string());
-                            }
-                        }
-                        if let Some(name) = user {
-                            AuthError::UserAlreadyExists(name.to_string())
-                        } else if let Some(name) = role {
-                            AuthError::RoleAlreadyExists(name.to_string())
-                        } else {
-                            AuthError::EtcdError(msg)
-                        }
-                    }
+                    5 => Self::map_code_5_error(&msg, user, role),
+                    6 => Self::map_code_6_error(&msg, user, role),
                     9 => AuthError::AuthNotEnabled,
                     _ => AuthError::EtcdError(msg),
                 }
@@ -990,9 +994,9 @@ impl EtcdClient {
             .iter()
             .map(|p| Permission {
                 perm_type: match p.get_type() {
-                    0 => "read".to_string(),
-                    1 => "write".to_string(),
-                    2 => "readwrite".to_string(),
+                    t if t == PermissionType::Read as i32 => "read".to_string(),
+                    t if t == PermissionType::Write as i32 => "write".to_string(),
+                    t if t == PermissionType::Readwrite as i32 => "readwrite".to_string(),
                     _ => "unknown".to_string(),
                 },
                 key: String::from_utf8_lossy(p.key()).to_string(),
