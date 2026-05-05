@@ -138,6 +138,7 @@ export function KeyDetail() {
 											</Tooltip>
 										)}
 										<Button
+											data-testid="edit-key-button"
 											variant="outline"
 											size="sm"
 											onClick={openEditDialog}
@@ -148,6 +149,7 @@ export function KeyDetail() {
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<Button
+													data-testid="delete-key-button"
 													variant="destructive"
 													size="sm"
 													onClick={() => setShowDeleteDialog(true)}

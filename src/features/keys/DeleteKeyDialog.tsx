@@ -1,4 +1,6 @@
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -11,16 +13,27 @@ import {
 import { useKeysStore } from "./keys-store";
 
 interface DeleteKeyDialogProps {
-	connectionId: string;
+	readonly connectionId: string;
+	readonly setDialogOpen?: (open: boolean) => void;
 }
 
-export function DeleteKeyDialog({ connectionId }: DeleteKeyDialogProps) {
+export function DeleteKeyDialog({
+	connectionId,
+	setDialogOpen,
+}: DeleteKeyDialogProps) {
 	const { showDeleteDialog, selectedKey, setShowDeleteDialog, deleteKey } =
 		useKeysStore();
+	const [isDeleting, setIsDeleting] = useState(false);
+
+	const handleOpenChange = (open: boolean) => {
+		if (isDeleting) return;
+		setShowDeleteDialog(open);
+		setDialogOpen?.(open);
+	};
 
 	return (
-		<Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-			<DialogContent>
+		<Dialog open={showDeleteDialog} onOpenChange={handleOpenChange}>
+			<DialogContent data-testid="delete-key-dialog">
 				<DialogHeader>
 					<DialogTitle>Delete Key</DialogTitle>
 					<DialogDescription>
@@ -30,11 +43,39 @@ export function DeleteKeyDialog({ connectionId }: DeleteKeyDialogProps) {
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+					<Button
+						variant="outline"
+						disabled={isDeleting}
+						onClick={() => handleOpenChange(false)}
+					>
 						Cancel
 					</Button>
-					<Button variant="destructive" onClick={() => deleteKey(connectionId)}>
-						<Trash2 className="w-4 h-4 mr-2" />
+					<Button
+						variant="destructive"
+						onClick={async () => {
+							if (isDeleting) return;
+							setIsDeleting(true);
+							try {
+								await deleteKey(connectionId);
+								handleOpenChange(false);
+							} catch (error) {
+								toast.error(
+									error instanceof Error
+										? error.message
+										: "Failed to delete key",
+								);
+								console.error(error);
+							} finally {
+								setIsDeleting(false);
+							}
+						}}
+						disabled={isDeleting}
+					>
+						{isDeleting ? (
+							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						) : (
+							<Trash2 className="w-4 h-4 mr-2" />
+						)}
 						Delete
 					</Button>
 				</DialogFooter>

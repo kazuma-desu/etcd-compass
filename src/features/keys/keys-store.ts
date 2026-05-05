@@ -530,7 +530,9 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 			});
 
 			if (direction === "refresh") {
-				toast.success(`Loaded ${result.keys.length} keys`);
+				toast.success(`Loaded ${result.keys.length} keys`, {
+					id: "keys-loaded",
+				});
 			}
 		} catch (error: unknown) {
 			set({ isLoading: false });
@@ -550,37 +552,34 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		} = get();
 		if (!newKey.trim()) return;
 
-		try {
-			await putKey(connectionId, newKey, newValue, leaseId);
-			toast.success("Key added successfully");
+		await putKey(connectionId, newKey, newValue, leaseId);
 
-			const result = await getAllKeys(
-				connectionId,
-				pagination.limit,
-				null,
-				sortAscending,
-				rangeStart || null,
-				rangeEnd || null,
-			);
+		const result = await getAllKeys(
+			connectionId,
+			pagination.limit,
+			null,
+			sortAscending,
+			rangeStart || null,
+			rangeEnd || null,
+		);
 
-			set({
-				keys: result.keys,
-				treeData: buildTree(result.keys, expandedNodes),
-				newKey: "",
-				newValue: "",
-				newKeyLeaseId: null,
-				showAddDialog: false,
-				pagination: {
-					...pagination,
-					currentPage: 1,
-					cursorHistory: [],
-					currentCursor: null,
-					hasMore: result.has_more,
-				},
-			});
-		} catch (error: unknown) {
-			toast.error(`Failed to add key: ${formatError(error)}`);
-		}
+		toast.success("Key added successfully");
+
+		set({
+			keys: result.keys,
+			treeData: buildTree(result.keys, expandedNodes),
+			newKey: "",
+			newValue: "",
+			newKeyLeaseId: null,
+			showAddDialog: false,
+			pagination: {
+				...pagination,
+				currentPage: 1,
+				cursorHistory: [],
+				currentCursor: null,
+				hasMore: result.has_more,
+			},
+		});
 	},
 
 	editKey: async (connectionId: string, leaseId?: number) => {
@@ -595,41 +594,38 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		} = get();
 		if (!selectedKey) return;
 
-		try {
-			await putKey(connectionId, selectedKey.key, editValue, leaseId);
-			toast.success("Key updated successfully");
+		await putKey(connectionId, selectedKey.key, editValue, leaseId);
 
-			const result = await getAllKeys(
-				connectionId,
-				pagination.limit,
-				pagination.currentCursor,
-				sortAscending,
-				rangeStart || null,
-				rangeEnd || null,
-			);
+		const result = await getAllKeys(
+			connectionId,
+			pagination.limit,
+			pagination.currentCursor,
+			sortAscending,
+			rangeStart || null,
+			rangeEnd || null,
+		);
 
-			const updatedKey = result.keys.find((k) => k.key === selectedKey.key);
-			const { openTabs } = get();
-			set({
-				keys: result.keys,
-				treeData: buildTree(result.keys, expandedNodes),
-				selectedKey: updatedKey || null,
-				editValue: "",
-				editKeyLeaseId: null,
-				showEditDialog: false,
-				openTabs: updatedKey
-					? openTabs.map((t) =>
-							t.key === updatedKey.key ? { ...t, snapshot: updatedKey } : t,
-						)
-					: openTabs,
-				pagination: {
-					...pagination,
-					hasMore: result.has_more,
-				},
-			});
-		} catch (error: unknown) {
-			toast.error(`Failed to update key: ${formatError(error)}`);
-		}
+		toast.success("Key updated successfully");
+
+		const updatedKey = result.keys.find((k) => k.key === selectedKey.key);
+		const { openTabs } = get();
+		set({
+			keys: result.keys,
+			treeData: buildTree(result.keys, expandedNodes),
+			selectedKey: updatedKey || null,
+			editValue: "",
+			editKeyLeaseId: null,
+			showEditDialog: false,
+			openTabs: updatedKey
+				? openTabs.map((t) =>
+						t.key === updatedKey.key ? { ...t, snapshot: updatedKey } : t,
+					)
+				: openTabs,
+			pagination: {
+				...pagination,
+				hasMore: result.has_more,
+			},
+		});
 	},
 
 	deleteKey: async (connectionId: string) => {
@@ -643,36 +639,33 @@ export const useKeysStore = create<KeysState>((set, get) => ({
 		} = get();
 		if (!selectedKey) return;
 
-		try {
-			await deleteKey(connectionId, selectedKey.key);
-			toast.success("Key deleted successfully");
+		await deleteKey(connectionId, selectedKey.key);
 
-			const result = await getAllKeys(
-				connectionId,
-				pagination.limit,
-				pagination.currentCursor,
-				sortAscending,
-				rangeStart || null,
-				rangeEnd || null,
-			);
+		const result = await getAllKeys(
+			connectionId,
+			pagination.limit,
+			pagination.currentCursor,
+			sortAscending,
+			rangeStart || null,
+			rangeEnd || null,
+		);
 
-			const { openTabs } = get();
-			set({
-				keys: result.keys,
-				treeData: buildTree(result.keys, expandedNodes),
-				selectedKey: null,
-				showDeleteDialog: false,
-				openTabs: openTabs.map((t) =>
-					t.key === selectedKey.key ? { ...t, snapshot: undefined } : t,
-				),
-				pagination: {
-					...pagination,
-					hasMore: result.has_more,
-				},
-			});
-		} catch (error: unknown) {
-			toast.error(`Failed to delete key: ${formatError(error)}`);
-		}
+		toast.success("Key deleted successfully");
+
+		const { openTabs } = get();
+		set({
+			keys: result.keys,
+			treeData: buildTree(result.keys, expandedNodes),
+			selectedKey: null,
+			showDeleteDialog: false,
+			openTabs: openTabs.map((t) =>
+				t.key === selectedKey.key ? { ...t, snapshot: undefined } : t,
+			),
+			pagination: {
+				...pagination,
+				hasMore: result.has_more,
+			},
+		});
 	},
 
 	openEditDialog: () => {

@@ -345,6 +345,7 @@ export function QueryBar({ connectionId, searchInputRef }: QueryBarProps) {
 				<div className="flex flex-wrap items-center justify-between px-1 gap-4">
 					<div className="flex items-center gap-2 flex-wrap">
 						<Button
+							data-testid="add-key-button"
 							size="sm"
 							className="h-7 text-[11px] font-bold px-3 gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded uppercase tracking-wide border border-transparent shadow-sm"
 							onClick={() => setShowAddDialog(true)}

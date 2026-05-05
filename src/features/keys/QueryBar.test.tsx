@@ -114,5 +114,29 @@ describe("QueryBar", () => {
 			expect(refreshKeysSpy).toHaveBeenCalledWith("test-uuid");
 			refreshKeysSpy.mockRestore();
 		});
+
+		it("should call setShowAddDialog when ADD KEY is clicked", () => {
+			const setShowAddDialogSpy = vi.spyOn(
+				useKeysStore.getState(),
+				"setShowAddDialog",
+			);
+			render(<QueryBar connectionId="test-uuid" />);
+
+			fireEvent.click(screen.getByTestId("add-key-button"));
+			expect(setShowAddDialogSpy).toHaveBeenCalledWith(true);
+			setShowAddDialogSpy.mockRestore();
+		});
+
+		it("should call setShowExportDialog when EXPORT is clicked", () => {
+			const setShowExportDialogSpy = vi.spyOn(
+				useKeysStore.getState(),
+				"setShowExportDialog",
+			);
+			render(<QueryBar connectionId="test-uuid" />);
+
+			fireEvent.click(screen.getByText("EXPORT"));
+			expect(setShowExportDialogSpy).toHaveBeenCalledWith(true);
+			setShowExportDialogSpy.mockRestore();
+		});
 	});
 });

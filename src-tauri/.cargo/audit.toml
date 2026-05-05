@@ -34,4 +34,13 @@ ignore = [
     # rand 0.7.3 is pulled in via phf_generator -> selectors -> kuchikiki -> tauri-utils.
     # We do not use rand::rng() or custom loggers in this path.
     "RUSTSEC-2026-0097",
+
+    # tokio-tar PAX extended header parsing vulnerability — transitive via testcontainers.
+    # No fixed upgrade is available. We do not process untrusted tar archives.
+    # testcontainers is a dev-dependency used only in integration tests.
+    "RUSTSEC-2025-0111",
+
+    # rustls-pemfile unmaintained — transitive via testcontainers -> bollard -> rustls-native-certs.
+    # This is a warning-level advisory (crate is unmaintained, not a vulnerability).
+    "RUSTSEC-2025-0134",
 ]

@@ -1,4 +1,6 @@
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,10 +16,14 @@ import { LeaseSelector } from "@/features/leases/LeaseSelector";
 import { useKeysStore } from "./keys-store";
 
 interface AddKeyDialogProps {
-	connectionId: string;
+	readonly connectionId: string;
+	readonly setDialogOpen?: (open: boolean) => void;
 }
 
-export function AddKeyDialog({ connectionId }: AddKeyDialogProps) {
+export function AddKeyDialog({
+	connectionId,
+	setDialogOpen,
+}: AddKeyDialogProps) {
 	const {
 		showAddDialog,
 		newKey,
@@ -29,10 +35,17 @@ export function AddKeyDialog({ connectionId }: AddKeyDialogProps) {
 		setNewKeyLeaseId,
 		addKey,
 	} = useKeysStore();
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	const handleOpenChange = (open: boolean) => {
+		if (isSubmitting) return;
+		setShowAddDialog(open);
+		setDialogOpen?.(open);
+	};
 
 	return (
-		<Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-			<DialogContent>
+		<Dialog open={showAddDialog} onOpenChange={handleOpenChange}>
+			<DialogContent data-testid="add-key-dialog">
 				<DialogHeader>
 					<DialogTitle>Add New Key</DialogTitle>
 					<DialogDescription>
@@ -65,14 +78,36 @@ export function AddKeyDialog({ connectionId }: AddKeyDialogProps) {
 					/>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setShowAddDialog(false)}>
+					<Button
+						variant="outline"
+						disabled={isSubmitting}
+						onClick={() => handleOpenChange(false)}
+					>
 						Cancel
 					</Button>
 					<Button
-						onClick={() => addKey(connectionId, newKeyLeaseId || undefined)}
-						disabled={!newKey.trim()}
+						onClick={async () => {
+							if (isSubmitting) return;
+							setIsSubmitting(true);
+							try {
+								await addKey(connectionId, newKeyLeaseId || undefined);
+								handleOpenChange(false);
+							} catch (error) {
+								toast.error(
+									error instanceof Error ? error.message : "Failed to add key",
+								);
+								console.error(error);
+							} finally {
+								setIsSubmitting(false);
+							}
+						}}
+						disabled={!newKey.trim() || isSubmitting}
 					>
-						<Plus className="w-4 h-4 mr-2" />
+						{isSubmitting ? (
+							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						) : (
+							<Plus className="w-4 h-4 mr-2" />
+						)}
 						Add Key
 					</Button>
 				</DialogFooter>

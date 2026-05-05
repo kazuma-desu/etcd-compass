@@ -42,6 +42,8 @@ import { LeasePanel } from "@/features/leases/LeasePanel";
 import { WatchPanel } from "@/features/watch/WatchPanel";
 import { cn } from "@/lib/utils";
 import { BreadcrumbNav } from "@/shared/components/BreadcrumbNav";
+import { CommandPalette } from "@/shared/components/CommandPalette";
+import { FeatureErrorBoundary } from "@/shared/components/FeatureErrorBoundary";
 import { ShortcutHelp } from "@/shared/components/ShortcutHelp";
 import { TabBar } from "@/shared/components/TabBar";
 import { useKeyboardShortcuts } from "@/shared/hooks/use-keyboard-shortcuts";
@@ -164,7 +166,7 @@ function AppShellContent() {
 		}
 	};
 
-	useKeyboardShortcuts(
+	const { setDialogOpen } = useKeyboardShortcuts(
 		connectionId,
 		() => setShowHelpDialog(true),
 		toggleSidebar,
@@ -212,7 +214,9 @@ function AppShellContent() {
 
 	return (
 		<>
-			<ClusterSidebar onAddCluster={() => setShowConnectionDialog(true)} />
+			<FeatureErrorBoundary featureName="Cluster Sidebar">
+				<ClusterSidebar onAddCluster={() => setShowConnectionDialog(true)} />
+			</FeatureErrorBoundary>
 			<SidebarInset className="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_28rem),hsl(var(--background))] p-2">
 				<div className="flex flex-col flex-1 min-h-0 min-w-0 bg-card/95 rounded-xl shadow-workspace border border-border/70 ring-1 ring-white/60 dark:ring-white/5 overflow-hidden">
 					<TabBar />
@@ -263,7 +267,12 @@ function AppShellContent() {
 										className="h-full rounded-xl border border-border/70 bg-background/60 shadow-panel overflow-hidden"
 									>
 										<ResizablePanel defaultSize={45} minSize={25}>
-											<KeyBrowser connectionId={connectionId} />
+											<FeatureErrorBoundary featureName="Keys Browser">
+												<KeyBrowser
+													connectionId={connectionId}
+													setDialogOpen={setDialogOpen}
+												/>
+											</FeatureErrorBoundary>
 										</ResizablePanel>
 										<ResizableHandle withHandle />
 										<ResizablePanel defaultSize={30} minSize={20}>
@@ -295,13 +304,17 @@ function AppShellContent() {
 													value="watch"
 													className="flex-1 min-h-0 mt-0"
 												>
-													<WatchPanel connectionId={connectionId} />
+													<FeatureErrorBoundary featureName="Watch Panel">
+														<WatchPanel connectionId={connectionId} />
+													</FeatureErrorBoundary>
 												</TabsContent>
 												<TabsContent
 													value="leases"
 													className="flex-1 min-h-0 mt-0"
 												>
-													<LeasePanel connectionId={connectionId} />
+													<FeatureErrorBoundary featureName="Lease Panel">
+														<LeasePanel connectionId={connectionId} />
+													</FeatureErrorBoundary>
 												</TabsContent>
 											</Tabs>
 										</ResizablePanel>
@@ -448,6 +461,7 @@ function AppShellContent() {
 				onConnect={handleConnect}
 			/>
 
+			<CommandPalette />
 			<ShortcutHelp open={showHelpDialog} onOpenChange={setShowHelpDialog} />
 		</>
 	);

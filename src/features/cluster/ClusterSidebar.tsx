@@ -91,7 +91,7 @@ export function ClusterSidebar({
 	onAddCluster,
 	onEditCluster,
 }: ClusterSidebarProps) {
-	const { connectionId, disconnect, setActiveConnectionId } =
+	const { connectionId, disconnect, setActiveConnectionId, connectionHistory } =
 		useConnectionStore();
 	const { state, toggleSidebar } = useSidebar();
 	const [connections, setConnections] = useState<ConnectionInfo[]>([]);
@@ -137,7 +137,7 @@ export function ClusterSidebar({
 
 			setConnections(
 				history.map((config) => ({
-					id: endpointToId.get(config.endpoint) || config.endpoint,
+					id: endpointToId.get(config.endpoint) || crypto.randomUUID(),
 					endpoint: config.endpoint,
 					name: config.name,
 					color: config.color,
@@ -154,9 +154,10 @@ export function ClusterSidebar({
 		}
 	}, []);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentional - sidebar must refresh when connection history changes
 	useEffect(() => {
 		loadConnections();
-	}, [loadConnections]);
+	}, [loadConnections, connectionHistory?.length]);
 
 	const handleDisconnect = async (id: string) => {
 		try {

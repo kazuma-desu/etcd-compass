@@ -15,7 +15,6 @@ export function TabBar() {
 	const {
 		connectionId,
 		setActiveConnectionId,
-		disconnect,
 		isConnecting,
 		connectionError,
 		config,
@@ -42,14 +41,14 @@ export function TabBar() {
 			try {
 				await disconnectEtcd(id);
 				if (id === connectionId) {
-					await disconnect();
+					setActiveConnectionId(null);
 				}
 				await loadTabs();
 			} catch (e) {
 				console.error("Failed to close tab:", e);
 			}
 		},
-		[connectionId, disconnect, loadTabs],
+		[loadTabs, connectionId, setActiveConnectionId],
 	);
 
 	const handleSelectTab = useCallback(

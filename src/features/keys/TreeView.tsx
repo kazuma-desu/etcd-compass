@@ -73,6 +73,10 @@ export function TreeView({
 		[allKeys],
 	);
 
+	const resolveNodeKey = (fullPath: string): EtcdKey | undefined => {
+		return keyByFullPath.get(fullPath) ?? keyByFullPath.get(`/${fullPath}`);
+	};
+
 	const parentRef = useRef<HTMLDivElement>(null);
 
 	const virtualizer = useVirtualizer({
@@ -124,7 +128,7 @@ export function TreeView({
 			return;
 		}
 		if (node.isLeaf) {
-			const key = keyByFullPath.get(node.fullPath);
+			const key = resolveNodeKey(node.fullPath);
 			if (key) {
 				if (!e.ctrlKey && !e.metaKey) {
 					setSelectedKey(key);
@@ -167,6 +171,7 @@ export function TreeView({
 							<ContextMenu>
 								<ContextMenuTrigger asChild>
 									<div
+										data-testid={`treeview-node-${node.fullPath}`}
 										className={`flex items-center gap-1 py-1 px-2 hover:bg-accent rounded cursor-pointer ${
 											selectedKey?.key === node.fullPath ? "bg-accent" : ""
 										}`}
@@ -174,7 +179,7 @@ export function TreeView({
 										onClick={(e) => handleNodeClick(e, node)}
 										onAuxClick={(e) => {
 											if (e.button === 1 && node.isLeaf) {
-												const key = keyByFullPath.get(node.fullPath);
+												const key = resolveNodeKey(node.fullPath);
 												if (key) addTab(key.key, key);
 											}
 										}}
@@ -189,7 +194,12 @@ export function TreeView({
 											</span>
 										)}
 										{node.isLeaf && (
-											<span data-checkbox-row className="inline-flex">
+											<button
+												type="button"
+												data-checkbox-row
+												className="inline-flex appearance-none bg-transparent border-none p-0"
+												onClick={(e) => e.stopPropagation()}
+											>
 												<Checkbox
 													checked={isKeySelected(node.fullPath)}
 													onCheckedChange={() =>
@@ -197,7 +207,7 @@ export function TreeView({
 													}
 													aria-label={`Select ${node.fullPath}`}
 												/>
-											</span>
+											</button>
 										)}
 										{node.isLeaf ? (
 											<FileKey className="w-4 h-4 text-primary" />

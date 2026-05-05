@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useKeysStore } from "@/features/keys/keys-store";
 
-export const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-export const modifierKey = isMac ? "Cmd" : "Ctrl";
+export function getIsMac(): boolean {
+	if (typeof navigator === "undefined") return false;
+	return /MAC/i.test(navigator.userAgent);
+}
+export const isMac = getIsMac();
+export const modifierKey = getIsMac() ? "Cmd" : "Ctrl";
 
 export type Shortcut = {
 	key: string;
@@ -37,18 +41,11 @@ export const shortcuts: Shortcut[] = [
 		description: "Open command palette",
 		category: "navigation",
 	},
-	{ key: "t", modifier: true, description: "New tab", category: "navigation" },
 	{
 		key: "w",
 		modifier: true,
 		description: "Close current tab",
 		category: "navigation",
-	},
-	{
-		key: ",",
-		modifier: true,
-		description: "Open settings",
-		category: "interface",
 	},
 	{
 		key: "d",
@@ -159,19 +156,9 @@ export function useKeyboardShortcuts(
 					}
 					break;
 
-				case isCmd && e.key.toLowerCase() === "t":
-					e.preventDefault();
-					globalThis.dispatchEvent(new CustomEvent("etcd:new-tab"));
-					break;
-
 				case isCmd && e.key.toLowerCase() === "w":
 					e.preventDefault();
 					globalThis.dispatchEvent(new CustomEvent("etcd:close-tab"));
-					break;
-
-				case isCmd && e.key === ",":
-					e.preventDefault();
-					globalThis.dispatchEvent(new CustomEvent("etcd:open-settings"));
 					break;
 
 				case isCmd && isShift && e.key.toLowerCase() === "d":

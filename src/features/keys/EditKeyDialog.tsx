@@ -1,4 +1,6 @@
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -14,10 +16,14 @@ import { LeaseSelector } from "@/features/leases/LeaseSelector";
 import { useKeysStore } from "./keys-store";
 
 interface EditKeyDialogProps {
-	connectionId: string;
+	readonly connectionId: string;
+	readonly setDialogOpen?: (open: boolean) => void;
 }
 
-export function EditKeyDialog({ connectionId }: EditKeyDialogProps) {
+export function EditKeyDialog({
+	connectionId,
+	setDialogOpen,
+}: EditKeyDialogProps) {
 	const {
 		showEditDialog,
 		selectedKey,
@@ -28,10 +34,17 @@ export function EditKeyDialog({ connectionId }: EditKeyDialogProps) {
 		setEditKeyLeaseId,
 		editKey,
 	} = useKeysStore();
+	const [isEditing, setIsEditing] = useState(false);
+
+	const handleOpenChange = (open: boolean) => {
+		if (isEditing) return;
+		setShowEditDialog(open);
+		setDialogOpen?.(open);
+	};
 
 	return (
-		<Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-			<DialogContent>
+		<Dialog open={showEditDialog} onOpenChange={handleOpenChange}>
+			<DialogContent data-testid="edit-key-dialog">
 				<DialogHeader>
 					<DialogTitle>Edit Key</DialogTitle>
 					<DialogDescription>
@@ -55,13 +68,38 @@ export function EditKeyDialog({ connectionId }: EditKeyDialogProps) {
 					/>
 				</div>
 				<DialogFooter>
-					<Button variant="outline" onClick={() => setShowEditDialog(false)}>
+					<Button
+						variant="outline"
+						disabled={isEditing}
+						onClick={() => handleOpenChange(false)}
+					>
 						Cancel
 					</Button>
 					<Button
-						onClick={() => editKey(connectionId, editKeyLeaseId || undefined)}
+						onClick={async () => {
+							if (isEditing) return;
+							setIsEditing(true);
+							try {
+								await editKey(connectionId, editKeyLeaseId || undefined);
+								handleOpenChange(false);
+							} catch (error) {
+								toast.error(
+									error instanceof Error
+										? error.message
+										: "Failed to update key",
+								);
+								console.error(error);
+							} finally {
+								setIsEditing(false);
+							}
+						}}
+						disabled={isEditing}
 					>
-						<Check className="w-4 h-4 mr-2" />
+						{isEditing ? (
+							<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+						) : (
+							<Check className="w-4 h-4 mr-2" />
+						)}
 						Save Changes
 					</Button>
 				</DialogFooter>

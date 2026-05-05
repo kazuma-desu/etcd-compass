@@ -1,0 +1,243 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// =============================================================================
+// REGRESSION TEST: Cluster Auto-Refresh Interval Leak (Bug #8)
+// =============================================================================
+// Bug: ClusterStatus had two competing useEffect hooks reacting to connectionId
+// changes. Effect 1 fetched status and disabled auto-refresh in cleanup.
+// Effect 2 re-enabled auto-refresh. This created a race where intervals were
+// never properly cleaned up when switching connections, causing memory leaks
+// and multiple concurrent fetch loops.
+// Fix: Separated concerns into two clean effects with explicit interval
+// tracking (refreshConnectionId) and consolidated cleanup in the store.
+// =============================================================================
+
+const mockClusterStatus = vi.fn().mockResolvedValue({
+	members: [],
+	db_size: 0,
+	db_size_in_use: 0,
+	raft_term: 1,
+	raft_index: 1,
+	version: "3.5.0",
+	cluster_id: "test-cluster",
+	leader_id: "leader-1",
+});
+
+vi.mock("@/commands/cluster", () => ({
+	clusterStatus: (...args: unknown[]) => mockClusterStatus(...args),
+}));
+
+import { useClusterStore } from "./cluster-store";
+
+describe("cluster-store auto-refresh regression", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		// Reset store to initial state
+		useClusterStore.setState({
+			status: null,
+			loading: false,
+			error: null,
+			autoRefresh: false,
+			refreshInterval: null,
+			refreshIntervalMs: 30000,
+			refreshConnectionId: null,
+			metricsHistory: [],
+		});
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	it("should clear old interval when switching connections with auto-refresh on", () => {
+		const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+		const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+		// Start auto-refresh for connection "A"
+		useClusterStore.getState().setAutoRefresh(true, "conn-A");
+		expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+		const intervalA = setIntervalSpy.mock.results[0].value;
+		expect(intervalA).toBeDefined();
+		expect(useClusterStore.getState().refreshConnectionId).toBe("conn-A");
+
+		// Switch to connection "B" with auto-refresh still on
+		useClusterStore.getState().setAutoRefresh(true, "conn-B");
+
+		// Old interval should have been cleared
+		expect(clearIntervalSpy).toHaveBeenCalledWith(intervalA);
+		// New interval should have been created
+		expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+		const intervalB = setIntervalSpy.mock.results[1].value;
+		expect(intervalB).toBeDefined();
+		expect(intervalB).not.toBe(intervalA);
+		expect(useClusterStore.getState().refreshConnectionId).toBe("conn-B");
+
+		// Stop auto-refresh
+		useClusterStore.getState().setAutoRefresh(false);
+		expect(clearIntervalSpy).toHaveBeenCalledWith(intervalB);
+		expect(useClusterStore.getState().refreshConnectionId).toBeNull();
+		expect(useClusterStore.getState().autoRefresh).toBe(false);
+
+		clearIntervalSpy.mockRestore();
+		setIntervalSpy.mockRestore();
+	});
+
+	it("should clean up interval on component unmount simulation", () => {
+		const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+		const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+		// Start auto-refresh
+		useClusterStore.getState().setAutoRefresh(true, "conn-A");
+		expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+		const interval = setIntervalSpy.mock.results[0].value;
+
+		// Simulate unmount cleanup
+		useClusterStore.getState().setAutoRefresh(false);
+
+		expect(clearIntervalSpy).toHaveBeenCalledWith(interval);
+		expect(useClusterStore.getState().refreshInterval).toBeNull();
+		expect(useClusterStore.getState().autoRefresh).toBe(false);
+
+		clearIntervalSpy.mockRestore();
+		setIntervalSpy.mockRestore();
+	});
+
+	it("should not leak intervals when setAutoRefresh is called multiple times for same connection", () => {
+		const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+		const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+		// Start auto-refresh
+		useClusterStore.getState().setAutoRefresh(true, "conn-A");
+		const interval1 = setIntervalSpy.mock.results[0].value;
+
+		// Call again for same connection
+		useClusterStore.getState().setAutoRefresh(true, "conn-A");
+		const interval2 = setIntervalSpy.mock.results[1].value;
+
+		// Old interval should have been cleared
+		expect(clearIntervalSpy).toHaveBeenCalledWith(interval1);
+		// Only 2 intervals should have been created total
+		expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+		expect(interval2).not.toBe(interval1);
+
+		clearIntervalSpy.mockRestore();
+		setIntervalSpy.mockRestore();
+	});
+
+	it("should reuse stored refreshConnectionId when setAutoRefresh(true) is called without connectionId", () => {
+		const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+		// Start auto-refresh for connection "A"
+		useClusterStore.getState().setAutoRefresh(true, "conn-A");
+		expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+		expect(useClusterStore.getState().refreshConnectionId).toBe("conn-A");
+		expect(useClusterStore.getState().autoRefresh).toBe(true);
+
+		// Call setAutoRefresh(true) without passing connectionId
+		// Should reuse the stored refreshConnectionId
+		useClusterStore.getState().setAutoRefresh(true);
+		expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+		expect(useClusterStore.getState().refreshConnectionId).toBe("conn-A");
+		expect(useClusterStore.getState().autoRefresh).toBe(true);
+
+		setIntervalSpy.mockRestore();
+	});
+
+	describe("fetchStatus", () => {
+		it("should fetch status and update metrics history on success", async () => {
+			const mockStatus = {
+				members: [],
+				db_size: 1024,
+				db_size_in_use: 512,
+				raft_term: 2,
+				raft_index: 10,
+				version: "3.5.0",
+				cluster_id: "test-cluster",
+				leader_id: "leader-1",
+			};
+			mockClusterStatus.mockResolvedValueOnce(mockStatus);
+
+			await useClusterStore.getState().fetchStatus("conn-1");
+
+			expect(mockClusterStatus).toHaveBeenCalledWith("conn-1");
+			expect(useClusterStore.getState().status).toEqual(mockStatus);
+			expect(useClusterStore.getState().loading).toBe(false);
+			expect(useClusterStore.getState().error).toBeNull();
+			expect(useClusterStore.getState().metricsHistory).toHaveLength(1);
+			expect(useClusterStore.getState().metricsHistory[0].dbSize).toBe(1024);
+		});
+
+		it("should set error state when fetchStatus fails", async () => {
+			mockClusterStatus.mockRejectedValueOnce(new Error("Network error"));
+
+			await useClusterStore.getState().fetchStatus("conn-1");
+
+			expect(useClusterStore.getState().status).toBeNull();
+			expect(useClusterStore.getState().loading).toBe(false);
+			expect(useClusterStore.getState().error).toBe("Network error");
+		});
+
+		it("should append metrics points up to MAX_HISTORY_POINTS", async () => {
+			mockClusterStatus.mockResolvedValue({
+				members: [],
+				db_size: 100,
+				db_size_in_use: 50,
+				raft_term: 1,
+				raft_index: 1,
+				version: "3.5.0",
+				cluster_id: "c",
+				leader_id: "l",
+			});
+
+			for (let i = 0; i < 65; i++) {
+				await useClusterStore.getState().fetchStatus("conn-1");
+			}
+
+			expect(useClusterStore.getState().metricsHistory).toHaveLength(60);
+		});
+	});
+
+	describe("setRefreshInterval", () => {
+		it("should update interval and restart auto-refresh when enabled", () => {
+			const clearIntervalSpy = vi.spyOn(window, "clearInterval");
+			const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+			useClusterStore.getState().setAutoRefresh(true, "conn-A");
+			expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+			const intervalId = setIntervalSpy.mock.results[0].value;
+
+			useClusterStore.getState().setRefreshInterval(15000, "conn-A");
+
+			expect(clearIntervalSpy).toHaveBeenCalledWith(intervalId);
+			expect(setIntervalSpy).toHaveBeenCalledTimes(2);
+			expect(useClusterStore.getState().refreshIntervalMs).toBe(15000);
+
+			clearIntervalSpy.mockRestore();
+			setIntervalSpy.mockRestore();
+		});
+
+		it("should update interval without restarting when auto-refresh is disabled", () => {
+			const setIntervalSpy = vi.spyOn(window, "setInterval");
+
+			useClusterStore.getState().setRefreshInterval(10000);
+
+			expect(setIntervalSpy).not.toHaveBeenCalled();
+			expect(useClusterStore.getState().refreshIntervalMs).toBe(10000);
+			expect(useClusterStore.getState().refreshInterval).toBeNull();
+
+			setIntervalSpy.mockRestore();
+		});
+	});
+
+	describe("clearError", () => {
+		it("should clear the error state", () => {
+			useClusterStore.setState({ error: "Some error" });
+			expect(useClusterStore.getState().error).toBe("Some error");
+
+			useClusterStore.getState().clearError();
+			expect(useClusterStore.getState().error).toBeNull();
+		});
+	});
+});

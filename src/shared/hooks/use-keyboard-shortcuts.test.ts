@@ -4,8 +4,22 @@ import { useKeysStore } from "@/features/keys/keys-store";
 import {
 	formatShortcut,
 	shortcuts,
+	useKeyboardShortcuts,
 	useTabShortcuts,
 } from "./use-keyboard-shortcuts";
+
+// =============================================================================
+// REGRESSION TEST: Module-Level navigator.platform Crash (Bug #2)
+// =============================================================================
+// Bug: `navigator.platform` was accessed at module load time without safety
+// checks. In test environments, SSR contexts, or some Tauri webviews where
+// navigator or navigator.platform is undefined, this caused an immediate crash.
+// Fix: Wrapped navigator access in a safe function with optional chaining and
+// a fallback to false.
+//
+// The regression tests below ("safe navigator.platform access") verify that
+// importing the module does not crash when navigator is missing or incomplete.
+// =============================================================================
 
 describe("Keyboard Shortcuts", () => {
 	const mockRefreshKeys = vi.fn();
@@ -39,9 +53,8 @@ describe("Keyboard Shortcuts", () => {
 			expect(shortcutKeys).toContain("n");
 			expect(shortcutKeys).toContain("r");
 			expect(shortcutKeys).toContain("f");
-			expect(shortcutKeys).toContain("t");
+			expect(shortcutKeys).toContain("k");
 			expect(shortcutKeys).toContain("w");
-			expect(shortcutKeys).toContain(",");
 			expect(shortcutKeys).toContain("d");
 			expect(shortcutKeys).toContain("Delete");
 			expect(shortcutKeys).toContain("]");
@@ -170,6 +183,256 @@ describe("Keyboard Shortcuts", () => {
 			});
 
 			expect(onSelectTab).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("Regression: safe navigator.platform access", () => {
+		it("should not crash when navigator.platform is undefined", async () => {
+			const originalNavigator = globalThis.navigator;
+
+			try {
+				globalThis.navigator = {} as Navigator;
+
+				vi.resetModules();
+
+				const mod = await import("./use-keyboard-shortcuts");
+				expect(mod.getIsMac()).toBe(false);
+				expect(mod.modifierKey).toBe("Ctrl");
+			} finally {
+				globalThis.navigator = originalNavigator;
+			}
+		});
+
+		it("should not crash when navigator is undefined", async () => {
+			const originalNavigator = globalThis.navigator;
+
+			try {
+				// @ts-expect-error - intentionally removing navigator for test
+				globalThis.navigator = undefined;
+
+				vi.resetModules();
+
+				const mod = await import("./use-keyboard-shortcuts");
+				expect(mod.getIsMac()).toBe(false);
+				expect(mod.modifierKey).toBe("Ctrl");
+			} finally {
+				globalThis.navigator = originalNavigator;
+			}
+		});
+	});
+
+	describe("useKeyboardShortcuts", () => {
+		it("should fire refresh shortcut when no dialog is open", () => {
+			useKeysStore.setState({
+				selectedKey: null,
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+				);
+			});
+
+			expect(mockRefreshKeys).toHaveBeenCalledWith("conn1");
+		});
+
+		it("should NOT fire shortcuts when a dialog is open", () => {
+			useKeysStore.setState({
+				selectedKey: {
+					key: "test",
+					value: "val",
+					version: 1,
+					create_revision: 1,
+					mod_revision: 1,
+					lease: 0,
+				},
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			const { result } = renderHook(() =>
+				useKeyboardShortcuts("conn1", showHelp),
+			);
+
+			// Open a dialog
+			act(() => {
+				result.current.setDialogOpen(true);
+			});
+
+			// Try refresh shortcut - should not fire
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+				);
+			});
+			expect(mockRefreshKeys).not.toHaveBeenCalled();
+
+			// Try delete shortcut - should not fire
+			act(() => {
+				window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+			});
+			expect(mockSetShowDeleteDialog).not.toHaveBeenCalled();
+		});
+
+		it("should resume firing shortcuts after dialog closes", () => {
+			useKeysStore.setState({
+				selectedKey: null,
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			const { result } = renderHook(() =>
+				useKeyboardShortcuts("conn1", showHelp),
+			);
+
+			// Open then close dialog
+			act(() => {
+				result.current.setDialogOpen(true);
+				result.current.setDialogOpen(false);
+			});
+
+			// Refresh should work again
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "r", ctrlKey: true }),
+				);
+			});
+			expect(mockRefreshKeys).toHaveBeenCalledWith("conn1");
+		});
+
+		it("should dispatch command palette event on Cmd+K", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const listener = vi.fn();
+			window.addEventListener("etcd:command-palette", listener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "k", ctrlKey: true }),
+				);
+			});
+
+			expect(listener).toHaveBeenCalled();
+			window.removeEventListener("etcd:command-palette", listener);
+		});
+
+		it("should dispatch new connection event on Cmd+N", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const listener = vi.fn();
+			window.addEventListener("etcd:new-connection", listener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "n", ctrlKey: true }),
+				);
+			});
+
+			expect(listener).toHaveBeenCalled();
+			window.removeEventListener("etcd:new-connection", listener);
+		});
+
+		it("should dispatch close-tab event on Cmd+W", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const listener = vi.fn();
+			window.addEventListener("etcd:close-tab", listener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", { key: "w", ctrlKey: true }),
+				);
+			});
+
+			expect(listener).toHaveBeenCalled();
+			window.removeEventListener("etcd:close-tab", listener);
+		});
+
+		it("should dispatch toggle-sidebar event on Cmd+Shift+D", () => {
+			const showHelp = vi.fn();
+			const toggleSidebar = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp, toggleSidebar));
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "d",
+						ctrlKey: true,
+						shiftKey: true,
+					}),
+				);
+			});
+
+			expect(toggleSidebar).toHaveBeenCalled();
+		});
+
+		it("should show delete dialog on Delete key when a key is selected", () => {
+			useKeysStore.setState({
+				selectedKey: {
+					key: "test",
+					value: "val",
+					version: 1,
+					create_revision: 1,
+					mod_revision: 1,
+					lease: 0,
+				},
+				refreshKeys: mockRefreshKeys,
+				setShowDeleteDialog: mockSetShowDeleteDialog,
+			});
+
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			act(() => {
+				window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+			});
+
+			expect(mockSetShowDeleteDialog).toHaveBeenCalledWith(true);
+		});
+
+		it("should dispatch next-tab and prev-tab events", () => {
+			const showHelp = vi.fn();
+			renderHook(() => useKeyboardShortcuts("conn1", showHelp));
+
+			const nextListener = vi.fn();
+			const prevListener = vi.fn();
+			window.addEventListener("etcd:next-tab", nextListener);
+			window.addEventListener("etcd:prev-tab", prevListener);
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "]",
+						ctrlKey: true,
+						shiftKey: true,
+					}),
+				);
+			});
+			expect(nextListener).toHaveBeenCalled();
+
+			act(() => {
+				window.dispatchEvent(
+					new KeyboardEvent("keydown", {
+						key: "[",
+						ctrlKey: true,
+						shiftKey: true,
+					}),
+				);
+			});
+			expect(prevListener).toHaveBeenCalled();
+
+			window.removeEventListener("etcd:next-tab", nextListener);
+			window.removeEventListener("etcd:prev-tab", prevListener);
 		});
 	});
 });
