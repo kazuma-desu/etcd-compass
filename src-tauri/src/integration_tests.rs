@@ -504,20 +504,20 @@ mod integration_tests {
             enable_result
         );
 
-        let status = client.auth_status().await;
-        assert!(
-            status.is_ok(),
-            "Expected auth_status to succeed after enable: {:?}",
-            status
-        );
-        assert!(status.unwrap().enabled, "Expected auth to be enabled");
-
         let mut auth_config = make_config(&etcd.connection_string);
         auth_config.username = Some("root".to_string());
         auth_config.password = Some("root".to_string());
         let mut auth_client = EtcdClient::connect(&auth_config)
             .await
             .expect("Failed to connect with auth");
+
+        let status = auth_client.auth_status().await;
+        assert!(
+            status.is_ok(),
+            "Expected auth_status to succeed after enable: {:?}",
+            status
+        );
+        assert!(status.unwrap().enabled, "Expected auth to be enabled");
 
         let disable_result = auth_client.auth_disable().await;
         assert!(
