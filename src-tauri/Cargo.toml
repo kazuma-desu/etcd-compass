@@ -36,3 +36,4 @@ custom-protocol = ["tauri/custom-protocol"]
 testcontainers = "0.23"
 testcontainers-modules = "0.10"
 serial_test = "3.2"
+tonic = "0.14"

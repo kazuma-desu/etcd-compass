@@ -1598,4 +1598,125 @@ mod tests {
             .await
             .expect("stop etcd container");
     }
+
+    #[test]
+    fn test_map_code_5_error_prefers_role_when_message_contains_role() {
+        let err = EtcdClient::map_code_5_error("role not found", None, Some("admin"));
+        assert_eq!(err, AuthError::RoleNotFound("admin".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_5_error_prefers_user_when_message_contains_user() {
+        let err = EtcdClient::map_code_5_error("user not found", Some("alice"), None);
+        assert_eq!(err, AuthError::UserNotFound("alice".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_5_error_fallback_to_user() {
+        let err = EtcdClient::map_code_5_error("not found", Some("alice"), None);
+        assert_eq!(err, AuthError::UserNotFound("alice".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_5_error_fallback_to_role() {
+        let err = EtcdClient::map_code_5_error("not found", None, Some("admin"));
+        assert_eq!(err, AuthError::RoleNotFound("admin".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_5_error_fallback_to_etcd_error() {
+        let err = EtcdClient::map_code_5_error("unknown error", None, None);
+        assert_eq!(err, AuthError::EtcdError("unknown error".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_6_error_prefers_role_when_message_contains_role() {
+        let err = EtcdClient::map_code_6_error("role already exists", None, Some("admin"));
+        assert_eq!(err, AuthError::RoleAlreadyExists("admin".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_6_error_prefers_user_when_message_contains_user() {
+        let err = EtcdClient::map_code_6_error("user already exists", Some("alice"), None);
+        assert_eq!(err, AuthError::UserAlreadyExists("alice".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_6_error_fallback_to_user() {
+        let err = EtcdClient::map_code_6_error("already exists", Some("alice"), None);
+        assert_eq!(err, AuthError::UserAlreadyExists("alice".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_6_error_fallback_to_role() {
+        let err = EtcdClient::map_code_6_error("already exists", None, Some("admin"));
+        assert_eq!(err, AuthError::RoleAlreadyExists("admin".to_string()));
+    }
+
+    #[test]
+    fn test_map_code_6_error_fallback_to_etcd_error() {
+        let err = EtcdClient::map_code_6_error("unknown error", None, None);
+        assert_eq!(err, AuthError::EtcdError("unknown error".to_string()));
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_maps_auth_failed() {
+        let status = tonic::Status::unauthenticated("bad credentials");
+        let err = etcd_client::Error::GRpcStatus(status);
+        let mapped = EtcdClient::map_etcd_auth_error(err, None, None);
+        assert_eq!(mapped, AuthError::AuthFailed("bad credentials".to_string()));
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_maps_permission_denied() {
+        let status = tonic::Status::permission_denied("no access");
+        let err = etcd_client::Error::GRpcStatus(status);
+        let mapped = EtcdClient::map_etcd_auth_error(err, None, None);
+        assert_eq!(mapped, AuthError::PermissionDenied("no access".to_string()));
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_maps_auth_not_enabled() {
+        let status = tonic::Status::failed_precondition("auth not enabled");
+        let err = etcd_client::Error::GRpcStatus(status);
+        let mapped = EtcdClient::map_etcd_auth_error(err, None, None);
+        assert_eq!(mapped, AuthError::AuthNotEnabled);
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_maps_code_5_to_not_found() {
+        let status = tonic::Status::not_found("user not found");
+        let err = etcd_client::Error::GRpcStatus(status);
+        let mapped = EtcdClient::map_etcd_auth_error(err, Some("alice"), None);
+        assert_eq!(mapped, AuthError::UserNotFound("alice".to_string()));
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_maps_code_6_to_already_exists() {
+        let status = tonic::Status::already_exists("user already exists");
+        let err = etcd_client::Error::GRpcStatus(status);
+        let mapped = EtcdClient::map_etcd_auth_error(err, Some("alice"), None);
+        assert_eq!(mapped, AuthError::UserAlreadyExists("alice".to_string()));
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_fallback_to_etcd_error() {
+        let status = tonic::Status::internal("internal server error");
+        let err = etcd_client::Error::GRpcStatus(status);
+        let mapped = EtcdClient::map_etcd_auth_error(err, None, None);
+        assert_eq!(
+            mapped,
+            AuthError::EtcdError("internal server error".to_string())
+        );
+    }
+
+    #[test]
+    fn test_map_etcd_auth_error_non_grpc_error() {
+        let err = etcd_client::Error::InvalidArgs("bad args".to_string());
+        let mapped = EtcdClient::map_etcd_auth_error(err, None, None);
+        assert_eq!(
+            mapped,
+            AuthError::EtcdError("invalid arguments: bad args".to_string())
+        );
+    }
 }
