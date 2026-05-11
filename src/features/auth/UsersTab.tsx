@@ -125,7 +125,10 @@ export function UsersTab({ connectionId }: Readonly<UsersTabProps>) {
 				<CardContent>
 					<div className="space-y-2">
 						{[1, 2, 3].map((n) => (
-							<div key={`user-skeleton-${n}`} className="h-12 bg-accent animate-pulse rounded" />
+							<div
+								key={`user-skeleton-${n}`}
+								className="h-12 bg-accent animate-pulse rounded"
+							/>
 						))}
 					</div>
 				</CardContent>

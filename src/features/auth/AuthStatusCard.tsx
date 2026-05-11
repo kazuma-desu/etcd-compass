@@ -80,7 +80,9 @@ function ToggleAuthDialog({
 	);
 }
 
-export function AuthStatusCard({ connectionId }: Readonly<AuthStatusCardProps>) {
+export function AuthStatusCard({
+	connectionId,
+}: Readonly<AuthStatusCardProps>) {
 	const {
 		authStatus,
 		authLoading,

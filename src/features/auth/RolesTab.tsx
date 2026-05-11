@@ -144,7 +144,10 @@ export function RolesTab({ connectionId }: Readonly<RolesTabProps>) {
 				<CardContent>
 					<div className="space-y-2">
 						{[1, 2, 3].map((n) => (
-							<div key={`role-skeleton-${n}`} className="h-12 bg-accent animate-pulse rounded" />
+							<div
+								key={`role-skeleton-${n}`}
+								className="h-12 bg-accent animate-pulse rounded"
+							/>
 						))}
 					</div>
 				</CardContent>
