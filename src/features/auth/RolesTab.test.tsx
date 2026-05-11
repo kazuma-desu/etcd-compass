@@ -127,7 +127,7 @@ describe("RolesTab", () => {
 	it("expands role and fetches permissions", () => {
 		mockState.roles = [{ name: "admin" }];
 		render(<RolesTab connectionId="conn-1" />);
-		const chevronBtn = screen.getByRole("button", { name: "" });
+		const chevronBtn = screen.getByRole("button", { name: /expand role/i });
 		fireEvent.click(chevronBtn);
 		expect(mockToggleRoleExpanded).toHaveBeenCalledWith("admin");
 		expect(mockFetchRolePermissions).toHaveBeenCalledWith("conn-1", "admin");
@@ -137,7 +137,7 @@ describe("RolesTab", () => {
 		mockState.roles = [{ name: "admin" }];
 		mockState.expandedRoles = new Set(["admin"]);
 		render(<RolesTab connectionId="conn-1" />);
-		const chevronBtn = screen.getByRole("button", { name: "" });
+		const chevronBtn = screen.getByRole("button", { name: /collapse role/i });
 		fireEvent.click(chevronBtn);
 		expect(mockToggleRoleExpanded).toHaveBeenCalledWith("admin");
 		expect(mockFetchRolePermissions).not.toHaveBeenCalled();
@@ -268,12 +268,11 @@ describe("RolesTab", () => {
 			],
 		]);
 		render(<RolesTab connectionId="conn-1" />);
-		// The revoke button is the icon button inside the table row (h-7 w-7)
-		const revokeBtn = screen
-			.getAllByRole("button")
-			.find((b) => b.className.includes("h-7 w-7"));
-		expect(revokeBtn).toBeDefined();
-		if (revokeBtn) fireEvent.click(revokeBtn);
+		const revokeBtn = screen.getByRole("button", {
+			name: /revoke permission/i,
+		});
+		expect(revokeBtn).toBeInTheDocument();
+		fireEvent.click(revokeBtn);
 		expect(mockSetSelectedRole).toHaveBeenCalledWith({ name: "admin" });
 		expect(mockSetPermissionKey).toHaveBeenCalledWith("/config/*");
 		expect(mockSetPermissionRangeEnd).toHaveBeenCalledWith("");

@@ -255,6 +255,11 @@ export function RolesTab({ connectionId }: Readonly<RolesTabProps>) {
 													variant="ghost"
 													size="icon"
 													className="h-6 w-6 shrink-0"
+													aria-label={
+														isExpanded
+															? `Collapse role ${role.name}`
+															: `Expand role ${role.name}`
+													}
 													onClick={() => handleExpandRole(role.name)}
 												>
 													{isExpanded ? (
@@ -337,6 +342,7 @@ export function RolesTab({ connectionId }: Readonly<RolesTabProps>) {
 																			variant="ghost"
 																			size="icon"
 																			className="h-7 w-7 text-destructive hover:text-destructive"
+																			aria-label="Revoke permission"
 																			onClick={() =>
 																				handleRevokePermissionClick(
 																					role,

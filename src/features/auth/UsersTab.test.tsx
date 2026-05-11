@@ -92,6 +92,8 @@ describe("UsersTab", () => {
 		expect(screen.getByText("Failed to load users")).toBeInTheDocument();
 		expect(screen.getByText("network error")).toBeInTheDocument();
 
+		mockClearErrors.mockClear();
+		mockFetchUsers.mockClear();
 		fireEvent.click(screen.getByText("Retry"));
 		expect(mockClearErrors).toHaveBeenCalled();
 		expect(mockFetchUsers).toHaveBeenCalledWith("conn-1");
@@ -129,8 +131,8 @@ describe("UsersTab", () => {
 		mockState.showAddUserDialog = true;
 		mockState.newUserName = "alice";
 		render(<UsersTab connectionId="conn-1" />);
-		const buttons = screen.getAllByRole("button");
-		const addBtn = buttons.find(
+		const dialog = screen.getByRole("dialog");
+		const addBtn = Array.from(dialog.querySelectorAll("button")).find(
 			(b) =>
 				b.textContent?.includes("Add User") &&
 				!(b as HTMLButtonElement).disabled,
@@ -221,6 +223,7 @@ describe("UsersTab", () => {
 
 	it("refreshes on refresh button click", () => {
 		render(<UsersTab connectionId="conn-1" />);
+		mockFetchUsers.mockClear();
 		fireEvent.click(screen.getByText("Refresh"));
 		expect(mockFetchUsers).toHaveBeenCalledWith("conn-1");
 	});
