@@ -511,13 +511,15 @@ mod integration_tests {
             .await
             .expect("Failed to connect with auth");
 
-        let status = auth_client.auth_status().await;
+        // Verify auth is enabled by checking that unauthenticated operations fail
+        let mut unauth_client = EtcdClient::connect(&make_config(&etcd.connection_string))
+            .await
+            .expect("Failed to create unauthenticated client");
+        let unauth_result = unauth_client.user_list().await;
         assert!(
-            status.is_ok(),
-            "Expected auth_status to succeed after enable: {:?}",
-            status
+            unauth_result.is_err(),
+            "Expected unauthenticated user_list to fail when auth is enabled"
         );
-        assert!(status.unwrap().enabled, "Expected auth to be enabled");
 
         let disable_result = auth_client.auth_disable().await;
         assert!(
