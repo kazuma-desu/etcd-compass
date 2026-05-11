@@ -661,10 +661,7 @@ mod integration_tests {
             .user_grant_role("root", "root")
             .await
             .expect("Failed to grant root role");
-        client
-            .auth_enable()
-            .await
-            .expect("Failed to enable auth");
+        client.auth_enable().await.expect("Failed to enable auth");
 
         // Connect as regular user and try admin operation
         let mut regular_config = make_config(&fixture.connection_string);
