@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod integration_tests {
+    use crate::etcd::auth_error::AuthError;
     use crate::etcd::{EtcdClient, EtcdConfig};
     use crate::test_helpers::test_helpers::{start_etcd_container, stop_etcd_container};
     use serial_test::serial;
@@ -23,7 +24,7 @@ mod integration_tests {
     }
 
     /// RAII fixture that starts an etcd container on construction and
-    /// guarantees cleanup on drop (even when a test panics).
+    /// performs best-effort cleanup on drop.
     struct EtcdTestFixture {
         container: Option<ContainerAsync<GenericImage>>,
         connection_string: String,
@@ -411,6 +412,30 @@ mod integration_tests {
             "Expected permissions to be empty after revoke"
         );
 
+        // Verify case-insensitive permission parsing normalizes to lowercase
+        client
+            .role_grant_permission("permrole", "ReadWrite", "/data", None)
+            .await
+            .expect("Mixed-case grant should succeed");
+        let mixed = client.role_get_permissions("permrole").await.unwrap();
+        assert_eq!(mixed.permissions.len(), 1);
+        assert_eq!(
+            mixed.permissions[0].perm_type, "readwrite",
+            "Expected normalized lowercase permission type"
+        );
+
+        // Verify invalid permission type is rejected
+        let invalid = client
+            .role_grant_permission("permrole", "admin", "/bad", None)
+            .await;
+        let err = invalid.unwrap_err();
+        let auth_err = err.downcast_ref::<AuthError>();
+        assert!(
+            matches!(auth_err, Some(AuthError::InvalidPermissionType(pt)) if pt == "admin"),
+            "Expected InvalidPermissionType error, got: {:?}",
+            auth_err
+        );
+
         client
             .role_delete("permrole")
             .await
@@ -573,10 +598,12 @@ mod integration_tests {
             .expect("First role_add should succeed");
 
         let dup_result = client.role_add("duprole").await;
+        let err = dup_result.unwrap_err();
+        let auth_err = err.downcast_ref::<AuthError>();
         assert!(
-            dup_result.is_err(),
-            "Expected duplicate role_add to fail: {:?}",
-            dup_result
+            matches!(auth_err, Some(AuthError::AuthNotEnabled)),
+            "Expected AuthNotEnabled error for duplicate role when auth disabled, got: {:?}",
+            auth_err
         );
     }
 
@@ -597,10 +624,12 @@ mod integration_tests {
             .expect("First user_add should succeed");
 
         let dup_result = client.user_add("dupuser", "pass").await;
+        let err = dup_result.unwrap_err();
+        let auth_err = err.downcast_ref::<AuthError>();
         assert!(
-            dup_result.is_err(),
-            "Expected duplicate user_add to fail: {:?}",
-            dup_result
+            matches!(auth_err, Some(AuthError::AuthNotEnabled)),
+            "Expected AuthNotEnabled error for duplicate user when auth disabled, got: {:?}",
+            auth_err
         );
     }
 
@@ -672,10 +701,12 @@ mod integration_tests {
             .expect("Failed to connect as regular user");
 
         let result = regular_client.role_list().await;
+        let err = result.unwrap_err();
+        let auth_err = err.downcast_ref::<AuthError>();
         assert!(
-            result.is_err(),
-            "Expected unauthorized role_list to fail: {:?}",
-            result
+            matches!(auth_err, Some(AuthError::PermissionDenied(_))),
+            "Expected PermissionDenied error, got: {:?}",
+            auth_err
         );
     }
 }
