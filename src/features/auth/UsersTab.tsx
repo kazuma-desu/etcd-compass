@@ -59,7 +59,7 @@ interface UsersTabProps {
 	connectionId: string;
 }
 
-export function UsersTab({ connectionId }: UsersTabProps) {
+export function UsersTab({ connectionId }: Readonly<UsersTabProps>) {
 	const {
 		users,
 		usersLoading,
@@ -124,8 +124,8 @@ export function UsersTab({ connectionId }: UsersTabProps) {
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-2">
-						{[...Array(3)].map((_, i) => (
-							<div key={i} className="h-12 bg-accent animate-pulse rounded" />
+						{[1, 2, 3].map((n) => (
+							<div key={`user-skeleton-${n}`} className="h-12 bg-accent animate-pulse rounded" />
 						))}
 					</div>
 				</CardContent>

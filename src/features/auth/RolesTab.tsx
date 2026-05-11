@@ -66,7 +66,7 @@ const PERMISSION_TYPE_LABELS: Record<string, string> = {
 	readwrite: "Read & Write",
 };
 
-export function RolesTab({ connectionId }: RolesTabProps) {
+export function RolesTab({ connectionId }: Readonly<RolesTabProps>) {
 	const {
 		roles,
 		rolesLoading,
@@ -143,8 +143,8 @@ export function RolesTab({ connectionId }: RolesTabProps) {
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-2">
-						{[...Array(3)].map((_, i) => (
-							<div key={i} className="h-12 bg-accent animate-pulse rounded" />
+						{[1, 2, 3].map((n) => (
+							<div key={`role-skeleton-${n}`} className="h-12 bg-accent animate-pulse rounded" />
 						))}
 					</div>
 				</CardContent>

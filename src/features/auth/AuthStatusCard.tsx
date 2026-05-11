@@ -46,7 +46,7 @@ function ToggleAuthDialog({
 	onOpenChange,
 	authEnabled,
 	onToggle,
-}: ToggleAuthDialogProps) {
+}: Readonly<ToggleAuthDialogProps>) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -80,7 +80,7 @@ function ToggleAuthDialog({
 	);
 }
 
-export function AuthStatusCard({ connectionId }: AuthStatusCardProps) {
+export function AuthStatusCard({ connectionId }: Readonly<AuthStatusCardProps>) {
 	const {
 		authStatus,
 		authLoading,

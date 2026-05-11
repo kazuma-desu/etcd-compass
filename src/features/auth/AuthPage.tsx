@@ -8,7 +8,7 @@ interface AuthPageProps {
 	connectionId: string;
 }
 
-export function AuthPage({ connectionId }: AuthPageProps) {
+export function AuthPage({ connectionId }: Readonly<AuthPageProps>) {
 	return (
 		<div className="space-y-4 h-full flex flex-col">
 			<div className="flex items-center justify-between">
