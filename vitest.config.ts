@@ -10,6 +10,10 @@ export default defineConfig({
 		setupFiles: ["./src/test/setup.ts"],
 		include: ["src/**/*.{test,spec}.{ts,tsx}"],
 		exclude: ["node_modules", "dist", "src-tauri"],
+		reporters: ["default", "junit"],
+		outputFile: {
+			junit: "./test-results/junit.xml",
+		},
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "lcov"],
