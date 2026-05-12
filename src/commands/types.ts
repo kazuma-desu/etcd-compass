@@ -95,6 +95,7 @@ export interface PaginatedKeysResult {
 
 export interface AuthStatus {
 	enabled: boolean;
+	auth_revision: number;
 }
 
 export interface EtcdUser {
