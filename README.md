@@ -1,19 +1,25 @@
 # ETCD Compass
 
-A modern desktop client for ETCD Compass - distributed key-value store. Built with Tauri, React, and Rust.
+A modern desktop client for ETCD clusters. Built with Tauri, React, and Rust.
 
 <!-- ![ETCD Compass](screenshot.png) -->
 
 ## Features
 
-- 🔌 **Direct ETCD Connection** - Connect to any ETCD cluster with authentication support
+- 🔌 **Direct ETCD Connection** - Connect to any ETCD cluster with TLS and authentication support
 - 🌳 **Tree & Flat Views** - Browse keys hierarchically or as a flat list
-- 🔍 **Real-time Search** - Filter keys and values instantly
+- 🔍 **Real-time Search** - Filter keys and values with prefix and range queries
 - ➕ **CRUD Operations** - Create, read, update, and delete keys
-- 💾 **Connection History** - Quickly reconnect to previous servers
+- 📦 **Bulk Operations** - Export, import, and delete multiple keys at once
+- 💾 **Connection Profiles** - Save, favorite, and quickly reconnect to previous servers
+- 👥 **User & Role Management** - Manage ETCD RBAC users and roles
+- 📊 **Cluster Status** - View cluster health, members, and metrics
+- 🔑 **Leases & TTL** - Manage key expiration with automatic TTL
+- 👁️ **Watch & Subscribe** - Real-time key change notifications
+- 🌓 **Dark Mode** - Toggle between light and dark themes
 - 🔔 **Native Notifications** - Toast notifications for all actions
 - 🖥️ **Cross-Platform** - Windows, macOS, and Linux support
-- 🔒 **Secure** - Passwords handled securely in Rust backend
+- 🔒 **Secure** - TLS certificates handled securely in Rust backend
 
 ## Prerequisites
 
@@ -56,14 +62,16 @@ xcode-select --install
 #### Linux (Ubuntu/Debian)
 ```bash
 sudo apt update
-sudo apt install libwebkit2gtk-4.0-dev \
+sudo apt install libwebkit2gtk-4.1-dev \
+    libjavascriptcoregtk-4.1-dev \
     build-essential \
     curl \
     wget \
     libssl-dev \
     libgtk-3-dev \
     libappindicator3-dev \
-    librsvg2-dev
+    librsvg2-dev \
+    protobuf-compiler
 ```
 
 #### Windows
@@ -157,68 +165,6 @@ Download pre-built binaries from the [Releases](https://github.com/kazuma-desu/e
 └─────────────────────────────────────────┘
 ```
 
-## Development
-
-### Project Structure
-
-```
-etcd-compass/
-├── src/                    # React frontend
-│   ├── App.tsx            # Main application component
-│   ├── main.tsx           # Entry point
-│   ├── components/        # UI components
-│   └── ...
-├── src-tauri/             # Rust backend
-│   ├── src/
-│   │   ├── main.rs        # Tauri entry point
-│   │   ├── etcd.rs        # ETCD client wrapper
-│   │   └── config.rs      # Config management
-│   ├── Cargo.toml         # Rust dependencies
-│   └── tauri.conf.json    # Tauri configuration
-├── package.json           # Node dependencies
-└── vite.config.ts         # Vite configuration
-```
-
-### Adding New Tauri Commands
-
-1. Add the command in `src-tauri/src/main.rs`:
-
-```rust
-#[tauri::command]
-async fn my_command(state: State<'_, AppState>, param: String) -> Result<String, String> {
-    // Implementation
-    Ok("Success".to_string())
-}
-```
-
-2. Register in the handler:
-
-```rust
-.invoke_handler(tauri::generate_handler![
-    // ... existing commands
-    my_command,
-])
-```
-
-3. Call from frontend:
-
-```typescript
-import { invoke } from '@tauri-apps/api/tauri'
-
-const result = await invoke('my_command', { param: 'value' })
-```
-
-### Running Tests
-
-```bash
-# Frontend tests
-npm test
-
-# Backend tests
-cd src-tauri
-cargo test
-```
-
 ## Building for Distribution
 
 ### All Platforms
@@ -260,7 +206,7 @@ source $HOME/.cargo/env
 
 **Missing system libraries (Linux):**
 ```bash
-sudo apt install libwebkit2gtk-4.0-dev libssl-dev
+sudo apt install libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libssl-dev protobuf-compiler
 ```
 
 **Windows build tools:**
@@ -284,6 +230,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Acknowledgments
 
 - [Tauri](https://tauri.app/) - Desktop application framework
-- [etcd3-rs](https://github.com/etcdv3/etcd3-rs) - Rust ETCD client
+- [etcd-client](https://docs.rs/etcd-client) - Rust ETCD client
 - [shadcn/ui](https://ui.shadcn.com/) - UI components
 - [Lucide](https://lucide.dev/) - Icons
