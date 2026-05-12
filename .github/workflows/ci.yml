@@ -17,7 +17,7 @@ permissions:
 jobs:
   security:
     name: Security Scan
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -74,7 +74,7 @@ jobs:
 
   frontend-lint:
     name: Frontend Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -99,7 +99,7 @@ jobs:
   frontend-test:
     name: Frontend Test
     needs: [frontend-lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -125,9 +125,16 @@ jobs:
           path: coverage/lcov.info
           retention-days: 1
 
+      - name: Upload test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-test-results
+          path: test-results/junit.xml
+          retention-days: 1
+
   backend-lint:
     name: Backend Lint
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -163,51 +170,13 @@ jobs:
 
   backend-test:
     name: Backend Test
-    needs: [backend-lint]
-    runs-on: ubuntu-22.04
+    needs: [frontend-lint, backend-lint]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: llvm-tools
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev build-essential libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev protobuf-compiler
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@23869a5bd66c73db3c0ac40331f3206eb23791dc # v2.9.1
-        with:
-          workspaces: src-tauri
-
-      - name: Create frontend dist stub
-        run: mkdir -p dist
-
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov --locked --version 0.8.4
-
-      - name: Run tests with coverage
-        working-directory: src-tauri
-        run: cargo llvm-cov --lcov --output-path lcov.info
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: backend-coverage
-          path: src-tauri/lcov.info
-          retention-days: 1
-
-  integration-test:
-    name: Integration Test
     needs: [frontend-lint, backend-lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -236,14 +205,38 @@ jobs:
       - name: Verify Docker is available
         run: docker ps
 
-      - name: Run integration tests
+      - name: Install cargo2junit
+        run: cargo install cargo2junit --locked
+
+      - name: Run all backend tests with JUnit output
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --message-format=json | cargo2junit > junit-backend.xml
+
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked --version 0.8.4
+
+      - name: Run all backend tests with coverage
+        working-directory: src-tauri
+        run: cargo llvm-cov --lcov --output-path lcov.info
+
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-coverage
+          path: src-tauri/lcov.info
+          retention-days: 1
+
+      - name: Upload backend test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-test-results
+          path: src-tauri/junit-backend.xml
+          retention-days: 1
 
   e2e-test:
     name: E2E Test
     needs: [frontend-lint, backend-lint]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     permissions:
@@ -311,7 +304,7 @@ jobs:
   sonar:
     name: SonarCloud Analysis
     needs: [frontend-test, backend-test]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -332,6 +325,18 @@ jobs:
           name: backend-coverage
           path: backend-coverage
 
+      - name: Download frontend test results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frontend-test-results
+          path: test-results
+
+      - name: Download backend test results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: backend-test-results
+          path: backend-test-results
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         env:
@@ -345,11 +350,11 @@ jobs:
       matrix:
         include:
           - platform: linux-amd64
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
             rust-targets: ""
             tauri-args: ""
           - platform: linux-arm64
-            runner: ubuntu-22.04-arm
+            runner: ubuntu-24.04-arm
             rust-targets: ""
             tauri-args: ""
           - platform: macos
