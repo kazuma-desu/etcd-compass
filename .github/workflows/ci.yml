@@ -36,7 +36,9 @@ jobs:
         run: npm ci
 
       - name: Audit npm dependencies
-        run: npm audit --audit-level=high --omit=dev --json | npx npm-audit-sarif > npm-audit.sarif
+        run: |
+          npm audit --audit-level=high --omit=dev --json > npm-audit.json
+          npx --yes npm-audit-sarif npm-audit.json -o npm-audit.sarif
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -184,11 +186,6 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-    needs: [frontend-lint, backend-lint]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -215,7 +212,7 @@ jobs:
         run: docker ps
 
       - name: Install cargo2junit
-        run: cargo install cargo2junit --locked
+        run: cargo install cargo2junit --version 0.1.15 --locked
 
       - name: Run all backend tests with JUnit output
         working-directory: src-tauri
@@ -312,7 +309,7 @@ jobs:
 
   sonar:
     name: SonarCloud Analysis
-    needs: [frontend-test, backend-test]
+    needs: [security, frontend-test, backend-test]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
