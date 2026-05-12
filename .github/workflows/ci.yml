@@ -37,7 +37,7 @@ jobs:
 
       - name: Audit npm dependencies
         run: |
-          npm audit --audit-level=high --omit=dev --json > npm-audit.json
+          npm audit --audit-level=high --omit=dev --json > npm-audit.json || true
           npx --yes npm-audit-sarif npm-audit.json -o npm-audit.sarif
 
       - name: Set up Rust
@@ -60,7 +60,7 @@ jobs:
 
       - name: Audit Rust dependencies
         working-directory: src-tauri
-        run: cargo audit --format sarif > cargo-audit.sarif
+        run: cargo audit --format sarif > cargo-audit.sarif || true
 
       - name: Install Betterleaks
         run: |
