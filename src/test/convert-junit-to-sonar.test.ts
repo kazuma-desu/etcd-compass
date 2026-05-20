@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const __filename = fileURLToPath(import.meta.url);
 const SCRIPT_PATH = join(
 	dirname(__filename),
-	"../../../scripts/convert-junit-to-sonar.cjs",
+	"../../scripts/convert-junit-to-sonar.cjs",
 );
 
 let tmpDir: string;
