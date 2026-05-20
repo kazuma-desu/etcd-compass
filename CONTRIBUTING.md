@@ -4,7 +4,18 @@ Thanks for your interest in contributing! This document covers everything you ne
 
 ## Prerequisites
 
-See the [README](README.md#prerequisites) for installing Rust, Node.js, and system dependencies.
+- **Rust** — latest stable (MSRV: 1.77.2)
+- **Node.js** — 18+ (CI uses 24)
+- **System dependencies**:
+  - **macOS**: Xcode Command Line Tools (`xcode-select --install`)
+  - **Linux (Ubuntu/Debian)**:
+    ```bash
+    sudo apt update
+    sudo apt install libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev \
+        build-essential curl wget libssl-dev libgtk-3-dev \
+        libappindicator3-dev librsvg2-dev protobuf-compiler
+    ```
+  - **Windows**: Visual Studio Build Tools with C++ workload
 
 ## Development Setup
 
@@ -81,7 +92,7 @@ npx biome check --write .  # Auto-fix
 
 ### Backend (Rust)
 
-Standard `cargo fmt` formatting (no custom rustfmt.toml). Minimum Rust version: **1.70**.
+Standard `cargo fmt` formatting (no custom rustfmt.toml). Minimum Rust version (MSRV): **1.77.2**.
 
 ```bash
 cd src-tauri
@@ -111,6 +122,10 @@ npx vitest <pattern>  # Run tests matching pattern
 For the Rust backend:
 
 ```bash
+# Unit tests (no Docker required)
+cd src-tauri && cargo test -- --skip integration_tests --skip stress_tests
+
+# Integration tests (requires Docker)
 cd src-tauri && cargo test
 ```
 

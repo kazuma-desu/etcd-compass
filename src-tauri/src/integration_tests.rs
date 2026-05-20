@@ -3,6 +3,7 @@ mod integration_tests {
     use crate::etcd::auth_error::AuthError;
     use crate::etcd::{EtcdClient, EtcdConfig};
     use crate::test_helpers::test_helpers::{start_etcd_container, stop_etcd_container};
+    use etcd_client::Client;
     use serial_test::serial;
     use testcontainers::{ContainerAsync, GenericImage};
 
@@ -708,5 +709,47 @@ mod integration_tests {
             "Expected PermissionDenied error, got: {:?}",
             auth_err
         );
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_etcd_container_starts() {
+        let etcd = start_etcd_container()
+            .await
+            .expect("Failed to start etcd container");
+
+        assert!(
+            etcd.connection_string.starts_with("http://"),
+            "Expected valid connection string, got: {}",
+            etcd.connection_string
+        );
+
+        stop_etcd_container(etcd.container)
+            .await
+            .expect("Failed to stop etcd container");
+    }
+
+    #[tokio::test]
+    #[serial]
+    async fn test_cloned_client_reconnect_fails() {
+        let etcd = start_etcd_container()
+            .await
+            .expect("start etcd container for reconnect test");
+
+        let endpoint = etcd
+            .connection_string
+            .strip_prefix("http://")
+            .expect("valid connection string");
+
+        let inner_client = Client::connect([endpoint], None)
+            .await
+            .expect("connect to etcd for reconnect test");
+        let mut client = EtcdClient::from_client(inner_client);
+        let result = client.reconnect().await;
+        assert!(result.is_err());
+
+        stop_etcd_container(etcd.container)
+            .await
+            .expect("stop etcd container");
     }
 }

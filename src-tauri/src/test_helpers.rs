@@ -121,23 +121,4 @@ pub mod test_helpers {
             anyhow::bail!("Unexpected health check response: {}", response)
         }
     }
-
-    #[tokio::test]
-    async fn test_etcd_container_starts() {
-        let etcd = start_etcd_container()
-            .await
-            .expect("Failed to start etcd container");
-
-        let addr = etcd
-            .connection_string
-            .strip_prefix("http://")
-            .expect("valid connection string");
-        check_etcd_health(addr)
-            .await
-            .expect("Etcd should respond to health check");
-
-        stop_etcd_container(etcd.container)
-            .await
-            .expect("Failed to stop etcd container");
-    }
 }

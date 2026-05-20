@@ -52,10 +52,10 @@ tasks:
     cmd: cargo clippy -- -D warnings
 
   test:be:
-    desc: Run backend tests
+    desc: Run backend unit tests (skips Docker-dependent integration tests)
     deps: [ensure-dist]
     dir: "{{.CARGO_DIR}}"
-    cmd: cargo test
+    cmd: cargo test -- --skip integration_tests --skip stress_tests
 
   lint:
     desc: Run all linters (Biome + Typecheck + Clippy + fmt)

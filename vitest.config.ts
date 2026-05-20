@@ -10,6 +10,15 @@ export default defineConfig({
 		setupFiles: ["./src/test/setup.ts"],
 		include: ["src/**/*.{test,spec}.{ts,tsx}"],
 		exclude: ["node_modules", "dist", "src-tauri"],
+		reporters: [
+			"default",
+			"junit",
+			["vitest-sonar-reporter", { outputFile: "./test-results/sonar.xml" }],
+		],
+		outputFile: {
+			junit: "./test-results/junit.xml",
+			"vitest-sonar-reporter": "./test-results/sonar.xml",
+		},
 		coverage: {
 			provider: "v8",
 			reporter: ["text", "lcov"],
