@@ -8,13 +8,13 @@
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const __filename = fileURLToPath(import.meta.url);
 const SCRIPT_PATH = join(
-	__filename,
+	dirname(__filename),
 	"../../../scripts/convert-junit-to-sonar.cjs",
 );
 
@@ -239,7 +239,7 @@ describe("convert-junit-to-sonar.cjs", () => {
       `;
 			const output = runConverter(input);
 
-			expect(output).toContain('name="foo &amp;amp; bar"');
+			expect(output).toContain('name="foo &amp; bar"');
 		});
 
 		it("escapes less-than in test case name", () => {
@@ -250,7 +250,7 @@ describe("convert-junit-to-sonar.cjs", () => {
       `;
 			const output = runConverter(input);
 
-			expect(output).toContain('name="value &amp;lt; 10"');
+			expect(output).toContain('name="value &lt; 10"');
 		});
 
 		it("escapes greater-than in test case name", () => {
@@ -261,7 +261,7 @@ describe("convert-junit-to-sonar.cjs", () => {
       `;
 			const output = runConverter(input);
 
-			expect(output).toContain('name="value &amp;gt; 0"');
+			expect(output).toContain('name="value &gt; 0"');
 		});
 
 		it("escapes apostrophes in testsuite name", () => {
@@ -272,7 +272,7 @@ describe("convert-junit-to-sonar.cjs", () => {
       `;
 			const output = runConverter(input);
 
-			expect(output).toContain('path="it&amp;apos;s a suite"');
+			expect(output).toContain('path="it&apos;s a suite"');
 		});
 
 		it("escapes less-than in failure body content", () => {
@@ -285,7 +285,7 @@ describe("convert-junit-to-sonar.cjs", () => {
       `;
 			const output = runConverter(input);
 
-			expect(output).toContain("x &amp;lt; y");
+			expect(output).toContain("x &lt; y");
 		});
 	});
 
@@ -368,9 +368,7 @@ describe("convert-junit-to-sonar.cjs", () => {
 			expect(output).toContain(
 				'<testCase name="test_map_code_5_error" duration="500">',
 			);
-			expect(output).toContain(
-				'<file path="etcd_compass::integration_tests">',
-			);
+			expect(output).toContain('<file path="etcd_compass::integration_tests">');
 			expect(output).toContain(
 				'<testCase name="test_cloned_client_reconnect_fails" duration="434">',
 			);
@@ -477,11 +475,9 @@ line3</failure>
         </testsuite>
       `;
 			writeFileSync(inputPath, input, "utf-8");
-			const result = spawnSync(
-				"node",
-				[SCRIPT_PATH, inputPath, outputPath],
-				{ encoding: "utf-8" },
-			);
+			const result = spawnSync("node", [SCRIPT_PATH, inputPath, outputPath], {
+				encoding: "utf-8",
+			});
 			expect(result.stdout).toContain("Converted");
 			expect(result.stdout).toContain(inputPath);
 			expect(result.stdout).toContain(outputPath);

@@ -16,7 +16,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SCRIPT_PATH = path.resolve(__dirname, "../../scripts/convert-junit-to-sonar.cjs");
+const SCRIPT_PATH = path.resolve(
+	__dirname,
+	"../../scripts/convert-junit-to-sonar.cjs",
+);
 
 function runScript(args: string[]): {
 	status: number | null;
@@ -229,10 +232,7 @@ describe("convert-junit-to-sonar XML conversion", () => {
 		expect(xml).toContain('<testCase name="gamma"');
 	});
 
-	it("escapes ampersand in suite names (double-escapes raw XML entities)", () => {
-		// The regex captures raw attribute text, so "&amp;" in the source XML is
-		// captured as the literal 5-char string "&amp;". Then escapeXml() escapes
-		// the "&" again, producing "&amp;amp;" in the output.
+	it("escapes ampersand in suite names", () => {
 		const input = writeInput(
 			`<testsuite name="suite with &amp; ampersand" tests="0"></testsuite>`,
 		);
@@ -240,12 +240,10 @@ describe("convert-junit-to-sonar XML conversion", () => {
 		runScript([input, output]);
 		const xml = readOutput(output);
 
-		expect(xml).toContain('<file path="suite with &amp;amp; ampersand">');
+		expect(xml).toContain('<file path="suite with &amp; ampersand">');
 	});
 
 	it("escapes XML special characters in test case names", () => {
-		// The testcase name attribute uses double quotes in the regex pattern,
-		// so single quotes inside the name are captured literally and then escaped.
 		const input = writeInput(`
 <testsuite name="suite" tests="1">
   <testcase name="test &amp; verify" time="0.01"></testcase>
@@ -255,13 +253,10 @@ describe("convert-junit-to-sonar XML conversion", () => {
 		runScript([input, output]);
 		const xml = readOutput(output);
 
-		// "&amp;" captured as raw literal "&amp;", then escapeXml re-escapes to "&amp;amp;"
-		expect(xml).toContain('<testCase name="test &amp;amp; verify"');
+		expect(xml).toContain('<testCase name="test &amp; verify"');
 	});
 
 	it("escapes XML special characters in failure messages", () => {
-		// The raw attribute value "expected &lt;foo&gt; but got bar" is captured literally.
-		// escapeXml re-escapes the & chars: "&lt;" -> "&amp;lt;", "&gt;" -> "&amp;gt;"
 		const input = writeInput(`
 <testsuite name="suite" tests="1">
   <testcase name="fails with special chars" time="0.01">
@@ -273,7 +268,7 @@ describe("convert-junit-to-sonar XML conversion", () => {
 		runScript([input, output]);
 		const xml = readOutput(output);
 
-		expect(xml).toContain('message="expected &amp;lt;foo&amp;gt; but got bar"');
+		expect(xml).toContain('message="expected &lt;foo&gt; but got bar"');
 		expect(xml).toContain("body content");
 	});
 
@@ -289,9 +284,8 @@ describe("convert-junit-to-sonar XML conversion", () => {
 		runScript([input, output]);
 		const xml = readOutput(output);
 
-		// escapeXml is applied to the body: & becomes &amp; again, etc.
-		expect(xml).toContain("&amp;amp;");
-		expect(xml).toContain("&amp;lt;");
+		expect(xml).toContain("&amp;");
+		expect(xml).toContain("&lt;tags&gt;");
 	});
 
 	it("produces empty file block for testsuite with no testcases", () => {
@@ -351,9 +345,7 @@ describe("convert-junit-to-sonar XML conversion", () => {
 	});
 
 	it("writes output file to specified path", () => {
-		const input = writeInput(
-			'<testsuite name="s" tests="0"></testsuite>',
-		);
+		const input = writeInput('<testsuite name="s" tests="0"></testsuite>');
 		const customOutput = path.join(tmpDir, "custom-dir", "out.xml");
 		fs.mkdirSync(path.dirname(customOutput), { recursive: true });
 
@@ -395,9 +387,7 @@ describe("convert-junit-to-sonar XML conversion", () => {
 
 describe("escapeXml behavior (verified via output)", () => {
 	it("handles empty suite name", () => {
-		const input = writeInput(
-			'<testsuite name="" tests="0"></testsuite>',
-		);
+		const input = writeInput('<testsuite name="" tests="0"></testsuite>');
 		const output = outputPath();
 		runScript([input, output]);
 		const xml = readOutput(output);
@@ -405,10 +395,7 @@ describe("escapeXml behavior (verified via output)", () => {
 		expect(xml).toContain('<file path="">');
 	});
 
-	it("double-escapes ampersand in failure message attribute", () => {
-		// The regex captures raw text between quotes. "&amp;" in the source XML is
-		// captured as the 5-char literal string "&amp;". escapeXml then escapes the
-		// "&" again, producing "&amp;amp;" in the output attribute.
+	it("escapes ampersand in failure message attribute", () => {
 		const input = writeInput(`
 <testsuite name="suite" tests="1">
   <testcase name="t" time="0.01">
@@ -420,7 +407,7 @@ describe("escapeXml behavior (verified via output)", () => {
 		runScript([input, output]);
 		const xml = readOutput(output);
 
-		expect(xml).toContain('<failure message="a &amp;amp; b">');
+		expect(xml).toContain('<failure message="a &amp; b">');
 	});
 
 	it("handles single quotes in test names (escaped as &apos;)", () => {
@@ -480,9 +467,6 @@ describe("escapeXml behavior (verified via output)", () => {
 		runScript([input, output]);
 		const xml = readOutput(output);
 
-		// body = "value < 10" (from &lt; -> <), then escapeXml -> "value &lt; 10"
-		// BUT the regex matches the raw text including the XML entity, so body = "value &lt; 10"
-		// escapeXml("value &lt; 10") -> "value &amp;lt; 10"  (& gets escaped first)
-		expect(xml).toContain("&amp;lt;");
+		expect(xml).toContain("value &lt; 10");
 	});
 });

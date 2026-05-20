@@ -8,6 +8,7 @@
  */
 
 const fs = require("node:fs");
+const { XMLParser } = require("fast-xml-parser");
 
 function escapeXml(str) {
 	if (!str) return "";
@@ -19,72 +20,101 @@ function escapeXml(str) {
 		.replace(/'/g, "&apos;");
 }
 
+function getTextContent(node) {
+	if (node === undefined || node === null) return "";
+	if (typeof node === "string") return node;
+	if (typeof node === "object") {
+		if (node["#text"]) return node["#text"];
+		return "";
+	}
+	return String(node);
+}
+
 function convertJUnitToSonar(inputFile, outputFile) {
 	const xml = fs.readFileSync(inputFile, "utf-8");
+
+	const parser = new XMLParser({
+		ignoreAttributes: false,
+		attributeNamePrefix: "",
+		parseAttributeValue: false,
+		trimValues: true,
+		parseTagValue: false,
+	});
+
+	const parsed = parser.parse(xml);
 
 	let output = '<?xml version="1.0" encoding="UTF-8"?>\n';
 	output += '<testExecutions version="1">\n';
 
-	// Match each <testsuite> block (use \b to avoid matching "hostname" instead of "name")
-	const testsuiteRegex =
-		/<testsuite\s+[^>]*\bname="([^"]*)"[^>]*>([\s\S]*?)<\/testsuite>/g;
+	const testsuites = parsed.testsuites
+		? Array.isArray(parsed.testsuites.testsuite)
+			? parsed.testsuites.testsuite
+			: parsed.testsuites.testsuite
+				? [parsed.testsuites.testsuite]
+				: []
+		: parsed.testsuite
+			? Array.isArray(parsed.testsuite)
+				? parsed.testsuite
+				: [parsed.testsuite]
+			: [];
 
-	for (const suiteMatch of xml.matchAll(testsuiteRegex)) {
-		const suiteName = suiteMatch[1];
-		const suiteContent = suiteMatch[2];
-
+	for (const suite of testsuites) {
+		const suiteName = suite.name !== undefined ? suite.name : "unknown";
 		output += `  <file path="${escapeXml(suiteName)}">\n`;
 
-		// Match each <testcase> inside this testsuite
-		const testcaseRegex =
-			/<testcase\s+[^>]*name="([^"]*)"[^>]*time="([^"]*)"[^>]*>([\s\S]*?)<\/testcase>/g;
+		const testcases = suite.testcase
+			? Array.isArray(suite.testcase)
+				? suite.testcase
+				: [suite.testcase]
+			: [];
 
-		for (const tcMatch of suiteContent.matchAll(testcaseRegex)) {
-			const name = tcMatch[1];
-			const time = parseFloat(tcMatch[2]);
-			const duration = Math.round(time * 1000);
-			const innerContent = tcMatch[3].trim();
+		for (const tc of testcases) {
+			const name = tc.name !== undefined ? tc.name : "unknown";
+			const timeStr = tc.time;
+			const time = timeStr ? parseFloat(timeStr) : NaN;
+			const duration = Number.isFinite(time) ? Math.round(time * 1000) : 0;
+			if (!Number.isFinite(time)) {
+				console.warn(`Warning: malformed time attribute in testcase "${name}"`);
+			}
 
 			output += `    <testCase name="${escapeXml(name)}" duration="${duration}">`;
 
-			if (innerContent) {
-				let hasInner = false;
+			let hasInner = false;
 
-				// Check for <failure message="...">...</failure>
-				const failureMatch = innerContent.match(
-					/<failure\s+(?:[^>]*\s+)?message="([^"]*)"[^>]*>([\s\S]*?)<\/failure>/,
-				);
-				if (failureMatch) {
-					const msg = failureMatch[1];
-					const body = failureMatch[2].trim();
+			if (tc.failure) {
+				const failures = Array.isArray(tc.failure) ? tc.failure : [tc.failure];
+				for (const failure of failures) {
+					const msg = failure.message || "";
+					const body = getTextContent(failure);
 					output += `\n      <failure message="${escapeXml(msg)}">${escapeXml(body)}</failure>`;
 					hasInner = true;
 				}
+			}
 
-				// Check for <error message="...">...</error>
-				const errorMatch = innerContent.match(
-					/<error\s+(?:[^>]*\s+)?message="([^"]*)"[^>]*>([\s\S]*?)<\/error>/,
-				);
-				if (errorMatch) {
-					const msg = errorMatch[1];
-					const body = errorMatch[2].trim();
+			if (tc.error) {
+				const errors = Array.isArray(tc.error) ? tc.error : [tc.error];
+				for (const error of errors) {
+					const msg = error.message || "";
+					const body = getTextContent(error);
 					output += `\n      <error message="${escapeXml(msg)}">${escapeXml(body)}</error>`;
 					hasInner = true;
 				}
+			}
 
-				// Check for <skipped message="..."/> or <skipped>...</skipped>
-				const skippedMatch = innerContent.match(
-					/<skipped\s*(?:message="([^"]*)")?[^>]*>(?:[\s\S]*?)<\/skipped>/,
-				);
-				if (skippedMatch) {
-					const msg = skippedMatch[1] || "skipped";
+			if (tc.skipped !== undefined) {
+				const skippeds = Array.isArray(tc.skipped) ? tc.skipped : [tc.skipped];
+				for (const skipped of skippeds) {
+					let msg = "skipped";
+					if (typeof skipped === "object" && skipped !== null) {
+						msg = skipped.message || "skipped";
+					}
 					output += `\n      <skipped message="${escapeXml(msg)}"/>`;
 					hasInner = true;
 				}
+			}
 
-				if (hasInner) {
-					output += "\n    ";
-				}
+			if (hasInner) {
+				output += "\n    ";
 			}
 
 			output += "</testCase>\n";

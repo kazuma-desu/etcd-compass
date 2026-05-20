@@ -75,7 +75,7 @@ jobs:
         run: betterleaks git . -v --git-workers=4
 
       - name: Upload security SARIF reports
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: security-sarif
           path: |
@@ -216,9 +216,12 @@ jobs:
       - name: Install cargo-nextest
         run: cargo install cargo-nextest --locked --version 0.9.133
 
-      - name: Run all backend tests with JUnit output
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked --version 0.8.4
+
+      - name: Run all backend tests with coverage and JUnit output
         working-directory: src-tauri
-        run: cargo nextest run --profile ci
+        run: cargo llvm-cov nextest --profile ci --lcov --output-path lcov.info
 
       - name: Upload backend test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -226,13 +229,6 @@ jobs:
           name: backend-test-results
           path: src-tauri/target/nextest/ci/junit.xml
           retention-days: 1
-
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov --locked --version 0.8.4
-
-      - name: Run all backend tests with coverage
-        working-directory: src-tauri
-        run: cargo llvm-cov --lcov --output-path lcov.info
 
       - name: Upload backend coverage
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -345,11 +341,20 @@ jobs:
           name: backend-test-results
           path: backend-test-results
 
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Convert backend test results to Sonar format
         run: node scripts/convert-junit-to-sonar.cjs backend-test-results/junit.xml backend-test-results/sonar.xml
 
       - name: Download security SARIF reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: security-sarif
           path: security
