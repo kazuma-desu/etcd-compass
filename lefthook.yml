@@ -1,0 +1,45 @@
+# Lefthook configuration
+# https://github.com/evilmartians/lefthook
+#
+# Install hooks: npx lefthook install
+# Run manually: npx lefthook run pre-commit
+
+pre-commit:
+  parallel: true
+  commands:
+    biome-check:
+      glob: "*.{js,ts,tsx,jsx,json,jsonc,cjs,mjs}"
+      run: npx biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      skip:
+        - run: test -z "{staged_files}"
+    rust-fmt:
+      root: "src-tauri/"
+      glob: "*.rs"
+      run: cargo fmt -- --check
+      skip:
+        - run: test -z "{staged_files}"
+    trufflehog:
+      run: trufflehog git file://. --since-commit HEAD~1 --only-verified --no-update --fail
+
+pre-push:
+  parallel: true
+  commands:
+    biome-check-all:
+      run: npx biome check .
+    typecheck:
+      run: npm run typecheck
+    test-frontend:
+      run: npm run test:coverage
+    cargo-clippy:
+      root: "src-tauri/"
+      run: cargo clippy -- -D warnings
+    cargo-test:
+      root: "src-tauri/"
+      run: cargo test
+      skip:
+        - merge
+        - rebase
+    trufflehog-full:
+      run: trufflehog git file://. --since-commit origin/main --only-verified --no-update --fail
+      skip:
+        - run: test -z "$(git branch -r --contains HEAD 2>/dev/null)"
